@@ -11,7 +11,7 @@
 </div>
 
 #### Liability and License Notice
-Baileys and its maintainers cannot be held liable for misuse of this application, as stated in the [MIT license](https://github.com/Barons-Team/phoenix-baileys-v2/LICENSE).
+Baileys and its maintainers cannot be held liable for misuse of this application, as stated in the [MIT license](https://github.com/Exiqonbotz/phoenix-baileys-v2/LICENSE).
 The maintainers of Baileys do not in any way condone the use of this application in practices that violate the Terms of Service of WhatsApp. The maintainers of this application call upon the personal responsibility of its users to use this application in a fair way, as it is intended to be used.
 ##
 
@@ -1782,7 +1782,7 @@ await sock.sendMessage(
 await sock.sendMessage(
     jid,
     {
-        text: 'Hi, this was sent using https://github.com/Barons-Team/phoenix-baileys-v2'
+        text: 'Hi, this was sent using https://github.com/Exiqonbotz/phoenix-baileys-v2'
     }
 )
 ```
