@@ -2,8 +2,7 @@
 # <div align='center'>Baileys - Typescript/Javascript WhatsApp Web API</div>
 
 <div align='center'>
-
-![NPM Downloads](https://img.shields.io/npm/dw/%40whiskeysockets%2Fbaileys?label=npm&color=%23CB3837)
+	
 ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/Exiqonbotz/phoenix-baileys-v2)
 ![GitHub License](https://img.shields.io/github/license/Exiqonbotz/phoenix-baileys-v2)
 ![GitHub Repo stars](https://img.shields.io/github/stars/Exiqonbotz/phoenix-baileys-v2)
