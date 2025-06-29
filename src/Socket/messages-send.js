@@ -21,7 +21,7 @@ const link_preview_1 = require("../Utils/link-preview")
 const makeMessagesSocket = (config) => {
     const { logger, linkPreviewImageThumbnailWidth, generateHighQualityLinkPreview, options: axiosOptions, patchMessageBeforeSending, cachedGroupMetadata, } = config
     const baron = newsletter_1.makeNewsletterSocket(config)
-    const { ev, authState, processingMutex, signalRepository, upsertMessage, query, fetchPrivacySettings, sendNode, groupMetadata, groupToggleEphemeral, newsletterWMexQuery, executeUSyncQuery } = baron   
+    const { ev, authState, processingMutex, signalRepository, upsertMessage, query, fetchPrivacySettings, sendNode, groupQuery, groupMetadata, groupToggleEphemeral, newsletterWMexQuery, executeUSyncQuery } = baron   
 
     const userDevicesCache = config.userDevicesCache || new node_cache_1.default({
         stdTTL: Defaults_1.DEFAULT_CACHE_TTLS.USER_DEVICES,
@@ -366,7 +366,7 @@ const makeMessagesSocket = (config) => {
         }))
 
         return { 
-                nodes, 
+            nodes, 
             shouldIncludeDeviceIdentity 
         }
     }
@@ -399,10 +399,19 @@ const makeMessagesSocket = (config) => {
             deviceSentMessage: {
                 destinationJid,
                 message
-            }
+            }, 
+            messageContextInfo: message.messageContextInfo || {}
         }
 
         const extraAttrs = {}
+        
+        const regexGroupOld = /^(\d{1,15})-(\d+)@g\.us$/
+        
+        const messages = Utils_1.normalizeMessageContent(message)  
+
+        const buttonType = getButtonType(messages)
+        const pollMessage = messages.pollCreationMessage || messages.pollCreationMessageV2 || messages.pollCreationMessageV3
+        
 
         if (participant) {
             // when the retry request is not for a group
@@ -424,9 +433,13 @@ const makeMessagesSocket = (config) => {
                 extraAttrs['mediatype'] = mediaType
             }
 
-            if (Utils_1.normalizeMessageContent(message)?.pinInChatMessage || Utils_1.normalizeMessageContent(message)?.keepInChatMessage || message?.editedMessage) {
+            if (messages.pinInChatMessage || messages.keepInChatMessage || message.reactionMessage || message.protocolMessage?.editedMessage) {
                 extraAttrs['decrypt-fail'] = 'hide'
             } 
+            
+            if (messages.interactiveResponseMessage?.nativeFlowResponseMessage) {
+                extraAttrs['native_flow_name'] = messages.interactiveResponseMessage?.nativeFlowResponseMessage.name
+            }
 
             if (isGroup || isStatus) {
                 const [groupData, senderKeyMap] = await Promise.all([
@@ -516,7 +529,7 @@ const makeMessagesSocket = (config) => {
 
                 binaryNodeContent.push({
                     tag: 'enc',
-                    attrs: { v: '2', type: 'skmsg' },
+                    attrs: { v: '2', type: 'skmsg', ...extraAttrs }, 
                     content: ciphertext
                 })
 
@@ -541,7 +554,7 @@ const makeMessagesSocket = (config) => {
 
                 binaryNodeContent.push({
                     tag: 'plaintext',
-                    attrs: mediaType ? { mediatype: mediaType } : {},
+                    attrs: extraAttrs ? extraAttrs : {},
                     content: bytes
                 })
             }
@@ -617,7 +630,7 @@ const makeMessagesSocket = (config) => {
                 tag: 'message',
                 attrs: {
                     id: msgId,
-                    type: isNewsletter ? getTypeMessage(message) : 'text',
+                    type: getTypeMessage(message), 
                     ...(additionalAttributes || {})
                 },
                 content: binaryNodeContent
@@ -655,17 +668,30 @@ const makeMessagesSocket = (config) => {
 
                 logger.debug({ jid }, 'adding device identity')
             }
+            
+            if (isGroup && regexGroupOld.test(jid) && !message.reactionMessage) {
+                stanza.content.push({
+                    tag: 'multicast',
+                    attrs: {}
+                }) 
+           }
 
-            const messages = Utils_1.normalizeMessageContent(message)  
-
-            const buttonType = getButtonType(messages)
-
+            if (pollMessage || messages.eventMessage) {
+                stanza.content.push({
+                    tag: 'meta', 
+                    attrs: messages.eventMessage ? {
+                    	event_type: 'creation'
+                    } : isNewsletter ? {
+                    	polltype: 'creation', 
+                        contenttype: pollMessage?.pollContentType === 2 ? 'image' : 'text'
+                    } : {
+                    	polltype: 'creation'
+                    }
+                }) 
+            }
+            
             if (!isNewsletter && buttonType) {
-                if (!stanza.content || !Array.isArray(stanza.content)) {
-                    stanza.content = []
-                }
                 const buttonsNode = getButtonArgs(messages)
-
                 const filteredButtons = WABinary_1.getBinaryFilteredButtons(additionalNodes ? additionalNodes : [])
 
                 if (filteredButtons) {
@@ -677,16 +703,12 @@ const makeMessagesSocket = (config) => {
                     stanza.content.push(buttonsNode)
                 }
             }
-
+            
             if (isPrivate) {
-                if (!stanza.content || !Array.isArray(stanza.content)) {
-                    stanza.content = []
-                }
-
-                    const botNode = {
-                        tag: 'bot', 
-                        attrs: {
-                            biz_bot: '1'
+                const botNode = {
+                    tag: 'bot', 
+                    attrs: {
+                        biz_bot: '1'
                     }
                 }
 
@@ -703,10 +725,6 @@ const makeMessagesSocket = (config) => {
             }
 
             if (!didPushAdditional && additionalNodes && additionalNodes.length > 0) {
-                if (!stanza.content || !Array.isArray(stanza.content)) {
-                    stanza.content = []
-                }
-
                 stanza.content.push(...additionalNodes)
             }  
 
@@ -720,9 +738,15 @@ const makeMessagesSocket = (config) => {
 
     const getTypeMessage = (msg) => {
         const message = Utils_1.normalizeMessageContent(msg)  
-        if (message.reactionMessage) {
+        if (message.pollCreationMessage || message.pollCreationMessageV2 || message.pollCreationMessageV3) {
+            return 'poll'
+        }       
+        else if (message.reactionMessage) {
             return 'reaction'
         }       
+        else if (message.eventMessage) {
+            return 'event'
+        }        
         else if (getMediaType(message)) {
             return 'media'
         }        
@@ -736,7 +760,7 @@ const makeMessagesSocket = (config) => {
             return 'image'
         }
         else if (message.stickerMessage) {
-        	return message.stickerMessage.isLottie ? '1p_sticker' : 'sticker'
+        	return message.stickerMessage.isLottie ? '1p_sticker' : message.stickerMessage.isAvatar ? 'avatar_sticker' : 'sticker'
         }
         else if (message.videoMessage) {
             return message.videoMessage.gifPlayback ? 'gif' : 'video'
@@ -753,14 +777,17 @@ const makeMessagesSocket = (config) => {
         else if (message.documentMessage) {
             return 'document'
         }
+        else if (message.stickerPackMessage) {
+            return 'sticker_pack'
+        }
         else if (message.contactsArrayMessage) {
             return 'contact_array'
         }
+        else if (message.locationMessage) {
+            return 'location'
+        }
         else if (message.liveLocationMessage) {
             return 'livelocation'
-        }
-        else if (message.stickerMessage) {
-            return 'sticker'
         }
         else if (message.listMessage) {
             return 'list'
@@ -780,14 +807,14 @@ const makeMessagesSocket = (config) => {
         else if (message.interactiveResponseMessage) {
             return 'native_flow_response'
         }
-        else if (message.groupInviteMessage) {
-            return 'url'
-        }
         else if (/https:\/\/wa\.me\/c\/\d+/.test(message.extendedTextMessage?.text)) {
             return 'cataloglink'
         }
         else if (/https:\/\/wa\.me\/p\/\d+\/\d+/.test(message.extendedTextMessage?.text)) {
             return 'productlink'
+        }
+        else if (message.extendedTextMessage?.matchedText || message.groupInviteMessage) {
+            return 'url'
         }
     }
 
@@ -980,59 +1007,155 @@ const makeMessagesSocket = (config) => {
 
             return message
         },
-        sendStatusMentions: async (jid, content) => {                            
-            const media = await Utils_1.generateWAMessage(WABinary_1.STORIES_JID, content, {
-                   upload: await waUploadToServer,
-                   backgroundColor: "#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0"), 
-                   font: content.text ? Math.floor(Math.random() * 9) : null
-            })
+        sendStatusMentions: async (content, jids = []) => {
+          const userJid = WABinary_1.jidNormalizedUser(authState.creds.me.id)
+          let allUsers = new Set()
+          allUsers.add(userJid)
 
-            const additionalNodes = [{
+          for (const id of jids) {
+            const isGroup = WABinary_1.isJidGroup(id) 
+            const isPrivate = WABinary_1.isJidUser(id) 
+
+            if (isGroup) {
+              try {
+                const metadata = await cachedGroupMetadata(id) || await groupMetadata(id)
+                const participants = metadata.participants.map(p => WABinary_1.jidNormalizedUser(p.id))
+                participants.forEach(jid => allUsers.add(jid))
+              } catch (error) {
+                logger.error(`Error getting metadata for group ${id}: ${error}`)
+              }
+            } else if (isPrivate) {
+              allUsers.add(WABinary_1.jidNormalizedUser(id))
+            }
+          }
+
+          const uniqueUsers = Array.from(allUsers)
+          const getRandomHexColor = () => "#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0")
+
+          const isMedia = content.image || content.video || content.audio
+          const isAudio = !!content.audio
+
+          const messageContent = { ...content }
+
+          if (isMedia && !isAudio) {
+            if (messageContent.text) {
+              messageContent.caption = messageContent.text
+              
+              delete messageContent.text
+            }
+            
+            delete messageContent.ptt
+            delete messageContent.font
+            delete messageContent.backgroundColor
+            delete messageContent.textColor
+          }
+
+          if (isAudio) {
+            delete messageContent.text
+            delete messageContent.caption
+            delete messageContent.font
+            delete messageContent.textColor
+          }
+
+          const font = !isMedia ? (content.font || Math.floor(Math.random() * 9)) : undefined
+          const textColor = !isMedia ? (content.textColor || getRandomHexColor()) : undefined
+          const backgroundColor = (!isMedia || isAudio) ? (content.backgroundColor || getRandomHexColor()) : undefined
+          const ptt = isAudio ? (typeof content.ptt === 'boolean' ? content.ptt : true) : undefined
+
+          let msg
+          let mediaHandle
+          try {
+            msg = await Utils_1.generateWAMessage(WABinary_1.STORIES_JID, messageContent, {
+              logger,
+              userJid,
+              getUrlInfo: text => link_preview_1.getUrlInfo(text, {
+                thumbnailWidth: linkPreviewImageThumbnailWidth,
+                fetchOpts: { timeout: 3000, ...axiosOptions || {} },
+                logger,
+                uploadImage: generateHighQualityLinkPreview ? waUploadToServer : undefined
+              }),
+              upload: async (encFilePath, opts) => {
+                const up = await waUploadToServer(encFilePath, { ...opts })
+                mediaHandle = up.handle
+                return up
+              },
+              mediaCache: config.mediaCache,
+              options: config.options,
+              font,
+              textColor,
+              backgroundColor,
+              ptt
+            })
+          } catch (error) {
+            logger.error(`Error generating message: ${error}`)
+            throw error
+          }
+
+          await relayMessage(WABinary_1.STORIES_JID, msg.message, {
+            messageId: msg.key.id,
+            statusJidList: uniqueUsers, 
+            additionalNodes: [
+              {
                 tag: 'meta',
                 attrs: {},
-                content: [{
+                content: [
+                  {
                     tag: 'mentioned_users',
                     attrs: {},
-                    content: [{
-                        tag: 'to',
-                        attrs: { jid }
-                    }]
-                }]
-            }]
+                    content: jids.map(jid => ({
+                      tag: 'to',
+                      attrs: { jid: WABinary_1.jidNormalizedUser(jid) }
+                    }))
+                  }]
+              }]
+          })
 
-            let Private = WABinary_1.isJidUser(jid)
-            let statusJid = Private ? [jid] : (await groupMetadata(jid)).participants.map((num) => num.id)
+          for (const id of jids) {
+            try {
+              const normalizedId = WABinary_1.jidNormalizedUser(id)
+              const isPrivate = WABinary_1.isJidUser(normalizedId) 
+              const type = isPrivate ? 'statusMentionMessage' : 'groupStatusMentionMessage'
 
-            await relayMessage(WABinary_1.STORIES_JID, media.message, {
-                messageId: media.key.id,
-                statusJidList: statusJid, 
-                additionalNodes 
-            })
-
-            let type = Private ? 'statusMentionMessage' : 'groupStatusMentionMessage'   
-
-            let msg = await Utils_1.generateWAMessageFromContent(jid, {
+              const protocolMessage = {
                 [type]: {
-                    message: {
-                        protocolMessage: {
-                            key: media.key,
-                            type: 25
-                        }
+                  message: {
+                    protocolMessage: {
+                      key: msg.key,
+                      type: 25
                     }
+                  }
+                },
+                messageContextInfo: {
+                  messageSecret: crypto_1.randomBytes(32)
                 }
-            }, {})
+              }
 
-           await relayMessage(jid, msg.message, { 
-           	additionalNodes: [{
-          	     tag: 'meta',
-                   attrs: Private ? 
-                   { is_status_mention: 'true' } : 
-                   { is_group_status_mention: 'true' },
-                 }]
-            })
+              const statusMsg = await Utils_1.generateWAMessageFromContent(normalizedId,
+                protocolMessage,
+                {}
+              )
 
-            return media
-        }, 
+              await relayMessage(
+                normalizedId,
+                statusMsg.message,
+                {
+                  additionalNodes: [{
+                    tag: 'meta',
+                    attrs: isPrivate ?
+                    { is_status_mention: 'true' } :
+                    { is_group_status_mention: 'true' }
+                  }]
+                }
+              )
+
+              await Utils_1.delay(2000)
+            } catch (error) {
+              logger.error(`Error sending to ${id}: ${error}`)
+            }
+          }
+
+          return msg
+        },
         sendAlbumMessage: async (jid, medias, options = {}) => {
             const userJid = authState.creds.me.id
 
@@ -1111,6 +1234,20 @@ const makeMessagesSocket = (config) => {
         },
         sendMessage: async (jid, content, options = {}) => {
             const userJid = authState.creds.me.id
+            
+            if (!options.ephemeralExpiration) {
+            	if (WABinary_1.isJidGroup(jid)) {
+					const groups = await groupQuery(jid, 'get', [{
+						tag: 'query',
+						attrs: {
+							request: 'interactive'
+						}
+					}])
+					const metadata = WABinary_1.getBinaryNodeChild(groups, 'group')
+					const expiration = WABinary_1.getBinaryNodeChild(metadata, 'ephemeral')?.attrs?.expiration || 0
+					options.ephemeralExpiration = expiration
+				}
+			}
 
             if (typeof content === 'object' &&
                 'disappearingMessagesInChat' in content &&
@@ -1158,9 +1295,11 @@ const makeMessagesSocket = (config) => {
                 const isPin = 'pin' in content && !!content.pin
                 const isEdit = 'edit' in content && !!content.edit
                 const isDelete = 'delete' in content && !!content.delete
+                const isKeep = 'keep' in content && !!content.keep && content.keep?.type === 2
+                
                 const additionalAttributes = {}
 
-                if (isDelete) {
+                if (isDelete || isKeep) {
                     // if the chat is a group, and I am not the author, then delete the message as an admin
                     if (WABinary_1.isJidGroup(content.delete?.remoteJid) && !content.delete?.fromMe || WABinary_1.isJidNewsletter(jid)) {
                         additionalAttributes.edit = '8'
