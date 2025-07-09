@@ -1,8 +1,8 @@
-
 # <div align='center'>Baileys - Typescript/Javascript WhatsApp Web API</div>
 
 <div align='center'>
-	
+
+![NPM Downloads](https://img.shields.io/npm/dw/phoenix-baileys-v2?label=npm&color=%23CB3837)
 ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/Exiqonbotz/phoenix-baileys-v2)
 ![GitHub License](https://img.shields.io/github/license/Exiqonbotz/phoenix-baileys-v2)
 ![GitHub Repo stars](https://img.shields.io/github/stars/Exiqonbotz/phoenix-baileys-v2)
@@ -28,12 +28,12 @@ yarn add phoenix-baileys-v2
 
 Use the edge version (no guarantee of stability, but latest fixes + features)
 ```
-yarn add github:(soon)
+yarn add github:Exiqonbotz/phoenix-baileys-v2
 ```
 
 Then import your code using:
 ```ts 
-import makeWASocket from ' phoenix-baileys-v2'
+import makeWASocket from 'phoenix-baileys-v2'
 ```
 
 # Index
@@ -92,6 +92,7 @@ import makeWASocket from ' phoenix-baileys-v2'
         - [Send Album Message](#send-album-message) 
         - [Shop Message](#shop-message) 
         - [Collection Message](#collection-message) 
+        - [Sticker Pack Message](#Sticker-Pack-Message)
     - [Sending with Link Preview](#sending-messages-with-link-previews)
     - [Media Messages](#media-messages)
         - [Gif Message](#gif-message)
@@ -310,6 +311,65 @@ const sock = makeWASocket()
 sock.ev.on('messages.upsert', ({ messages }) => {
     console.log('got messages', messages)
 })
+```
+This is a fix mention @lid for bots working in groups
+
+```js
+
+sock.ev.on('messages.upsert', async chatUpdate => {
+try {
+mek = chatUpdate.messages[0]
+if (!mek.message) return
+mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message
+const m = mek
+const isGroup = m.key.remoteJid.endsWith('@g.us');
+const mentionedJid = mek.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+if (isGroup && Array.isArray(mentionedJid) && mentionedJid.some(j => j.endsWith('@lid'))) {
+    const groupMetadata = await sock.groupMetadata(mek.key.remoteJid);
+    const resolvedMentions = mentionedJid.map(jid => {
+        if (jid.endsWith('@lid')) {
+            const match = groupMetadata.participants.find(p => p.id === jid);
+            return match?.jid || jid;
+        }
+        return jid;
+    });
+    mek.message.extendedTextMessage.contextInfo.mentionedJid = resolvedMentions;
+const lidMap = {};
+mentionedJid.forEach(originalLid => {
+    if (originalLid.endsWith('@lid')) {
+        const match = groupMetadata.participants.find(p => p.id === originalLid);
+        if (match && match.jid) {
+            const jidNumber = match.jid.split('@')[0]; 
+            const lidNumber = originalLid.split('@')[0];
+            lidMap[lidNumber] = jidNumber;
+        }
+    }
+});
+const replaceLidInText = (text) => {
+    if (!text) return text;
+    Object.entries(lidMap).forEach(([lidNum, jidNum]) => {
+        const regex = new RegExp(`@${lidNum}\\b`, 'g');
+        text = text.replace(regex, `@${jidNum}`);
+    });
+    return text;
+};
+if (mek.message.conversation) {
+    mek.message.conversation = replaceLidInText(mek.message.conversation);
+}
+if (mek.message.extendedTextMessage?.text) {
+    mek.message.extendedTextMessage.text = replaceLidInText(mek.message.extendedTextMessage.text);
+}
+    let msg = {
+        messages: [proto.WebMessageInfo.fromObject(mek)],
+        type: "append",
+    };
+    return conn.ev.emit("messages.upsert", msg);
+}
+} catch (err) {
+
+}
+});
+
 ```
 
 ### Example to Start
@@ -1462,14 +1522,51 @@ await sock.sendMessage(
 
 ### Status Mentions Message
 ```ts
+const jids = [
+    '123451679@g.us', 
+    '124848899@g.us', 
+    '111384848@g.us', 
+    '62689xxxx@s.whatsapp.net', 
+    '62xxxxxxx@s.whatsapp.net'
+]
+// Text
 await sock.sendStatusMentions(
-   jid, 
     {
-      image: {
-       url: 'https://example.com.jpg'
-       }, 
-       caption: 'Hi'
-    }
+      text: 'Hello Everyone', 
+      font: 2, // optional
+      textColor: 'FF0000', // optional
+      backgroundColor: '#000000' // optional
+    }, 
+    jids // Limit to 5 mentions per status
+)
+
+// Image
+await sock.sendStatusMentions(
+    {
+      Image: { url: 'https://example.com/ruriooe.jpg' }, or image buffer
+      caption: 'Hello Everyone ' // optional
+    }, 
+    jids // Limit to 5 mentions per status
+)
+
+// Video
+await sock.sendStatusMentions(
+    {
+      video: { url: 'https://example.com/ruriooe.mp4' }, or video buffer
+      caption: 'Hello Everyone ' // optional
+    }, 
+    jids // Limit to 5 mentions per status
+)
+
+// Audio
+await sock.sendStatusMentions(
+    {
+      audio: { url: 'https://example.com/ruriooe.mp3' }, or audio buffer
+      backgroundColor: '#000000', // optional 
+      mimetype: 'audio/mp4', 
+      ppt: true
+    }, 
+    jids // Limit to 5 mentions per status
 )
 ```
 
@@ -1768,6 +1865,31 @@ await sock.sendMessage(
        }, 
         hasMediaAttachment: false, // or true
         viewOnce: true
+    }
+)
+```
+### Sticker Pack Message
+```ts 
+// I don't know why the sticker doesn't appear
+await sock.sendMessage(
+    jid,
+    {
+        stickerPack: {
+            name: 'Hiii', 
+            publisher: 'Baron', 
+            description: 'Hello', 
+            cover: Buffer, // Image buffer
+            stickers: [{
+                data: { url: 'https://example.com/1234kjd.webp' }, 
+                emojis: ['❤'], // optional
+                accessibilityLabel: '' // optional
+            }, 
+            {
+                data: Buffer, 
+                emojis: ['❤'], // optional
+                accessibilityLabel: '' // optional
+            }]
+        }
     }
 )
 ```
