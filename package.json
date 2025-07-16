@@ -1,6 +1,6 @@
 {
   "name": "phoenix-baileys-v2",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "description": "WhatsApp API",
   "keywords": [
     "whatsapp",
@@ -15,7 +15,7 @@
     "url": "git@github.com:Exiqonbotz/phoenix-baileys-v2.git"
   },
   "license": "MIT",
-  "author": "Baron",
+  "author": "Exiqonbotz",
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "files": [
