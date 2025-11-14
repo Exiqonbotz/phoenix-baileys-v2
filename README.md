@@ -444,7 +444,7 @@ const connectAuth = async() => {
     })
 }
   await client.connect()
-  const collection = client.db("@Team-Phoenix").collection("sessions")
+  const collection = client.db("@Exiqon").collection("sessions")
   return collection
 }
 
@@ -468,7 +468,7 @@ sock.ev.on('creds.update', saveCreds)
 import pino from "pino"
 import { makeInMemoryStore, getAggregateVotesInPollMessage } from 'phoenix-baileys-v2'
 
-const logger = pino({ timestamp: () => `,"time":"${new Date().toJSON()}"` }).child({ class: "@Team-Phoenix" })
+const logger = pino({ timestamp: () => `,"time":"${new Date().toJSON()}"` }).child({ class: "@Exiqon" })
 logger.level = "fatal"
 const store = makeInMemoryStore({ logger })
 
@@ -478,7 +478,7 @@ async function getMessage(key){
         return msg?.message
     }
     return {
-        conversation: "Team-Phoenix"
+        conversation: "Exiqon"
     }
 } 
 
@@ -645,7 +645,7 @@ await sock.sendMessage(
     id,
     { 
         contacts: { 
-            displayName: 'Team-Phoenix', 
+            displayName: 'Exiqon', 
             contacts: [{ vcard }] 
         }
     }
@@ -1261,7 +1261,7 @@ await sock.sendMessage(
                     flow_message_version: '3', 
                     flow_token: '1:1307913409923914:293680f87029f5a13d1ec5e35e718af3',
                     flow_id: '1307913409923914',
-                    flow_cta: 'Team-Phoenix >\\<', 
+                    flow_cta: 'Exiqon >\\<', 
                     flow_action: 'navigate', 
                     flow_action_payload: {
                     	screen: 'QUESTION_ONE',
@@ -1422,7 +1422,7 @@ await sock.sendMessage(
             description: 'Description',
             currencyCode: 'IDR',
             priceAmount1000: '283xxx',
-            retailerId: 'Team-Phoenix',
+            retailerId: 'Exiqon',
             url: 'https://example.com',
             productImageCount: 1
         },
@@ -1458,7 +1458,7 @@ await sock.sendMessage(
                 payment_settings: [{ 
                    type: "pix_static_code", 
                    pix_static_code:  { 
-                      merchant_name: 'Team-Phoenix', 
+                      merchant_name: 'Exiqon', 
                       key: 'example@gmail.com', 
                       key_type: 'EMAIL' // PHONE || EMAIL || CPF || EVP 
                    } 
@@ -1502,7 +1502,7 @@ await sock.sendMessage(
                     order_type: 'PAYMENT_REQUEST', 
                     items: [{
                         retailer_id: 'your_retailer_id', 
-                        name: 'Team-Phoenix >\\\<', 
+                        name: 'Exiqon >\\\<', 
                         amount: {
                             value: '999999999', 
                             offset: '100'
@@ -1510,7 +1510,7 @@ await sock.sendMessage(
                         quantity: '1', 
                     }]
                 }, 
-                additional_note: 'Team-Phoenix >\\\<', 
+                additional_note: 'Exiqon >\\\<', 
                 native_payment_methods: [], 
                 share_payment_status: false
             }) 
@@ -1712,7 +1712,7 @@ await sock.sendMessage(
             description: 'Description',
             currencyCode: 'IDR',
             priceAmount1000: '283xxx',
-            retailerId: 'Team-Phoenix',
+            retailerId: 'Exiqon',
             url: 'https://example.com',
             productImageCount: 1
         },
@@ -1849,7 +1849,7 @@ await sock.sendMessage(
             description: 'Description',
             currencyCode: 'IDR',
             priceAmount1000: '283xxx',
-            retailerId: 'Team-Phoenix',
+            retailerId: 'Exiqon',
             url: 'https://example.com',
             productImageCount: 1
         },
@@ -1876,7 +1876,7 @@ await sock.sendMessage(
     {
         stickerPack: {
             name: 'Hiii', 
-            publisher: 'Team-Phoenix', 
+            publisher: 'Exiqon', 
             description: 'Hello', 
             cover: Buffer, // Image buffer
             stickers: [{
