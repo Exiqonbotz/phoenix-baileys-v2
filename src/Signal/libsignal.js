@@ -314,14 +314,27 @@ function makeLibSignalRepository(auth, logger, pnToLIDFunc) {
 const jidToSignalProtocolAddress = (jid) => {
     const decoded = (0, WABinary_1.jidDecode)(jid);
     const { user, device, server, domainType } = decoded;
+
     if (!user) {
         throw new Error(`JID decoded but user is empty: "${jid}" -> user: "${user}", server: "${server}", device: ${device}`);
     }
-    const signalUser = domainType !== WABinary_1.WAJIDDomains.WHATSAPP ? `${user}_${domainType}` : user;
-    const finalDevice = device || 0;
-    if (device === 99 && decoded.server !== 'hosted' && decoded.server !== 'hosted.lid') {
-        throw new Error('Unexpected non-hosted device JID with device 99. This ID seems invalid. ID:' + jid);
+
+    const signalUser = domainType !== WABinary_1.WAJIDDomains.WHATSAPP
+        ? `${user}_${domainType}`
+        : user;
+
+    // 🔥 HOTFIX:
+    // Sonderfall: device 99 bei nicht-hosted → NICHT mehr crashen,
+    // sondern wie das Primärgerät (0) behandeln.
+    let finalDevice;
+    if (device === 99 && server !== 'hosted' && server !== 'hosted.lid') {
+        // optional: einmal loggen, falls du debuggen willst
+        // console.warn('Mapping unexpected device 99 to 0 for JID:', jid);
+        finalDevice = 0;
+    } else {
+        finalDevice = device || 0;
     }
+
     return new libsignal.ProtocolAddress(signalUser, finalDevice);
 };
 const jidToSignalSenderKeyName = (group, user) => {
