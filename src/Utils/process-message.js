@@ -1,4 +1,4 @@
-"use strict";
+"use strict"; 
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getChatId = exports.shouldIncrementChatUnread = exports.isRealMessage = exports.cleanMessage = void 0;
 exports.decryptPollVote = decryptPollVote;
@@ -299,14 +299,22 @@ const processMessage = async (message, { shouldProcessHistoryMsg, placeholderRes
             });
         };
         const participantsIncludesMe = () => participants.find(jid => (0, WABinary_1.areJidsSameUser)(meId, jid.phoneNumber)); // ADD SUPPORT FOR LID
+        const safeParseParam = (a) => {
+            try {
+                return JSON.parse(a);
+            }
+            catch {
+                return a;
+            }
+        };
         switch (message.messageStubType) {
             case Types_1.WAMessageStubType.GROUP_PARTICIPANT_CHANGE_NUMBER:
-                participants = message.messageStubParameters.map((a) => JSON.parse(a)) || [];
+                participants = message.messageStubParameters.map((a) => safeParseParam(a)) || [];
                 emitParticipantsUpdate('modify');
                 break;
             case Types_1.WAMessageStubType.GROUP_PARTICIPANT_LEAVE:
             case Types_1.WAMessageStubType.GROUP_PARTICIPANT_REMOVE:
-                participants = message.messageStubParameters.map((a) => JSON.parse(a)) || [];
+                participants = message.messageStubParameters.map((a) => safeParseParam(a)) || [];
                 emitParticipantsUpdate('remove');
                 // mark the chat read only if you left the group
                 if (participantsIncludesMe()) {
@@ -316,18 +324,18 @@ const processMessage = async (message, { shouldProcessHistoryMsg, placeholderRes
             case Types_1.WAMessageStubType.GROUP_PARTICIPANT_ADD:
             case Types_1.WAMessageStubType.GROUP_PARTICIPANT_INVITE:
             case Types_1.WAMessageStubType.GROUP_PARTICIPANT_ADD_REQUEST_JOIN:
-                participants = message.messageStubParameters.map((a) => JSON.parse(a)) || [];
+                participants = message.messageStubParameters.map((a) => safeParseParam(a)) || [];
                 if (participantsIncludesMe()) {
                     chat.readOnly = false;
                 }
                 emitParticipantsUpdate('add');
                 break;
             case Types_1.WAMessageStubType.GROUP_PARTICIPANT_DEMOTE:
-                participants = message.messageStubParameters.map((a) => JSON.parse(a)) || [];
+                participants = message.messageStubParameters.map((a) => safeParseParam(a)) || [];
                 emitParticipantsUpdate('demote');
                 break;
             case Types_1.WAMessageStubType.GROUP_PARTICIPANT_PROMOTE:
-                participants = message.messageStubParameters.map((a) => JSON.parse(a)) || [];
+                participants = message.messageStubParameters.map((a) => safeParseParam(a)) || [];
                 emitParticipantsUpdate('promote');
                 break;
             case Types_1.WAMessageStubType.GROUP_CHANGE_ANNOUNCE:
@@ -361,7 +369,7 @@ const processMessage = async (message, { shouldProcessHistoryMsg, placeholderRes
                 emitGroupUpdate({ joinApprovalMode: approvalMode === 'on' });
                 break;
             case Types_1.WAMessageStubType.GROUP_MEMBERSHIP_JOIN_APPROVAL_REQUEST_NON_ADMIN_ADD: // TODO: Add other events
-                const participant = JSON.parse((_q = message.messageStubParameters) === null || _q === void 0 ? void 0 : _q[0]);
+                const participant = safeParseParam((_q = message.messageStubParameters) === null || _q === void 0 ? void 0 : _q[0]);
                 const action = (_r = message.messageStubParameters) === null || _r === void 0 ? void 0 : _r[1];
                 const method = (_s = message.messageStubParameters) === null || _s === void 0 ? void 0 : _s[2];
                 emitGroupRequestJoin(participant, action, method);
