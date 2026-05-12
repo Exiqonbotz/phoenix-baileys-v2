@@ -2,6 +2,7 @@
 Object.defineProperty(exports, '__esModule', { value: true })
 exports.decryptMessageNode =
 	exports.extractAddressingContext =
+	exports.SERVER_ERROR_CODES =
 	exports.NACK_REASONS =
 	exports.DECRYPTION_RETRY_CONFIG =
 	exports.MISSING_KEYS_ERROR_TEXT =
@@ -17,12 +18,12 @@ const WABinary_1 = require('../WABinary')
 const generics_1 = require('./generics')
 const meta_ai_msmsg_1 = require('./meta-ai-msmsg')
 const messages_1 = require('./messages')
-const MAX_SECRETS_PER_CHAT = 20;
+const MAX_SECRETS_PER_CHAT = 20
 // Module-level map: outgoing @bot message ID → messageSecret
 // Populated when we receive the outgoing pkmsg/msg to @bot (which contains messageContextInfo.messageSecret)
 // Consumed when the msmsg response from @bot arrives and needs decryption
-const botMessageSecrets = new Map();
-const botRecentSecretsByChat = new Map();
+const botMessageSecrets = new Map()
+const botRecentSecretsByChat = new Map()
 const pushRecentChatSecret = (chatJid, id, secretBuf) => {
 	if (!chatJid || !secretBuf) return
 	const existing = botRecentSecretsByChat.get(chatJid) || []
@@ -52,7 +53,12 @@ const setBotMessageSecret = (id, secret, chatJid) => {
 }
 exports.setBotMessageSecret = setBotMessageSecret
 const getDecryptionJid = async (sender, repository) => {
-	if ((0, WABinary_1.isLidUser)(sender) || (0, WABinary_1.isHostedLidUser)(sender)) {
+	if (
+		(0, WABinary_1.isLidUser)(sender) ||
+		(0, WABinary_1.isHostedLidUser)(sender) ||
+		(0, WABinary_1.isInteropUser)(sender)
+	) {
+		// LID and interop JIDs are session keys themselves — no PN mapping lookup needed
 		return sender
 	}
 	const mapped = await repository.lidMapping.getLIDForPN(sender)
@@ -79,6 +85,16 @@ const storeMappingFromEnvelope = async (stanza, sender, repository, decryptionJi
 }
 exports.NO_MESSAGE_FOUND_ERROR_TEXT = 'Message absent from node'
 exports.MISSING_KEYS_ERROR_TEXT = 'Key used already or never filled'
+/**
+ * Server-side error codes returned in ack stanzas (server → client).
+ * Distinct from the client-side NackReason enum.
+ */
+exports.SERVER_ERROR_CODES = {
+	/** 1:1 message missing privacy token (tctoken) */
+	MissingTcToken: '463',
+	/** Stanza validation failure (SMAX_INVALID) — likely stale device session */
+	SmaxInvalid: '479'
+}
 // Retry configuration for failed decryption
 exports.DECRYPTION_RETRY_CONFIG = {
 	maxRetries: 3,
@@ -197,23 +213,35 @@ function decodeMessageNode(stanza, meId, meLid) {
 		// if (isMe(from) || isMeLid(from)) {
 		// 	fromMe = true
 		// }
-		
-    fromMe = (0, WABinary_1.isJidNewsletter)(from)
-      ? !!stanza.attrs?.is_sender
-      : (0, WABinary_1.isLidUser)(from)
-        ? (0, WABinary_1.areJidsSameUser)(from, meLid)
-        : (0, WABinary_1.areJidsSameUser)(from, meId);
+
+		fromMe = (0, WABinary_1.isJidNewsletter)(from)
+			? !!stanza.attrs?.is_sender
+			: (0, WABinary_1.isLidUser)(from)
+				? (0, WABinary_1.areJidsSameUser)(from, meLid)
+				: (0, WABinary_1.areJidsSameUser)(from, meId)
+	} else if ((0, WABinary_1.isInteropUser)(from)) {
+		// Message from an interop contact (Facebook Messenger / Instagram via WA bridge).
+		// Treat as regular 1:1 chat — same Signal decrypt path as @s.whatsapp.net / @lid.
+		msgType = 'chat'
+		chatId = from
+		author = from
+		fromMe = false
 	} else {
 		throw new boom_1.Boom('Unknown message type', { data: stanza })
 	}
-	const pushname = stanza?.attrs?.notify
+	// Interop stanzas (BirdyChat/Haiket) use display_name instead of notify
+	const pushname = stanza?.attrs?.notify ?? stanza?.attrs?.display_name
 	const key = {
 		remoteJid: chatId,
 		remoteJidAlt: !(0, WABinary_1.isJidGroup)(chatId) ? addressingContext.senderAlt : undefined,
+		remoteJidUsername: !(0, WABinary_1.isJidGroup)(chatId)
+			? stanza.attrs.peer_recipient_username || stanza.attrs.recipient_username
+			: undefined,
 		fromMe,
 		id: msgId,
 		participant,
 		participantAlt: (0, WABinary_1.isJidGroup)(chatId) ? addressingContext.senderAlt : undefined,
+		participantUsername: stanza.attrs.participant ? stanza.attrs.participant_username : undefined,
 		addressingMode: addressingContext.addressingMode,
 		...(msgType === 'newsletter' && stanza.attrs.server_id ? { server_id: stanza.attrs.server_id } : {})
 	}
@@ -244,10 +272,10 @@ function decodeMessageNode(stanza, meId, meLid) {
 }
 const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
 	const { fullMessage, author, sender } = decodeMessageNode(stanza, meId, meLid)
-	let metaTargetId = null;
-    let botEditTargetId = null;
-    let botType = null;
-    let metaTargetSenderJid = null;
+	let metaTargetId = null
+	let botEditTargetId = null
+	let botType = null
+	let metaTargetSenderJid = null
 	return {
 		fullMessage,
 		category: stanza.attrs.category,
@@ -255,29 +283,29 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
 		async decrypt() {
 			let decryptables = 0
 			if (Array.isArray(stanza.content)) {
-				 let hasMsmsg = false;
-                for (const { attrs } of stanza.content) {
-                    if ((attrs === null || attrs === void 0 ? void 0 : attrs.type) === 'msmsg') {
-                        hasMsmsg = true;
-                        break;
-                    }
-                }
-                if (hasMsmsg) {
-                    for (const { tag, attrs } of stanza.content) {
-                        if (tag === 'meta' && attrs?.target_id) {
-                            metaTargetId = attrs.target_id;
-                        }
-                        if (tag === 'meta' && attrs?.target_sender_jid) {
-                            metaTargetSenderJid = attrs.target_sender_jid;
-                        }
-                        if (tag === 'bot' && attrs && 'edit_target_id' in attrs) {
-                            botEditTargetId = attrs.edit_target_id;  // Can be '' for 'first' type
-                        }
-                        if (tag === 'bot' && (attrs === null || attrs === void 0 ? void 0 : attrs.edit)) {
-                            botType = attrs.edit;
-                        }
-                    }
-                }
+				let hasMsmsg = false
+				for (const { attrs } of stanza.content) {
+					if ((attrs === null || attrs === void 0 ? void 0 : attrs.type) === 'msmsg') {
+						hasMsmsg = true
+						break
+					}
+				}
+				if (hasMsmsg) {
+					for (const { tag, attrs } of stanza.content) {
+						if (tag === 'meta' && attrs?.target_id) {
+							metaTargetId = attrs.target_id
+						}
+						if (tag === 'meta' && attrs?.target_sender_jid) {
+							metaTargetSenderJid = attrs.target_sender_jid
+						}
+						if (tag === 'bot' && attrs && 'edit_target_id' in attrs) {
+							botEditTargetId = attrs.edit_target_id // Can be '' for 'first' type
+						}
+						if (tag === 'bot' && (attrs === null || attrs === void 0 ? void 0 : attrs.edit)) {
+							botType = attrs.edit
+						}
+					}
+				}
 
 				for (const { tag, attrs, content } of stanza.content) {
 					if (tag === 'verified_name' && content instanceof Uint8Array) {
@@ -305,9 +333,8 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
 						await storeMappingFromEnvelope(stanza, author, repository, decryptionJid, logger)
 					}
 					try {
-							const e2eType = tag === 'plaintext' ? 'plaintext' : attrs.type
+						const e2eType = tag === 'plaintext' ? 'plaintext' : attrs.type
 						switch (e2eType) {
-
 							case 'skmsg':
 								msgBuffer = await repository.decryptGroupMessage({
 									group: sender,
@@ -325,12 +352,8 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
 								})
 								break
 							case 'msmsg': //Message Secret Message
-							  if (!['full', 'last'].includes(botType)) break;
-                                 const secretIdCandidates = [
-									botEditTargetId,
-									metaTargetId,
-									fullMessage.key?.id
-								].filter(Boolean)
+								if (!['full', 'last'].includes(botType)) break
+								const secretIdCandidates = [botEditTargetId, metaTargetId, fullMessage.key?.id].filter(Boolean)
 								const secretCandidates = []
 								const seenSecrets = new Set()
 								for (const idCandidate of secretIdCandidates) {
@@ -352,10 +375,13 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
 									if (secretCandidates.length >= 6) break
 								}
 								if (!secretCandidates.length) {
-                                      logger.warn({ metaTargetId, botType, secretIdCandidates }, 'msmsg: no candidate messageSecret found, skipping');
-                                      break;
-                                  }
-                                  {
+									logger.warn(
+										{ metaTargetId, botType, secretIdCandidates },
+										'msmsg: no candidate messageSecret found, skipping'
+									)
+									break
+								}
+								{
 									const msMsg = WAProto_1.proto.MessageSecretMessage.decode(content)
 									const helperKey = {
 										participant: author,
@@ -370,37 +396,37 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
 										targetId: botEditTargetId || metaTargetId || stanza.attrs?.id,
 										targetIdCandidates: secretIdCandidates
 									}
-								let decryptErr
-								const candidateAttemptSummaries = []
-								for (const candidate of secretCandidates) {
-									try {
-										msgBuffer = await (0, meta_ai_msmsg_1.decryptMsmsgBotMessage)(candidate.secret, helperKey, msMsg)
-										logger.debug({ source: candidate.source }, 'msmsg: decrypted with candidate secret')
-										break
-									} catch (e) {
-										decryptErr = e
-										if (Array.isArray(e?.attemptedStrategies) && e.attemptedStrategies.length) {
-											candidateAttemptSummaries.push({
-												secretSource: candidate.source,
-												attemptedStrategies: e.attemptedStrategies
-											})
+									let decryptErr
+									const candidateAttemptSummaries = []
+									for (const candidate of secretCandidates) {
+										try {
+											msgBuffer = await (0, meta_ai_msmsg_1.decryptMsmsgBotMessage)(candidate.secret, helperKey, msMsg)
+											logger.debug({ source: candidate.source }, 'msmsg: decrypted with candidate secret')
+											break
+										} catch (e) {
+											decryptErr = e
+											if (Array.isArray(e?.attemptedStrategies) && e.attemptedStrategies.length) {
+												candidateAttemptSummaries.push({
+													secretSource: candidate.source,
+													attemptedStrategies: e.attemptedStrategies
+												})
+											}
 										}
 									}
+									if (!msgBuffer && candidateAttemptSummaries.length) {
+										logger.warn(
+											{
+												secretCandidateSources: secretCandidates.map(candidate => candidate.source),
+												attemptsBySecret: candidateAttemptSummaries
+											},
+											'msmsg: helper decryption failed for all candidate secrets'
+										)
+									}
+									if (!msgBuffer && decryptErr) {
+										throw decryptErr
+									}
 								}
-								if (!msgBuffer && candidateAttemptSummaries.length) {
-									logger.warn(
-										{
-											secretCandidateSources: secretCandidates.map(candidate => candidate.source),
-											attemptsBySecret: candidateAttemptSummaries
-										},
-										'msmsg: helper decryption failed for all candidate secrets'
-									)
-								}
-								if (!msgBuffer && decryptErr) {
-									throw decryptErr
-								}
-								}
-                                break;
+								break
 							case 'plaintext':
 								msgBuffer = content
 								break
@@ -416,9 +442,10 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
 						} else {
 							msgToDecode = e2eType !== 'plaintext' ? (0, generics_1.unpadRandomMax16)(msgBuffer) : msgBuffer
 						}
-						let msg = e2eType === 'msmsg'
-							? (0, meta_ai_msmsg_1.decodeDecryptedMsmsgMessage)(msgBuffer)
-							: index_js_1.proto.Message.decode(msgToDecode)
+						let msg =
+							e2eType === 'msmsg'
+								? (0, meta_ai_msmsg_1.decodeDecryptedMsmsgMessage)(msgBuffer)
+								: index_js_1.proto.Message.decode(msgToDecode)
 						if (false) {
 						}
 						const outerMessageContextInfo = msg.messageContextInfo
@@ -461,7 +488,9 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
 						{
 							const secret = msg.messageContextInfo?.messageSecret
 							if (secret) {
-								const secretBuf = Buffer.isBuffer(secret) ? secret : Buffer.from(secret.buffer, secret.byteOffset, secret.byteLength)
+								const secretBuf = Buffer.isBuffer(secret)
+									? secret
+									: Buffer.from(secret.buffer, secret.byteOffset, secret.byteLength)
 								setBotMessageSecret(fullMessage.key.id, secretBuf, fullMessage.key.remoteJid)
 							}
 						}
@@ -498,18 +527,21 @@ function decodeRichResponseMessage(richMsg) {
 	try {
 		if (!richMsg) return ''
 		if (Array.isArray(richMsg.submessages) && richMsg.submessages.length > 0) {
-			const sub = richMsg.submessages.map(s => s.messageText).filter(Boolean).join('\n')
+			const sub = richMsg.submessages
+				.map(s => s.messageText)
+				.filter(Boolean)
+				.join('\n')
 			if (sub) return sub
 		}
 		const data = richMsg.unifiedResponse?.data
 		if (!data) return ''
 		const json = JSON.parse(Buffer.from(data, 'base64').toString('utf8'))
 		const texts = []
-		for (const section of (json.sections || [])) {
+		for (const section of json.sections || []) {
 			const prim = section?.view_model?.primitive
 			if (prim?.text) texts.push(prim.text)
 			if (prim?.header) texts.push(prim.header)
-			for (const sub of (section?.view_model?.items || [])) {
+			for (const sub of section?.view_model?.items || []) {
 				if (sub?.primitive?.text) texts.push(sub.primitive.text)
 			}
 		}

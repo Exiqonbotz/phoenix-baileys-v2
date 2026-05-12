@@ -14,10 +14,13 @@ const Utils_1 = require('../Utils')
 const link_preview_1 = require('../Utils/link-preview')
 const make_mutex_1 = require('../Utils/make-mutex')
 const reporting_utils_1 = require('../Utils/reporting-utils')
+const tc_token_utils_1 = require('../Utils/tc-token-utils')
 const jid_display_normalization_1 = require('../Utils/jid-display-normalization')
 const WABinary_1 = require('../WABinary')
 const WAUSync_1 = require('../WAUSync')
-const newsletter_1 = require('./newsletter')
+const message_composer_1 = require('../Utils/message-composer.js')
+const interactive_handler_1 = require('./interactive-handler.js')
+const username_1 = require('./username')
 const makeMessagesSocket = config => {
 	const {
 		logger,
@@ -29,7 +32,7 @@ const makeMessagesSocket = config => {
 		enableRecentMessageCache,
 		maxMsgRetryCount
 	} = config
-	const sock = (0, newsletter_1.makeNewsletterSocket)(config)
+	const sock = (0, username_1.makeUsernameSocket)(config)
 	const {
 		ev,
 		authState,
@@ -40,8 +43,15 @@ const makeMessagesSocket = config => {
 		fetchPrivacySettings,
 		sendNode,
 		groupMetadata,
-		groupToggleEphemeral
+		groupToggleEphemeral,
+		trustInteropContact
 	} = sock
+	const getLIDForPN = signalRepository.lidMapping.getLIDForPN.bind(signalRepository.lidMapping)
+	/**
+	 * Set of tctoken storage JIDs with a fire-and-forget issuePrivacyTokens IQ in flight.
+	 * Prevents duplicate IQs from rapid back-to-back sends before senderTimestamp persists.
+	 */
+	const inFlightTcTokenIssuance = new Set()
 	const userDevicesCache =
 		config.userDevicesCache ||
 		new node_cache_1.default({
@@ -93,10 +103,11 @@ const makeMessagesSocket = config => {
 	 * generic send receipt function
 	 * used for receipts of phone call, read, delivery etc.
 	 * */
-	const sendReceipt = async (jid, participant, messageIds, type) => {
+	const sendReceipt = async (jid, participant, messageIds, type, sts) => {
 		if (!messageIds || messageIds.length === 0) {
 			throw new boom_1.Boom('missing ids in receipt')
 		}
+		const isInterop = (0, WABinary_1.isInteropUser)(jid)
 		const node = {
 			tag: 'receipt',
 			attrs: {
@@ -110,6 +121,10 @@ const makeMessagesSocket = config => {
 		if (type === 'sender' && ((0, WABinary_1.isPnUser)(jid) || (0, WABinary_1.isLidUser)(jid))) {
 			node.attrs.recipient = jid
 			node.attrs.to = participant
+		} else if (isInterop && !type) {
+			// Delivery receipt to interop contact: WA sends to device-qualified JID (user:0@interop)
+			const { user } = (0, WABinary_1.jidDecode)(jid)
+			node.attrs.to = `${user}:0@interop`
 		} else {
 			node.attrs.to = jid
 			if (participant) {
@@ -118,6 +133,10 @@ const makeMessagesSocket = config => {
 		}
 		if (type) {
 			node.attrs.type = type
+		}
+		// Interop bridge requires sts (microsecond stanza timestamp) from the original message
+		if (isInterop && sts) {
+			node.attrs.sts = sts
 		}
 		const remainingMessageIds = messageIds.slice(1)
 		if (remainingMessageIds.length) {
@@ -138,8 +157,8 @@ const makeMessagesSocket = config => {
 	/** Correctly bulk send receipts to multiple chats, participants */
 	const sendReceipts = async (keys, type) => {
 		const recps = (0, Utils_1.aggregateMessageKeysNotFromMe)(keys)
-		for (const { jid, participant, messageIds } of recps) {
-			await sendReceipt(jid, participant, messageIds, type)
+		for (const { jid, participant, messageIds, sts } of recps) {
+			await sendReceipt(jid, participant, messageIds, type, sts)
 		}
 	}
 	/** Bulk read messages. Keys can be from different chats & participants */
@@ -342,16 +361,26 @@ const makeMessagesSocket = config => {
 			jidsRequiringFetch.push(jid)
 		}
 		if (jidsRequiringFetch.length) {
-			// LID if mapped, otherwise original
+			// LID if mapped, otherwise original; interop JIDs pass through as-is
 			const wireJids = [
 				...jidsRequiringFetch.filter(jid => !!(0, WABinary_1.isLidUser)(jid) || !!(0, WABinary_1.isHostedLidUser)(jid)),
 				...(
 					(await signalRepository.lidMapping.getLIDsForPNs(
 						jidsRequiringFetch.filter(jid => !!(0, WABinary_1.isPnUser)(jid) || !!(0, WABinary_1.isHostedPnUser)(jid))
 					)) || []
-				).map(a => a.lid)
+				).map(a => a.lid),
+				...jidsRequiringFetch.filter(jid => (0, WABinary_1.isInteropUser)(jid))
 			]
+			const interopFetches = wireJids.filter(j => (0, WABinary_1.isInteropUser)(j))
+			if (interopFetches.length) {
+				console.log('[interop] fetching pre-key bundle:', interopFetches)
+				logger.info({ interopFetches }, '[interop] fetching pre-key bundle for interop device(s)')
+			}
 			logger.debug({ jidsRequiringFetch, wireJids }, 'fetching sessions')
+			if (!wireJids.length) {
+				logger.debug({ jidsRequiringFetch }, 'assertSessions: no wire JIDs to fetch (all unsupported domain)')
+				return didFetchNewSession
+			}
 			const result = await query({
 				tag: 'iq',
 				attrs: {
@@ -371,6 +400,14 @@ const makeMessagesSocket = config => {
 					}
 				]
 			})
+			if (interopFetches.length) {
+				const { getBinaryNodeChild, getBinaryNodeChildren } = require('../WABinary')
+				const listNode = getBinaryNodeChild(result, 'list')
+				const userNodes = listNode ? getBinaryNodeChildren(listNode, 'user') : []
+				console.log('[interop] pre-key IQ response: userNodes =', userNodes.length,
+					userNodes.map(n => ({ jid: n.attrs?.jid, hasKey: !!getBinaryNodeChild(n, 'key'), hasError: !!getBinaryNodeChild(n, 'error'), errorAttrs: getBinaryNodeChild(n, 'error')?.attrs }))
+				)
+			}
 			await (0, Utils_1.parseAndInjectE2ESessions)(result, signalRepository)
 			didFetchNewSession = true
 			// Cache fetched sessions using wire JIDs
@@ -436,8 +473,14 @@ const makeMessagesSocket = config => {
 				}
 				const bytes = (0, Utils_1.encodeWAMessage)(msgToEncrypt)
 				const mutexKey = jid
-				const node = await encryptionMutex.mutex(mutexKey, async () => {
+				if ((0, WABinary_1.isInteropUser)(jid)) {
+						console.log('[interop] calling encryptMessage for', jid)
+					}
+					const node = await encryptionMutex.mutex(mutexKey, async () => {
 					const { type, ciphertext } = await signalRepository.encryptMessage({ jid, data: bytes })
+					if ((0, WABinary_1.isInteropUser)(jid)) {
+						console.log('[interop] encrypted for', jid, '→ type:', type, type === 'pkmsg' ? '(NEW SESSION)' : '(existing session)')
+					}
 					if (type === 'pkmsg') {
 						shouldIncludeDeviceIdentity = true
 					}
@@ -455,6 +498,9 @@ const makeMessagesSocket = config => {
 				})
 				return node
 			} catch (err) {
+				if ((0, WABinary_1.isInteropUser)(jid)) {
+					console.log('[interop] ENCRYPT FAILED for', jid, '→', err?.message, err?.stack?.split('\n')[1])
+				}
 				logger.error({ jid, err }, 'Failed to encrypt for recipient')
 				return null
 			}
@@ -489,6 +535,7 @@ const makeMessagesSocket = config => {
 		const isStatus = jid === statusJid
 		const isLid = server === 'lid'
 		const isNewsletter = server === 'newsletter'
+		const isInterop = (0, WABinary_1.isInteropUser)(jid)
 		const isGroupOrStatus = isGroup || isStatus
 		const finalJid = jid
 		msgId = msgId || (0, Utils_1.generateMessageIDV2)(meId)
@@ -598,6 +645,143 @@ const makeMessagesSocket = config => {
 						addressing_mode: groupData?.addressingMode || 'lid'
 					}
 				}
+				if (message?.groupStatusMessageV2 && !message?.messageContextInfo?.messageSecret) {
+					const { randomBytes } = require('crypto')
+					message = {
+						...message,
+						messageContextInfo: {
+							...(message.messageContextInfo || {}),
+							messageSecret: randomBytes(32)
+						},
+						groupStatusMessageV2: {
+							...message.groupStatusMessageV2,
+							message: {
+								...(message.groupStatusMessageV2.message || {}),
+								messageContextInfo: {
+									...(message.groupStatusMessageV2.message?.messageContextInfo || {}),
+									messageSecret: message.messageContextInfo?.messageSecret || randomBytes(32)
+								}
+							}
+						}
+					}
+				}
+				if (message.listMessage) {
+					const list = message.listMessage
+					const interactiveMessage = {
+						nativeFlowMessage: {
+							buttons: [
+								{
+									name: 'single_select',
+									buttonParamsJson: JSON.stringify({
+										title: list.buttonText || 'Select',
+										sections: (list.sections || []).map(section => ({
+											title: section.title || '',
+											highlight_label: '',
+											rows: (section.rows || []).map(row => ({
+												header: '',
+												title: row.title || '',
+												description: row.description || '',
+												id: row.rowId || row.id || ''
+											}))
+										}))
+									})
+								}
+							],
+							messageParamsJson: '',
+							messageVersion: 1
+						},
+						body: { text: list.description || '' },
+						footer: list.footerText ? { text: list.footerText } : undefined,
+						header: list.title ? { title: list.title, hasMediaAttachment: false, subtitle: '' } : undefined,
+						contextInfo: list.contextInfo
+					}
+					message = { interactiveMessage }
+				} else if (message.buttonsMessage) {
+					const bMsg = message.buttonsMessage
+					const buttons = (bMsg.buttons || []).map(btn => ({
+						name: 'quick_reply',
+						buttonParamsJson: JSON.stringify({
+							display_text: btn.buttonText?.displayText || btn.buttonText || '',
+							id: btn.buttonId || btn.buttonText?.displayText || ''
+						})
+					}))
+					const interactiveMessage = {
+						nativeFlowMessage: {
+							buttons,
+							messageParamsJson: '',
+							messageVersion: 1
+						},
+						body: { text: bMsg.contentText || bMsg.text || '' },
+						footer: bMsg.footerText ? { text: bMsg.footerText } : undefined,
+						header: bMsg.text
+							? { title: bMsg.text, hasMediaAttachment: false, subtitle: '' }
+							: bMsg.imageMessage || bMsg.videoMessage || bMsg.documentMessage
+								? {
+										hasMediaAttachment: true,
+										...(bMsg.imageMessage ? { imageMessage: bMsg.imageMessage } : {}),
+										...(bMsg.videoMessage ? { videoMessage: bMsg.videoMessage } : {})
+									}
+								: undefined,
+						contextInfo: bMsg.contextInfo
+					}
+					message = { interactiveMessage }
+				} else if (message.templateMessage) {
+					const tmpl = message.templateMessage.hydratedTemplate || message.templateMessage.fourRowTemplate
+					if (tmpl) {
+						const hydratedButtons = tmpl.hydratedButtons || []
+						const buttons = hydratedButtons
+							.map(hBtn => {
+								if (hBtn.quickReplyButton) {
+									return {
+										name: 'quick_reply',
+										buttonParamsJson: JSON.stringify({
+											display_text: hBtn.quickReplyButton.displayText || '',
+											id: hBtn.quickReplyButton.id || hBtn.quickReplyButton.displayText || ''
+										})
+									}
+								} else if (hBtn.urlButton) {
+									return {
+										name: 'cta_url',
+										buttonParamsJson: JSON.stringify({
+											display_text: hBtn.urlButton.displayText || '',
+											url: hBtn.urlButton.url || '',
+											merchant_url: hBtn.urlButton.url || ''
+										})
+									}
+								} else if (hBtn.callButton) {
+									return {
+										name: 'cta_call',
+										buttonParamsJson: JSON.stringify({
+											display_text: hBtn.callButton.displayText || '',
+											phone_number: hBtn.callButton.phoneNumber || ''
+										})
+									}
+								}
+								return null
+							})
+							.filter(Boolean)
+						const interactiveMessage = {
+							nativeFlowMessage: {
+								buttons,
+								messageParamsJson: '',
+								messageVersion: 1
+							},
+							body: { text: tmpl.hydratedContentText || tmpl.contentText || '' },
+							footer: tmpl.hydratedFooterText ? { text: tmpl.hydratedFooterText } : undefined,
+							header: tmpl.hydratedTitleText
+								? { title: tmpl.hydratedTitleText, hasMediaAttachment: false, subtitle: '' }
+								: tmpl.imageMessage || tmpl.videoMessage || tmpl.documentMessage
+									? {
+											hasMediaAttachment: true,
+											...(tmpl.imageMessage ? { imageMessage: tmpl.imageMessage } : {}),
+											...(tmpl.videoMessage ? { videoMessage: tmpl.videoMessage } : {})
+										}
+									: undefined,
+							contextInfo: tmpl.contextInfo
+						}
+						message = { interactiveMessage }
+					}
+				}
 				const patched = await patchMessageBeforeSending(message)
 				if (Array.isArray(patched)) {
 					throw new boom_1.Boom('Per-jid patching is not supported in groups')
@@ -665,13 +849,14 @@ const makeMessagesSocket = config => {
 						: patchedForReporting
 				}
 				if (!isRetryResend) {
-					const targetUserServer = isLid ? 'lid' : 's.whatsapp.net'
+					const targetUserServer = isLid ? 'lid' : (isInterop ? 'interop' : 's.whatsapp.net')
 					devices.push({
 						user,
 						device: 0,
 						jid: (0, WABinary_1.jidEncode)(user, targetUserServer, 0) // rajeh, todo: this entire logic is convoluted and weird.
 					})
-					if (user !== ownUser) {
+					// Interop contacts don't receive a copy to own devices — native WA sends only one flat <enc>
+					if (user !== ownUser && !isInterop) {
 						const ownUserServer = isLid ? 'lid' : 's.whatsapp.net'
 						const ownUserForAddressing =
 							isLid && meLid ? (0, WABinary_1.jidDecode)(meLid).user : (0, WABinary_1.jidDecode)(meId).user
@@ -681,7 +866,7 @@ const makeMessagesSocket = config => {
 							jid: (0, WABinary_1.jidEncode)(ownUserForAddressing, ownUserServer, 0)
 						})
 					}
-					if (additionalAttributes?.['category'] !== 'peer') {
+					if (additionalAttributes?.['category'] !== 'peer' && !isInterop) {
 						// Clear placeholders and enumerate actual devices
 						devices.length = 0
 						// Use conversation-appropriate sender identity
@@ -757,7 +942,7 @@ const makeMessagesSocket = config => {
 					attrs: {
 						v: '2',
 						type,
-						count: participant.count.toString()
+						count: (participant.count ?? 0).toString()
 					},
 					content: encryptedContent
 				})
@@ -767,6 +952,14 @@ const makeMessagesSocket = config => {
 					const peerNode = participants[0]?.content?.[0]
 					if (peerNode) {
 						binaryNodeContent.push(peerNode) // push only enc
+					}
+				} else if (isInterop) {
+					// Flat <enc> directly on <message> — no <participants> wrapper (native WA behavior).
+					// Find the enc for the actual interop recipient, not own-device DSM copy.
+					const recipientNode = participants.find(p => (0, WABinary_1.isInteropUser)(p?.attrs?.jid))
+					const encNode = (recipientNode ?? participants[0])?.content?.[0]
+					if (encNode) {
+						binaryNodeContent.push(encNode)
 					}
 				} else {
 					binaryNodeContent.push({
@@ -863,6 +1056,7 @@ const makeMessagesSocket = config => {
 				}
 			}
 
+			let didPushAdditional = false
 			if (!isNewsletter && buttonType) {
 				const buttonsNode = getButtonArgs(messages)
 				const filteredButtons = WABinary_1.getBinaryFilteredButtons(additionalNodes ? additionalNodes : [])
@@ -874,41 +1068,114 @@ const makeMessagesSocket = config => {
 					stanza.content.push(buttonsNode)
 				}
 			}
-			if (AI && isPrivate) {
-				const botNode = {
-					tag: 'bot',
-					attrs: {
-						biz_bot: '1'
-					}
+			if (!AI && (0, WABinary_1.isPnUser)(destinationJid)) {
+				const alreadyHasBizBot =
+					WABinary_1.getBinaryFilteredBizBot(additionalNodes || []) ||
+					WABinary_1.getBinaryFilteredBizBot(stanza.content)
+				if (!alreadyHasBizBot) {
+					stanza.content.push({ tag: 'bot', attrs: { biz_bot: '1' } })
 				}
-
-				const filteredBizBot = WABinary_1.getBinaryFilteredBizBot(additionalNodes ? additionalNodes : [])
-
-				if (filteredBizBot) {
-					stanza.content.push(...additionalNodes)
-					didPushAdditional = true
-				} else {
-					stanza.content.push(botNode)
+			} else if (AI && !isGroup && !isStatus && !isNewsletter) {
+				const existingBizBot = WABinary_1.getBinaryFilteredBizBot(additionalNodes || [])
+				if (!existingBizBot) {
+					stanza.content.push({ tag: 'bot', attrs: { biz_bot: '1' } })
 				}
 			}
-			const contactTcTokenData =
-				!isGroup && !isRetryResend && !isStatus ? await authState.keys.get('tctoken', [destinationJid]) : {}
-			const tcTokenBuffer = contactTcTokenData[destinationJid]?.token
-			if (tcTokenBuffer) {
+			// WA Web never attaches tctoken to peer (AppStateSync) messages — server rejects with 479
+			const isPeerMessage = additionalAttributes?.['category'] === 'peer'
+			const is1on1Send = !isGroup && !isRetryResend && !isStatus && !isNewsletter && !isPeerMessage
+			// Resolve destination to LID for tctoken storage — matches Signal session key pattern
+			const tcTokenJid = is1on1Send
+				? await (0, tc_token_utils_1.resolveTcTokenJid)(destinationJid, getLIDForPN)
+				: destinationJid
+			const contactTcTokenData = is1on1Send ? await authState.keys.get('tctoken', [tcTokenJid]) : {}
+			const existingTokenEntry = contactTcTokenData[tcTokenJid]
+			let tcTokenBuffer = existingTokenEntry?.token
+			// Treat expired tokens the same as missing — clear from cache
+			if (tcTokenBuffer?.length && (0, tc_token_utils_1.isTcTokenExpired)(existingTokenEntry?.timestamp)) {
+				logger.debug({ jid: destinationJid, timestamp: existingTokenEntry?.timestamp }, 'tctoken expired, clearing')
+				tcTokenBuffer = undefined
+				const cleared =
+					existingTokenEntry?.senderTimestamp !== undefined
+						? { token: Buffer.alloc(0), senderTimestamp: existingTokenEntry.senderTimestamp }
+						: null
+				try {
+					await authState.keys.set({ tctoken: { [tcTokenJid]: cleared } })
+				} catch (err) {
+					logger.debug({ jid: destinationJid, err: err?.message }, 'failed to persist tctoken expiry cleanup')
+				}
+			}
+			if (tcTokenBuffer?.length && sock.serverProps.privacyTokenOn1to1) {
 				stanza.content.push({
 					tag: 'tctoken',
 					attrs: {},
 					content: tcTokenBuffer
 				})
 			}
-			if (additionalNodes && additionalNodes.length > 0) {
+			if (additionalNodes && additionalNodes.length > 0 && !didPushAdditional) {
 				stanza.content.push(...additionalNodes)
 			}
 			logger.debug({ msgId }, `sending message to ${participants.length} devices`)
 			await sendNode(stanza)
+			// Fire-and-forget: issue our token to the contact AFTER message send.
+			const isProtocolMsg = !!(0, Utils_1.normalizeMessageContent)(message)?.protocolMessage
+			const isBotOrPSA =
+				destinationJid === WABinary_1.PSA_WID ||
+				(0, WABinary_1.isJidBot)(destinationJid) ||
+				(0, WABinary_1.isJidMetaAI)(destinationJid)
+			if (
+				is1on1Send &&
+				!isProtocolMsg &&
+				!isBotOrPSA &&
+				(0, tc_token_utils_1.shouldSendNewTcToken)(existingTokenEntry?.senderTimestamp) &&
+				!inFlightTcTokenIssuance.has(tcTokenJid)
+			) {
+				inFlightTcTokenIssuance.add(tcTokenJid)
+				const issueTimestamp = (0, Utils_1.unixTimestampSeconds)()
+				const getPNForLID = signalRepository.lidMapping.getPNForLID.bind(signalRepository.lidMapping)
+				;(0, tc_token_utils_1.resolveIssuanceJid)(
+					destinationJid,
+					sock.serverProps.lidTrustedTokenIssueToLid,
+					getLIDForPN,
+					getPNForLID
+				)
+					.then(issueJid => issuePrivacyTokens([issueJid], issueTimestamp))
+					.then(async result => {
+						await (0, tc_token_utils_1.storeTcTokensFromIqResult)({
+							result,
+							fallbackJid: tcTokenJid,
+							keys: authState.keys,
+							getLIDForPN
+						})
+						const currentData = await authState.keys.get('tctoken', [tcTokenJid])
+						const currentEntry = currentData[tcTokenJid]
+						const indexWrite = await (0, tc_token_utils_1.buildMergedTcTokenIndexWrite)(authState.keys, [tcTokenJid])
+						await authState.keys.set({
+							tctoken: {
+								[tcTokenJid]: {
+									token: Buffer.alloc(0),
+									...currentEntry,
+									senderTimestamp: issueTimestamp
+								},
+								...indexWrite
+							}
+						})
+					})
+					.catch(err => {
+						logger.debug({ jid: destinationJid, err: err?.message }, 'fire-and-forget tctoken issuance failed')
+					})
+					.finally(() => {
+						inFlightTcTokenIssuance.delete(tcTokenJid)
+					})
+			}
 			// Add message to retry cache if enabled
 			if (messageRetryManager && !participant) {
 				messageRetryManager.addRecentMessage(destinationJid, msgId, message)
+			}
+			if (isInterop && !isRetryResend) {
+				await trustInteropContact(destinationJid).catch(err => {
+					logger.debug({ err, jid: destinationJid }, 'failed to trust interop contact')
+				})
 			}
 		}, meId)
 		return msgId
@@ -977,13 +1244,28 @@ const makeMessagesSocket = config => {
 			return 'url'
 		}
 	}
-
 	const getButtonType = message => {
 		if (message.listMessage) {
 			return 'list'
 		} else if (message.buttonsMessage) {
 			return 'buttons'
 		} else if (message.interactiveMessage?.nativeFlowMessage) {
+			const firstButtonName = message.interactiveMessage.nativeFlowMessage.buttons?.[0]?.name
+			if (firstButtonName === 'review_and_pay') {
+				return 'review_and_pay'
+			} else if (firstButtonName === 'review_order') {
+				return 'review_order'
+			} else if (firstButtonName === 'payment_info') {
+				return 'payment_info'
+			} else if (firstButtonName === 'payment_status') {
+				return 'payment_status'
+			} else if (firstButtonName === 'payment_method') {
+				return 'payment_method'
+			} else if (firstButtonName === 'pix') {
+				return 'pix'
+			} else if (firstButtonName === 'pay') {
+				return 'pay'
+			}
 			return 'native_flow'
 		}
 	}
@@ -1110,8 +1392,8 @@ const makeMessagesSocket = config => {
 			}
 		}
 	}
-	const getPrivacyTokens = async jids => {
-		const t = (0, Utils_1.unixTimestampSeconds)().toString()
+	const issuePrivacyTokens = async (jids, timestamp) => {
+		const t = (timestamp ?? (0, Utils_1.unixTimestampSeconds)()).toString()
 		const result = await query({
 			tag: 'iq',
 			attrs: {
@@ -1136,10 +1418,13 @@ const makeMessagesSocket = config => {
 		})
 		return result
 	}
+	const getPrivacyTokens = issuePrivacyTokens
 	const waUploadToServer = (0, Utils_1.getWAUploadToServer)(config, refreshMediaConn)
+	const baron2 = new interactive_handler_1.Baron(waUploadToServer, relayMessage, config, sock)
 	const waitForMsgMediaUpdate = (0, Utils_1.bindWaitForEvent)(ev, 'messages.media-update')
 	return {
 		...sock,
+		issuePrivacyTokens,
 		getPrivacyTokens,
 		assertSessions,
 		relayMessage,
@@ -1195,274 +1480,394 @@ const makeMessagesSocket = config => {
 			return message
 		},
 
-		sendStatusMentions: async (content, jids = []) => {
-			const userJid = WABinary_1.jidNormalizedUser(authState.creds.me.id)
-			let allUsers = new Set()
-			allUsers.add(userJid)
-
-			for (const id of jids) {
-				const isGroup = WABinary_1.isJidGroup(id)
-				const isPrivate = WABinary_1.isPnUser(id)
-
-				if (isGroup) {
-					try {
-						const metadata = (await cachedGroupMetadata(id)) || (await groupMetadata(id))
-						const participants = metadata.participants.map(p => WABinary_1.jidNormalizedUser(p.id))
-						participants.forEach(jid => allUsers.add(jid))
-					} catch (error) {
-						logger.error(`Error getting metadata for group ${id}: ${error}`)
-					}
-				} else if (isPrivate) {
-					allUsers.add(WABinary_1.jidNormalizedUser(id))
+		sendGroupStatus: async (groupIdsOrContent = [], contentOrGroups = {}, opts = {}) => {
+			const toGroupIdArray = input => {
+				if (Array.isArray(input)) {
+					return input
 				}
-			}
-
-			const uniqueUsers = Array.from(allUsers)
-			const getRandomHexColor = () =>
-				'#' +
-				Math.floor(Math.random() * 16777215)
-					.toString(16)
-					.padStart(6, '0')
-
-			const isMedia = content.image || content.video || content.audio
-			const isAudio = !!content.audio
-
-			const messageContent = { ...content }
-
-			if (isMedia && !isAudio) {
-				if (messageContent.text) {
-					messageContent.caption = messageContent.text
-
-					delete messageContent.text
+				if (typeof input === 'string') {
+					return [input]
 				}
-
-				delete messageContent.ptt
-				delete messageContent.font
-				delete messageContent.backgroundColor
-				delete messageContent.textColor
+				return []
 			}
-
-			if (isAudio) {
-				delete messageContent.text
-				delete messageContent.caption
-				delete messageContent.font
-				delete messageContent.textColor
+			const normalizeGroupJid = value => {
+				if (typeof value !== 'string') {
+					return ''
+				}
+				const trimmed = value.trim()
+				if (!trimmed) {
+					return ''
+				}
+				if (/^\d{8,}$/.test(trimmed)) {
+					return `${trimmed}@g.us`
+				}
+				return trimmed
 			}
-
-			const font = !isMedia ? content.font || Math.floor(Math.random() * 9) : undefined
-			const textColor = !isMedia ? content.textColor || getRandomHexColor() : undefined
-			const backgroundColor = !isMedia || isAudio ? content.backgroundColor || getRandomHexColor() : undefined
-			const ptt = isAudio ? (typeof content.ptt === 'boolean' ? content.ptt : true) : undefined
-
-			let msg
-			let mediaHandle
-			try {
-				msg = await Utils_1.generateWAMessage(WABinary_1.STORIES_JID, messageContent, {
-					logger,
-					userJid,
-					getUrlInfo: text =>
-						link_preview_1.getUrlInfo(text, {
-							thumbnailWidth: linkPreviewImageThumbnailWidth,
-							fetchOpts: { timeout: 3000, ...(axiosOptions || {}) },
-							logger,
-							uploadImage: generateHighQualityLinkPreview ? waUploadToServer : undefined
-						}),
-					upload: async (encFilePath, opts) => {
-						const up = await waUploadToServer(encFilePath, { ...opts })
-						mediaHandle = up.handle
-						return up
-					},
-					mediaCache: config.mediaCache,
-					options: config.options,
-					font,
-					textColor,
-					backgroundColor,
-					ptt
-				})
-			} catch (error) {
-				logger.error(`Error generating message: ${error}`)
-				throw error
+			const useNewSignature = Array.isArray(groupIdsOrContent) || typeof groupIdsOrContent === 'string'
+			const groupIds = useNewSignature ? toGroupIdArray(groupIdsOrContent) : toGroupIdArray(contentOrGroups)
+			const content = useNewSignature ? contentOrGroups || {} : groupIdsOrContent || {}
+			const sendOpts = opts || {}
+			const groupJids = groupIds.map(normalizeGroupJid).filter(jid => (0, WABinary_1.isJidGroup)(jid))
+			const nonGroupJids = groupIds.filter(jid => !(0, WABinary_1.isJidGroup)(normalizeGroupJid(jid)))
+			if (nonGroupJids.length) {
+				logger.warn({ nonGroupJids }, 'ignoring non-group JIDs in sendGroupStatus')
 			}
-
+			if (!groupJids.length) {
+				return []
+			}
+			const { allUsers } = await resolveStatusAudience(groupJids, false)
+			if (!allUsers.length) {
+				return []
+			}
+			const msg = await generateStatusMessage({
+				...content,
+				backgroundColor: content.backgroundColor || getRandomHexColor(),
+				font: normalizeStatusFont(content.font, logger)
+			})
 			await relayMessage(WABinary_1.STORIES_JID, msg.message, {
 				messageId: msg.key.id,
-				statusJidList: uniqueUsers,
-				additionalNodes: [
+				statusJidList: allUsers,
+				...(sendOpts.relay || {})
+			})
+			return groupJids
+		},
+		sendAlbumMessage: async (jid, medias, options = {}) => {
+			const userJid = authState.creds.me.id
+			for (const media of medias) {
+				if (!media.image && !media.video) throw new TypeError(`medias[i] must have image or video property`)
+			}
+			if (medias.length < 2) throw new RangeError('Minimum 2 media')
+			const time = options.delay || 500
+			delete options.delay
+			const album = await (0, Utils_1.generateWAMessageFromContent)(
+				jid,
+				{
+					albumMessage: {
+						expectedImageCount: medias.filter(media => media.image).length,
+						expectedVideoCount: medias.filter(media => media.video).length,
+						...options
+					}
+				},
+				{ userJid, ...options }
+			)
+			await relayMessage(jid, album.message, { messageId: album.key.id })
+			let mediaHandle
+			let msg
+			for (const i in medias) {
+				const media = medias[i]
+				if (media.image) {
+					msg = await (0, Utils_1.generateWAMessage)(
+						jid,
+						{
+							image: media.image,
+							...media,
+							...options
+						},
+						{
+							userJid,
+							upload: async (readStream, opts) => {
+								const up = await waUploadToServer(readStream, {
+									...opts,
+									newsletter: (0, WABinary_1.isJidNewsletter)(jid)
+								})
+								mediaHandle = up.handle
+								return up
+							},
+							...options
+						}
+					)
+				} else if (media.video) {
+					msg = await (0, Utils_1.generateWAMessage)(
+						jid,
+						{
+							video: media.video,
+							...media,
+							...options
+						},
+						{
+							userJid,
+							upload: async (readStream, opts) => {
+								const up = await waUploadToServer(readStream, {
+									...opts,
+									newsletter: (0, WABinary_1.isJidNewsletter)(jid)
+								})
+								mediaHandle = up.handle
+								return up
+							},
+							...options
+						}
+					)
+				}
+				if (msg) {
+					msg.message.messageContextInfo = {
+						messageAssociation: {
+							associationType: 1,
+							parentMessageKey: album.key
+						}
+					}
+				}
+				await relayMessage(jid, msg.message, { messageId: msg.key.id })
+				await (0, Utils_1.delay)(time)
+			}
+			return album
+		},
+
+		sendStatusMention: async (content, jids = []) => {
+			return await baron2.sendStatusWhatsApp(content, jids)
+		},
+		sendTable: async (jid, title, headers, rows, quoted, options = {}) => {
+			const { message, messageId } = message_composer_1.generateTableContent(title, headers, rows, quoted, options)
+			await relayMessage(jid, message, { messageId })
+			return { message, messageId }
+		},
+		sendList: async (jid, title, items, quoted, options = {}) => {
+			const { message, messageId } = message_composer_1.generateListContent(title, items, quoted, options)
+			await relayMessage(jid, message, { messageId })
+			return { message, messageId }
+		},
+		sendCodeBlock: async (jid, code, quoted, options = {}) => {
+			const { message, messageId } = message_composer_1.generateCodeBlockContent(code, quoted, options)
+			await relayMessage(jid, message, { messageId })
+			return { message, messageId }
+		},
+		sendLatex: async (jid, quoted, options) => {
+			const { message, messageId } = message_composer_1.generateLatexContent(quoted, options)
+			await relayMessage(jid, message, { messageId })
+			return { message, messageId }
+		},
+		sendLatexImage: async (jid, quoted, options, renderLatexToPng, uploadFn) => {
+			const { message, messageId } = await message_composer_1.generateLatexImageContent(
+				quoted,
+				options,
+				uploadFn,
+				renderLatexToPng
+			)
+			await relayMessage(jid, message, { messageId })
+			return { message, messageId }
+		},
+		sendLatexInlineImage: async (jid, quoted, options, renderLatexToPng, uploadFn) => {
+			const { message, messageId } = await message_composer_1.generateLatexInlineImageContent(
+				quoted,
+				options,
+				uploadFn,
+				renderLatexToPng
+			)
+			await relayMessage(jid, message, { messageId })
+			return { message, messageId }
+		},
+		captureUnifiedResponse: message_composer_1.captureUnifiedResponse,
+		sendUnifiedResponse: async (jid, quoted, captured) => {
+			const { message, messageId } = message_composer_1.generateUnifiedResponseContent(quoted, captured)
+			await relayMessage(jid, message, { messageId })
+			return { message, messageId }
+		},
+		sendRichMessage: async (jid, submessages, quoted, options = {}) => {
+			const { message, messageId } = message_composer_1.generateRichMessageContent(submessages, quoted)
+			await relayMessage(jid, message, { messageId })
+			return { message, messageId }
+		},
+		sendMessage: async (jid, content, options = {}) => {
+			const userJid = authState.creds.me.id
+			// ── Normalize: buttons[].nativeFlowInfo -> interactiveButtons ──────
+			if (
+				typeof content === 'object' &&
+				Array.isArray(content.buttons) &&
+				content.buttons.length > 0 &&
+				content.buttons.some(b => b.nativeFlowInfo)
+			) {
+				const interactiveButtons = content.buttons.map(b => {
+					if (b.nativeFlowInfo) {
+						return {
+							name: b.nativeFlowInfo.name,
+							buttonParamsJson: b.nativeFlowInfo.paramsJson || '{}'
+						}
+					}
+					return {
+						name: 'quick_reply',
+						buttonParamsJson: JSON.stringify({
+							display_text: b.buttonText?.displayText || b.buttonId || 'Button',
+							id: b.buttonId || b.buttonText?.displayText || 'btn'
+						})
+					}
+				})
+				const { buttons, headerType, viewOnce, ...rest } = content
+				content = { ...rest, interactiveButtons }
+			}
+			if (
+				typeof content === 'object' &&
+				Array.isArray(content.interactiveButtons) &&
+				content.interactiveButtons.length > 0
+			) {
+				const {
+					text = '',
+					caption = '',
+					title = '',
+					footer = '',
+					interactiveButtons,
+					hasMediaAttachment = false,
+					image = null,
+					video = null,
+					document = null,
+					mimetype = null,
+					jpegThumbnail = null,
+					location = null,
+					product = null,
+					businessOwnerJid = null,
+					externalAdReply = null
+				} = content
+				// Normalize buttons
+				const processedButtons = []
+				for (let i = 0; i < interactiveButtons.length; i++) {
+					const btn = interactiveButtons[i]
+					if (!btn || typeof btn !== 'object') throw new Error(`interactiveButtons[${i}] must be an object`)
+					if (btn.name && btn.buttonParamsJson) {
+						processedButtons.push(btn)
+						continue
+					}
+					if (btn.id || btn.text || btn.displayText) {
+						processedButtons.push({
+							name: 'quick_reply',
+							buttonParamsJson: JSON.stringify({
+								display_text: btn.text || btn.displayText || `Button ${i + 1}`,
+								id: btn.id || `quick_${i + 1}`
+							})
+						})
+						continue
+					}
+					if (btn.buttonId && btn.buttonText?.displayText) {
+						processedButtons.push({
+							name: 'quick_reply',
+							buttonParamsJson: JSON.stringify({ display_text: btn.buttonText.displayText, id: btn.buttonId })
+						})
+						continue
+					}
+					throw new Error(`interactiveButtons[${i}] has invalid shape`)
+				}
+				let messageContent = {}
+				if (image) {
+					const mi = Buffer.isBuffer(image)
+						? { image }
+						: { image: { url: typeof image === 'object' ? image.url : image } }
+					const pm = await (0, Utils_1.prepareWAMessageMedia)(mi, { upload: waUploadToServer })
+					messageContent.header = { title: title || '', hasMediaAttachment: true, imageMessage: pm.imageMessage }
+				} else if (video) {
+					const mi = Buffer.isBuffer(video)
+						? { video }
+						: { video: { url: typeof video === 'object' ? video.url : video } }
+					const pm = await (0, Utils_1.prepareWAMessageMedia)(mi, { upload: waUploadToServer })
+					messageContent.header = { title: title || '', hasMediaAttachment: true, videoMessage: pm.videoMessage }
+				} else if (document) {
+					const mi = Buffer.isBuffer(document)
+						? { document }
+						: { document: { url: typeof document === 'object' ? document.url : document } }
+					if (mimetype && typeof mi.document === 'object') mi.document.mimetype = mimetype
+					if (jpegThumbnail) {
+						const thumb = Buffer.isBuffer(jpegThumbnail)
+							? jpegThumbnail
+							: await (async () => {
+									try {
+										const r = await fetch(jpegThumbnail)
+										return Buffer.from(await r.arrayBuffer())
+									} catch {
+										return undefined
+									}
+								})()
+						if (thumb) mi.document.jpegThumbnail = thumb
+					}
+					const pm = await (0, Utils_1.prepareWAMessageMedia)(mi, { upload: waUploadToServer })
+					messageContent.header = { title: title || '', hasMediaAttachment: true, documentMessage: pm.documentMessage }
+				} else if (location && typeof location === 'object') {
+					messageContent.header = {
+						title: title || location.name || 'Location',
+						hasMediaAttachment: false,
+						locationMessage: {
+							degreesLatitude: location.degreesLatitude || location.degressLatitude || 0,
+							degreesLongitude: location.degreesLongitude || location.degressLongitude || 0,
+							name: location.name || '',
+							address: location.address || ''
+						}
+					}
+				} else if (product && typeof product === 'object') {
+					let productImageMessage = null
+					if (product.productImage) {
+						const mi = Buffer.isBuffer(product.productImage)
+							? { image: product.productImage }
+							: {
+									image: {
+										url: typeof product.productImage === 'object' ? product.productImage.url : product.productImage
+									}
+								}
+						const pm = await (0, Utils_1.prepareWAMessageMedia)(mi, { upload: waUploadToServer })
+						productImageMessage = pm.imageMessage
+					}
+					messageContent.header = {
+						title: title || product.title || 'Product',
+						hasMediaAttachment: false,
+						productMessage: {
+							product: {
+								productImage: productImageMessage,
+								productId: product.productId || '',
+								title: product.title || '',
+								description: product.description || '',
+								currencyCode: product.currencyCode || 'USD',
+								priceAmount1000: parseInt(product.priceAmount1000) || 0,
+								retailerId: product.retailerId || '',
+								url: product.url || '',
+								productImageCount: product.productImageCount || 1
+							},
+							businessOwnerJid: businessOwnerJid || product.businessOwnerJid || userJid
+						}
+					}
+				} else if (title) {
+					messageContent.header = { title, hasMediaAttachment: false }
+				}
+				const hasMedia = !!(image || video || document || location || product)
+				const bodyText = hasMedia ? caption : text || caption
+				if (bodyText) messageContent.body = { text: bodyText }
+				if (footer) messageContent.footer = { text: footer }
+				messageContent.nativeFlowMessage = { buttons: processedButtons }
+				if (externalAdReply && typeof externalAdReply === 'object') {
+					messageContent.contextInfo = {
+						externalAdReply: {
+							title: externalAdReply.title || '',
+							body: externalAdReply.body || '',
+							mediaType: externalAdReply.mediaType || 1,
+							sourceUrl: externalAdReply.sourceUrl || externalAdReply.url || '',
+							thumbnailUrl: externalAdReply.thumbnailUrl || externalAdReply.thumbnail || '',
+							renderLargerThumbnail: externalAdReply.renderLargerThumbnail || false,
+							showAdAttribution: externalAdReply.showAdAttribution !== false,
+							containsAutoReply: externalAdReply.containsAutoReply || false,
+							...(externalAdReply.mediaUrl && { mediaUrl: externalAdReply.mediaUrl }),
+							...(Buffer.isBuffer(externalAdReply.thumbnail) && { thumbnail: externalAdReply.thumbnail }),
+							...(externalAdReply.jpegThumbnail && { jpegThumbnail: externalAdReply.jpegThumbnail })
+						},
+						...(options.mentionedJid && { mentionedJid: options.mentionedJid })
+					}
+				} else if (options.mentionedJid) {
+					messageContent.contextInfo = { mentionedJid: options.mentionedJid }
+				}
+				const payload = index_js_1.proto.Message.InteractiveMessage.create(messageContent)
+				const msg = (0, Utils_1.generateWAMessageFromContent)(
+					jid,
+					{ viewOnceMessage: { message: { interactiveMessage: payload } } },
+					{ userJid, quoted: options?.quoted || null }
+				)
+				const additionalNodes = [
 					{
-						tag: 'meta',
+						tag: 'biz',
 						attrs: {},
 						content: [
 							{
-								tag: 'mentioned_users',
-								attrs: {},
-								content: jids.map(jid => ({
-									tag: 'to',
-									attrs: { jid: WABinary_1.jidNormalizedUser(jid) }
-								}))
+								tag: 'interactive',
+								attrs: { type: 'native_flow', v: '1' },
+								content: [{ tag: 'native_flow', attrs: { v: '9', name: 'mixed' } }]
 							}
 						]
 					}
 				]
-			})
-
-			for (const id of jids) {
-				try {
-					const normalizedId = WABinary_1.jidNormalizedUser(id)
-					const isPrivate = WABinary_1.isPnUser(normalizedId)
-					const type = isPrivate ? 'statusMentionMessage' : 'groupStatusMentionMessage'
-
-					const protocolMessage = {
-						[type]: {
-							message: {
-								protocolMessage: {
-									key: msg.key,
-									type: 25
-								}
-							}
-						},
-						messageContextInfo: {
-							messageSecret: crypto_1.randomBytes(32)
-						}
-					}
-
-					const statusMsg = await Utils_1.generateWAMessageFromContent(normalizedId, protocolMessage, {})
-
-					await relayMessage(normalizedId, statusMsg.message, {
-						additionalNodes: [
-							{
-								tag: 'meta',
-								attrs: isPrivate ? { is_status_mention: 'true' } : { is_group_status_mention: 'true' }
-							}
-						]
-					})
-
-					await Utils_1.delay(2000)
-				} catch (error) {
-					logger.error(`Error sending to ${id}: ${error}`)
-				}
+				await relayMessage(jid, msg.message, { messageId: msg.key.id, additionalNodes })
+				return msg
 			}
-
-			return msg
-		},
-		sendGroupStatus: async (content, jid) => {
-			const userJid = WABinary_1.jidNormalizedUser(authState.creds.me.id)
-			let allUsers = new Set()
-			allUsers.add(userJid)
-
-			const uniqueUsers = Array.from(allUsers)
-			const getRandomHexColor = () =>
-				'#' +
-				Math.floor(Math.random() * 16777215)
-					.toString(16)
-					.padStart(6, '0')
-
-			const isMedia = content.image || content.video || content.audio
-			const isAudio = !!content.audio
-
-			const messageContent = { ...content }
-
-			if (isMedia && !isAudio) {
-				if (messageContent.text) {
-					messageContent.caption = messageContent.text
-
-					delete messageContent.text
-				}
-
-				delete messageContent.ptt
-				delete messageContent.font
-				delete messageContent.backgroundColor
-				delete messageContent.textColor
-			}
-
-			if (isAudio) {
-				delete messageContent.text
-				delete messageContent.caption
-				delete messageContent.font
-				delete messageContent.textColor
-			}
-
-			const font = !isMedia ? content.font || Math.floor(Math.random() * 9) : undefined
-			const textColor = !isMedia ? content.textColor || getRandomHexColor() : undefined
-			const backgroundColor = !isMedia || isAudio ? content.backgroundColor || getRandomHexColor() : undefined
-			const ptt = isAudio ? (typeof content.ptt === 'boolean' ? content.ptt : true) : undefined
-
-			let msg
-			let mediaHandle
-			try {
-				msg = await Utils_1.generateWAMessage(jid, messageContent, {
-					logger,
-					userJid,
-					getUrlInfo: text =>
-						link_preview_1.getUrlInfo(text, {
-							thumbnailWidth: linkPreviewImageThumbnailWidth,
-							fetchOpts: { timeout: 3000, ...(axiosOptions || {}) },
-							logger,
-							uploadImage: generateHighQualityLinkPreview ? waUploadToServer : undefined
-						}),
-					upload: async (encFilePath, opts) => {
-						const up = await waUploadToServer(encFilePath, { ...opts })
-						mediaHandle = up.handle
-						return up
-					},
-					mediaCache: config.mediaCache,
-					options: config.options,
-					font,
-					textColor,
-					backgroundColor,
-					ptt
-				})
-			} catch (error) {
-				logger.error(`Error generating message: ${error}`)
-				throw error
-			}
-
-			try {
-				const normalizedId = WABinary_1.jidNormalizedUser(jid)
-
-				// Funktion, um den richtigen Message-Typ zurückzugeben
-				const getMessageContent = content => {
-					if (content.image) {
-						return { imageMessage: { ...content } }
-					} else if (content.video) {
-						return { videoMessage: { ...content } }
-					} else if (content.audio) {
-						return { audioMessage: { ...content } }
-					} else if (content.text) {
-						return { extendedTextMessage: { text: content.text } }
-					} else {
-						return { extendedTextMessage: { text: '' } } // Fallback
-					}
-				}
-
-				const Message = {
-					groupStatusMessageV2: {
-						message: getMessageContent(messageContent)
-					},
-					messageContextInfo: {
-						messageSecret: crypto_1.randomBytes(32)
-					}
-				}
-
-				const statusMsg = await Utils_1.generateWAMessageFromContent(normalizedId, Message, {})
-
-				await relayMessage(normalizedId, statusMsg.message, {
-					additionalNodes: [
-						{
-							tag: 'meta',
-							attrs: { is_group_status: 'true' }
-						}
-					]
-				})
-
-				await Utils_1.delay(2000)
-			} catch (error) {
-				logger.log(`Error sending to ${id}: ${error}`)
-			}
-
-			return msg
-		},
-		sendMessage: async (jid, content, options = {}) => {
-			const userJid = authState.creds.me.id
 			if (
 				typeof content === 'object' &&
 				'disappearingMessagesInChat' in content &&
@@ -1473,28 +1878,55 @@ const makeMessagesSocket = config => {
 				const value =
 					typeof disappearingMessagesInChat === 'boolean'
 						? disappearingMessagesInChat
-							? Defaults_1.WA_DEFAULT_EPHEMERAL
+							? WA_DEFAULT_EPHEMERAL
 							: 0
 						: disappearingMessagesInChat
 				await groupToggleEphemeral(jid, value)
-			} else {
-				let mentionGroupData
-				const hasLidMentions =
-					(0, WABinary_1.isJidGroup)(jid) &&
-					typeof content === 'object' &&
-					Array.isArray(content?.mentions) &&
-					content.mentions.some(
-						mention => (0, WABinary_1.isLidUser)(mention) || (0, WABinary_1.isHostedLidUser)(mention)
-					)
-				if (hasLidMentions) {
-					try {
-						mentionGroupData =
-							(options.useCachedGroupMetadata && cachedGroupMetadata ? await cachedGroupMetadata(jid) : undefined) ||
-							(await groupMetadata(jid))
-					} catch (error) {
-						logger.warn({ jid, error }, 'failed to fetch group metadata for mention jid normalization')
+			} else if (baron2.detectType(content)) {
+				const { quoted } = options
+				const messageType = baron2.detectType(content)
+				switch (messageType) {
+					case 'PAYMENT': {
+						const paymentContent = await baron2.handlePayment(content, quoted)
+						return await relayMessage(jid, paymentContent, {
+							messageId: (0, Utils_1.generateMessageIDV2)(userJid)
+						})
 					}
+					case 'PRODUCT': {
+						const productContent = await baron2.handleProduct(content, jid, quoted)
+						const productMsg = await (0, Utils_1.generateWAMessageFromContent)(jid, productContent, { quoted, userJid })
+						return await relayMessage(jid, productMsg.message, {
+							messageId: productMsg.key.id
+						})
+					}
+					case 'INTERACTIVE': {
+						const interactiveContent = await baron2.handleInteractive(content, jid, quoted)
+						const interactiveMsg = await (0, Utils_1.generateWAMessageFromContent)(jid, interactiveContent, {
+							quoted,
+							userJid
+						})
+						return await relayMessage(jid, interactiveMsg.message, {
+							messageId: interactiveMsg.key.id
+						})
+					}
+					case 'INTERACTIVE_BUTTONS': {
+						const ibContent = await baron2.handleInteractiveButtons(content, jid, quoted)
+						const ibMsg = await (0, Utils_1.generateWAMessageFromContent)(jid, ibContent, { quoted, userJid })
+						return await relayMessage(jid, ibMsg.message, {
+							messageId: ibMsg.key.id
+						})
+					}
+					case 'ALBUM':
+						return await baron2.handleAlbum(content, jid, quoted)
+					case 'EVENT':
+						return await baron2.handleEvent(content, jid, quoted)
+					case 'POLL_RESULT':
+						return await baron2.handlePollResult(content, jid, quoted)
+					case 'GROUP_STORY':
+						return await baron2.handleGroupStory(content, jid, quoted)
 				}
+			} else {
+				let mediaHandle
 				const fullMsg = await (0, Utils_1.generateWAMessage)(jid, content, {
 					logger,
 					userJid,
@@ -1511,29 +1943,30 @@ const makeMessagesSocket = config => {
 					//TODO: CACHE
 					getProfilePicUrl: sock.profilePictureUrl,
 					getCallLink: sock.createCallLink,
-					upload: waUploadToServer,
+					newsletter: (0, WABinary_1.isJidNewsletter)(jid),
+					upload: async (encFilePath, opts) => {
+						const up = await waUploadToServer(encFilePath, {
+							...opts,
+							newsletter: (0, WABinary_1.isJidNewsletter)(jid)
+						})
+						mediaHandle = up.handle
+						return up
+					},
 					mediaCache: config.mediaCache,
 					options: config.options,
 					messageId: (0, Utils_1.generateMessageIDV2)(sock.user?.id),
-					groupData: mentionGroupData,
-					signalRepository,
 					...options
 				})
-				if ((0, WABinary_1.isJidGroup)(jid) && fullMsg?.message) {
-					const messageContent = (0, Utils_1.normalizeMessageContent)(fullMsg.message) || fullMsg.message
-					const mentionedJid = messageContent?.extendedTextMessage?.contextInfo?.mentionedJid
-					if (Array.isArray(mentionedJid) && mentionedJid.length) {
-						const resolvedGroupData =
-							mentionGroupData ||
-							(options.useCachedGroupMetadata && cachedGroupMetadata ? await cachedGroupMetadata(jid) : undefined) ||
-							(await groupMetadata(jid))
-						messageContent.extendedTextMessage.contextInfo.mentionedJid = await (0,
-						jid_display_normalization_1.normalizeMentionedJidsForSend)(
-							mentionedJid,
-							resolvedGroupData,
-							signalRepository,
-							logger
-						)
+				if (!mediaHandle) {
+					const msgContent = fullMsg.message
+					const msgTypes = ['audioMessage', 'imageMessage', 'videoMessage', 'documentMessage', 'stickerMessage']
+					for (const t of msgTypes) {
+						if (msgContent?.[t]?._uploadHandle) {
+							mediaHandle = msgContent[t]._uploadHandle
+
+							delete msgContent[t]._uploadHandle
+							break
+						}
 					}
 				}
 				const isEventMsg = 'event' in content && !!content.event
@@ -1543,9 +1976,7 @@ const makeMessagesSocket = config => {
 				const isPollMessage = 'poll' in content && !!content.poll
 				const additionalAttributes = {}
 				const additionalNodes = []
-				// required for delete
 				if (isDeleteMsg) {
-					// if the chat is a group, and I am not the author, then delete the message as an admin
 					if ((0, WABinary_1.isJidGroup)(content.delete?.remoteJid) && !content.delete?.fromMe) {
 						additionalAttributes.edit = '8'
 					} else {
@@ -1570,13 +2001,27 @@ const makeMessagesSocket = config => {
 						}
 					})
 				}
+				const buttonType = getButtonType(fullMsg.message)
+				if (content?.audio && options?.contextInfo) {
+					const msgContent = fullMsg.message
+					if (msgContent?.audioMessage) {
+						msgContent.audioMessage.contextInfo = options.contextInfo
+					}
+				}
+				if (buttonType) {
+					const btnNode = getButtonArgs(fullMsg.message)
+					if (btnNode) additionalNodes.push(btnNode)
+				}
+				if (mediaHandle) {
+					additionalAttributes['media_id'] = mediaHandle
+				}
 				await relayMessage(jid, fullMsg.message, {
 					messageId: fullMsg.key.id,
 					useCachedGroupMetadata: options.useCachedGroupMetadata,
 					additionalAttributes,
 					statusJidList: options.statusJidList,
 					additionalNodes,
-					AI: options.ai
+					AI: options.ai || false
 				})
 				if (config.emitOwnEvents) {
 					process.nextTick(async () => {

@@ -21,6 +21,10 @@ The maintainers of Baileys do not in any way condone the use of this application
 - Not running Selenium or Chromimum saves you like **half a gig** of ram :/
 - Baileys supports interacting with the multi-device & web versions of WhatsApp.
 
+## Antiban Protection ⚠ (Test Phase)
+
+Built-in anti-ban middleware is automatically applied to every socket. See [ANTIBAN.md](./ANTIBAN.md) for usage, configuration, and diagnostics.
+
 ## Install
 
 Use the stable version:
@@ -41,8 +45,91 @@ Then import your code using:
 import makeWASocket from 'phoenix-baileys-v2'
 ```
 
-## What's New (Identity + Meta AI + History Sync)
+## What's New (Usernames)
 
+Full implementation of the WhatsApp username protocol, reverse-engineered from WhatsApp 2.26.17.2. See [USERNAME.md](./USERNAME.md) for full documentation and setup instructions.
+
+- **`checkUsername(username, includeSuggestions?)`** — check whether a `@username` is available before setting it. Returns `{ available, suggestions, rejectionReasons, suggestionsEligible }`. Confirmed from `C1568872p.A01()` and `C164057Wg.java` (`xwa2_username_check` data path).
+- **`setUsername(username, options?)`** — set your own username via `w:mex` `UsernameSet`. Options: `source` (`USER_INPUT` / `SUGGESTION` / `FB` / `IG`), `sessionId`, `pin`.
+- **`deleteUsername()`** — unset your username. Sends `username: null` which triggers the server-side delete path (confirmed `C1568872p.java:24`).
+- **`getMyUsername()`** — fetch your current username via `w:mex` `UsernameGet`.
+- **`setUsernamePin(pin)`** — protect your username with a PIN, or delete it by passing `null`. Uses `w:mex` operation `UsernamePinSet` (confirmed `MexUsernamePinProtocolApi.java`).
+- **`findUserByUsername(username, pin?)`** — look up a contact's JID by their `@username` via USync. Supports PIN-protected usernames. Returns `{ jid, contact }`.
+- **`fetchContactUsernames(...jids)`** — batch-fetch the username of multiple contacts by JID via USync `UsernameProtocol`.
+- **`USERNAME_QUERY_IDS`** — object holding the `w:mex` query IDs (must be filled in from a live session capture — see [USERNAME.md](./USERNAME.md#setup-query-ids)).
+- **`USERNAME_CHECK_RESULT`**, **`USERNAME_SOURCE`** — enums confirmed from APK (`EnumC141106Vn`, `C1568872p.java`).
+
+## What's New (Interop — BirdyChat & Haiket)
+
+Full support for the WhatsApp DMA Interoperability Protocol (`w:interop`). Allows messaging with users on third-party platforms directly from a WhatsApp account. See [INTEROP.md](./INTEROP.md) for full documentation.
+
+- **Automatic init on connect** — integrators are fetched, TOS accepted, and opt-in sent in parallel with other init queries. No manual setup required.
+- **`fetchIntegrators()`** — returns all available integrators with `id`, `name`, `status` (`active` | `onboarding` | `removed`), `identifierType` (`email` | `pn` | `username`), `optedIn`, and `features`.
+- **`resolveInteropUser(externalId, integratorId)`** — look up a single user by email (BirdyChat) or phone number (Haiket). Returns their interop JID (`12-…@interop`) or an error object.
+- **`resolveInteropUsers([...])`** — batch lookup of up to 256 users in a single IQ request.
+- **`optInIntegrators(ids)` / `optOutIntegrators(ids)`** — opt in or out of specific integrators.
+- **`getReachabilitySettings()` / `setReachabilitySettings(users, enabled)`** — interop presence/reachability subscription mechanism (replaces XMPP presence for interop contacts).
+- **`blockInteropUser(jid)` / `unblockInteropUser(jid)`** — block/unblock via the dedicated `w:interop` blocklist (separate from the regular WA blocklist).
+- **`reportInteropSpam(jid)`** — report an interop contact as spam.
+- **`trustInteropContact(jid)`** — mark an interop JID as `trusted_contact` in privacy tokens (called automatically after the first send in WA).
+- **`isInteropUser(jid)`** — new JID utility exported from `WABinary`, returns `true` for `@interop` JIDs.
+- **Incoming message support** — `decodeMessageNode` now correctly handles messages received from interop JIDs (`@interop`) as `chat` type, routed through the normal `messages.upsert` event.
+- **`profilePictureUrl`** — works out of the box for interop JIDs (no TC token attached, matching the WA protocol).
+- **Constants** `INTEGRATOR_BIRDYCHAT` (12) and `INTEGRATOR_HAIKET` (13) exported directly from the socket.
+
+## What's New (Identity + Meta AI + History Sync + New Message Types)
+
+- **TC Token (Privacy Token) system — full upstream parity**
+  - Tokens are now stored under LID instead of PN where applicable (AB prop 14303).
+  - Expiry is enforced using a rolling 28-day / 4-bucket window; expired tokens are cleared on send.
+  - Fire-and-forget token issuance after every outgoing 1:1 message, with in-flight deduplication via `inFlightTcTokenIssuance`.
+  - Token re-issuance triggers automatically when a peer's device identity changes (`reissueTcTokenAfterIdentityChange`).
+  - Privacy token notifications (`privacy_token`) are now processed via `storeTcTokensFromIqResult` with `sender_lid` support.
+  - TC tokens from history sync are stored and indexed (`storeTcTokensFromHistorySync`).
+  - A persistent `__index` key tracks all storage JIDs for daily cross-session pruning (`pruneExpiredTcTokens`).
+  - Profile picture IQs and presence subscribes are gated by server-assigned AB props (`serverProps.profilePicPrivacyToken`, `serverProps.privacyTokenOn1to1`).
+  - New exports: `readTcTokenIndex`, `buildMergedTcTokenIndexWrite`, `isTcTokenExpired`, `shouldSendNewTcToken`, `resolveTcTokenJid`, `resolveIssuanceJid`, `storeTcTokensFromIqResult`, `TC_TOKEN_INDEX_KEY`.
+- **App state sync — missing-key handling (Blocked state)**
+  - Collections blocked on a missing app state sync key are parked in `blockedCollections` instead of being retried indefinitely.
+  - When the key arrives via `APP_STATE_SYNC_KEY_SHARE`, blocked collections are re-synced automatically.
+  - New utilities: `isMissingKeyError`, `isAppStateSyncIrrecoverable`, `MAX_SYNC_ATTEMPTS`, `ensureLTHashStateVersion` (exported from `chat-utils`).
+- **Server AB props (`serverProps`) on the socket**
+  - `chats.makeChatsSocket` now fetches and exposes `serverProps` containing three live AB flags:
+    - `privacyTokenOn1to1` (prop 10518) — whether tctoken is required on all 1:1 messages
+    - `profilePicPrivacyToken` (prop 9666) — whether profile-picture IQs require a tctoken
+    - `lidTrustedTokenIssueToLid` (prop 14303) — whether tokens are issued to LID or PN
+- **History sync completion tracking**
+  - `historySyncStatus` tracks `initialBootstrapComplete` and `recentSyncComplete` in-memory.
+  - `messaging-history.status` event fires with `{ syncType, status: 'complete'|'paused', explicit }` for `INITIAL_BOOTSTRAP` and `RECENT` sync types.
+  - A 120 s paused-timeout fires a `status: 'paused'` event if progress stalls mid-RECENT sync (`HISTORY_SYNC_PAUSED_TIMEOUT_MS`).
+  - On reconnection with existing data (`accountSyncCounter > 0`), the 20 s AwaitingInitialSync wait is skipped.
+- **Username support**
+  - `USyncUsernameProtocol` — new USync protocol for username lookups.
+  - `USyncQuery.withUsernameProtocol()` and `USyncUser.withUsername()` / `withUsernameKey()` added.
+  - `USyncContactProtocol.getUserElement` supports `username`, `usernameKey`, and `lid` lookups in addition to phone.
+  - Group metadata now includes `ownerUsername`, `subjectOwnerUsername`, `descOwnerUsername`, and `username` per participant.
+  - `authorUsername` propagated through group-participant events (`group-participants.update`, `groups.update`, `group.join-request`).
+  - `participantUsername` and `remoteJidUsername` exposed on message keys.
+  - `username` field carried through history sync, sync-action, and lidContactAction contacts events.
+- **Server error codes**
+  - `SERVER_ERROR_CODES` exported from `decode-wa-message`: `MissingTcToken: '463'`, `SmaxInvalid: '479'`.
+  - ACK error handler distinguishes 463 (account restricted / missing tctoken) and 479 (stale session / SMAX_INVALID) with specific log messages and no-retry behaviour for 463.
+- **Identity change handler**
+  - `ctx.onBeforeSessionRefresh?.(from)` callback fires before `assertSessions`, enabling fire-and-forget tctoken re-issuance in parallel with the session refresh.
+- **Call latency**
+  - `relaylatency` call status now reads `latency` / `latency_ms` / `latency-ms` attributes and sets `call.latencyMs`.
+- **Rich AI Response Message support**
+  - Send Meta AI-style rich responses via `richResponse` with optional syntax-highlighted code blocks.
+  - Built-in tokenizer supports JavaScript, TypeScript, and Python.
+  - Uses `botForwardedMessage` → `richResponseMessage` → `unifiedResponse` proto chain.
+- **New WA 2.3000+ message types**
+  - `statusNotification` — status add-yours / reshare / question-answer-reshare events.
+  - `statusQuestionAnswer` — user answered a status question.
+  - `questionResponse` — direct response to a question message.
+  - `statusQuoted` — quote a status with a custom type.
+  - `statusStickerInteraction` — react to a status with a sticker.
+  - `newsletterFollowerInvite` — invite a user to follow a newsletter.
+  - `messageHistoryNotice` — notify about message history metadata.
 - **JID display normalization is now built in**
   - Runtime prefers PN JIDs (`@s.whatsapp.net`) over LID JIDs (`@lid`) in display/event paths when mapping data is available.
   - This includes message identity fields, mentions (`contextInfo.mentionedJid`), quote/reply participants, and call/event payload identity fields.
@@ -57,7 +144,7 @@ import makeWASocket from 'phoenix-baileys-v2'
 
 # Index
 
-- [What's New (Identity + Meta AI + History Sync)](#whats-new-identity--meta-ai--history-sync)
+- [What's New](#whats-new-identity--meta-ai--history-sync--new-message-types)
 - [Connecting Account](#connecting-account)
   - [Connect with QR-CODE](#starting-socket-with-qr-code)
   - [Connect with Pairing Code](#starting-socket-with-pairing-code)
@@ -116,6 +203,23 @@ import makeWASocket from 'phoenix-baileys-v2'
     - [Shop Message](#shop-message)
     - [Collection Message](#collection-message)
     - [Sticker Pack Message](#Sticker-Pack-Message)
+    - [Rich AI Response Message](#rich-ai-response-message)
+    - [Rich Composer Methods](#rich-composer-methods)
+      - [Send Table](#send-table)
+      - [Send List](#send-list)
+      - [Send Code Block](#send-code-block)
+      - [Send Latex](#send-latex)
+      - [Send Latex Image](#send-latex-image)
+      - [Send Latex Inline Image](#send-latex-inline-image)
+      - [Send Rich Message](#send-rich-message)
+      - [Capture & Resend Unified Response](#capture--resend-unified-response)
+    - [Status Notification Message](#status-notification-message)
+    - [Status Question Answer Message](#status-question-answer-message)
+    - [Question Response Message](#question-response-message)
+    - [Status Quoted Message](#status-quoted-message)
+    - [Status Sticker Interaction Message](#status-sticker-interaction-message)
+    - [Newsletter Follower Invite Message](#newsletter-follower-invite-message)
+    - [Message History Notice](#message-history-notice)
   - [Sending with Link Preview](#sending-messages-with-link-previews)
   - [Media Messages](#media-messages)
     - [Gif Message](#gif-message)
@@ -1992,6 +2096,301 @@ await sock.sendMessage(jid, {
 })
 ```
 
+### Rich AI Response Message
+
+Send a WhatsApp AI-style rich response — the same format used by Meta AI bots — with an optional syntax-highlighted code block.
+Uses `botForwardedMessage` → `richResponseMessage` → `unifiedResponse` (raw JSON bytes in the `data` field).
+
+Token types produced by the built-in tokenizer: `KEYWORD`, `STR`, `NUMBER`, `METHOD`, `COMMENT`, `DEFAULT`.
+
+WAProto types used: `AIRichResponseMessage` (field 97), `AIRichResponseUnifiedResponse`, `ForwardedAIBotMessageInfo`, `BotMessageSharingInfo`.
+
+```js
+// Text-only
+await sock.sendMessage(jid, {
+  richResponse: {
+    text: 'aku hann universe'
+  }
+})
+
+// Text + JS code block (auto-tokenized)
+await sock.sendMessage(jid, {
+  richResponse: {
+    text: 'Here is a Hello World example:',
+    code: 'console.log("Hello World")',
+    language: 'javascript'   // default
+  }
+})
+
+// Text + code + custom bot JID
+await sock.sendMessage(jid, {
+  richResponse: {
+    text: 'Result:',
+    code: 'const x = 42\nconsole.log(x)',
+    botJid: '259786046210223@bot'
+  }
+})
+```
+
+### Rich Composer Methods
+
+These methods are available directly on the socket and send rich AI-style content using the `botForwardedMessage` proto chain.
+
+#### Send Table
+
+```js
+await sock.sendTable(
+  jid,
+  'User Stats',                        // title
+  ['Name', 'Score', 'Rank'],           // headers
+  [['Alice', '980', '#1'], ['Bob', '870', '#2']], // rows
+  quoted,                              // optional quoted message
+  { headerText: 'Top Players', footer: 'Updated daily' } // optional
+)
+```
+
+#### Send List
+
+```js
+await sock.sendList(
+  jid,
+  'Shopping List',         // title
+  ['Apples', 'Bread', 'Milk'], // items (string[] or string[][])
+  quoted,                  // optional
+  { footer: 'Remember to buy!' }
+)
+```
+
+#### Send Code Block
+
+```js
+await sock.sendCodeBlock(
+  jid,
+  'console.log("Hello World")', // code string
+  quoted,                       // optional
+  {
+    title: 'Example',
+    language: 'javascript',     // default: 'javascript'
+    footer: 'Run with Node.js'
+  }
+)
+```
+
+#### Send Latex
+
+Send a LaTeX expression as text (no image rendering).
+
+```js
+await sock.sendLatex(
+  jid,
+  quoted,
+  {
+    text: 'Quadratic formula:',
+    expressions: [
+      {
+        latexExpression: 'x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}',
+        url: 'https://example.com/formula.png', // pre-rendered image url
+        width: 300,
+        height: 80
+      }
+    ],
+    footer: 'Source: Wikipedia'
+  }
+)
+```
+
+#### Send Latex Image
+
+Renders LaTeX to a PNG via your own `renderLatexToPng` function and uploads it.
+
+```js
+const renderLatexToPng = async (expr) => {
+  // return { buffer: Buffer, width: number, height: number }
+}
+
+await sock.sendLatexImage(
+  jid,
+  quoted,
+  {
+    text: 'Euler\'s identity:',
+    expressions: [{ latexExpression: 'e^{i\\pi}+1=0' }]
+  },
+  renderLatexToPng,
+  waUploadToServer
+)
+```
+
+#### Send Latex Inline Image
+
+Same as above but renders each expression as an inline image block.
+
+```js
+await sock.sendLatexInlineImage(
+  jid,
+  quoted,
+  {
+    text: 'Inline formula:',
+    expressions: [{ latexExpression: '\\sqrt{2}' }]
+  },
+  renderLatexToPng,
+  waUploadToServer
+)
+```
+
+#### Send Rich Message
+
+Send a fully custom array of submessages using the rich response format.
+
+```js
+await sock.sendRichMessage(
+  jid,
+  [
+    { messageType: 2, messageText: 'Header text' },
+    { messageType: 5, codeMetadata: { codeLanguage: 'javascript', codeBlocks: [...] } }
+  ],
+  quoted
+)
+```
+
+#### Capture & Resend Unified Response
+
+Capture the `unifiedResponse` payload from a received Meta AI message and forward it.
+
+```js
+// capture from an incoming message
+const captured = sock.captureUnifiedResponse(message)
+
+// resend to another jid
+if (captured) {
+  await sock.sendUnifiedResponse(jid, quoted, captured)
+}
+```
+
+### Status Notification Message
+
+> [!NOTE]
+> Added in WA 2.3000+
+
+Sent when a status add-yours / reshare / question-answer-reshare event fires.
+
+```js
+await sock.sendMessage(jid, {
+  statusNotification: {
+    responseMessageKey: { remoteJid: jid, id: 'MSG_ID' },
+    originalMessageKey:  { remoteJid: jid, id: 'ORIG_ID' },
+    type: 1  // 1=STATUS_ADD_YOURS, 2=STATUS_RESHARE, 3=STATUS_QUESTION_ANSWER_RESHARE
+  }
+})
+// full proto key also accepted:
+// statusNotificationMessage: { ... }
+```
+
+### Status Question Answer Message
+
+> [!NOTE]
+> Added in WA 2.3000+
+
+User answered a status question.
+
+```js
+await sock.sendMessage(jid, {
+  statusQuestionAnswer: {
+    key:  { remoteJid: jid, id: 'MSG_ID' },
+    text: 'My answer'
+  }
+})
+// full proto key: statusQuestionAnswerMessage
+```
+
+### Question Response Message
+
+> [!NOTE]
+> Added in WA 2.3000+
+
+Direct response to a question message.
+
+```js
+await sock.sendMessage(jid, {
+  questionResponse: {
+    key:  { remoteJid: jid, id: 'QUESTION_MSG_ID' },
+    text: 'My response'
+  }
+})
+// full proto key: questionResponseMessage
+```
+
+### Status Quoted Message
+
+> [!NOTE]
+> Added in WA 2.3000+
+
+Quote a status with a custom type.
+
+```js
+await sock.sendMessage(jid, {
+  statusQuoted: {
+    type: 1,           // 1 = QUESTION_ANSWER
+    text: 'Quoted text',
+    thumbnail: Buffer, // optional
+    originalStatusId: { remoteJid: jid, id: 'STATUS_MSG_ID' }
+  }
+})
+// full proto key: statusQuotedMessage
+```
+
+### Status Sticker Interaction Message
+
+> [!NOTE]
+> Added in WA 2.3000+
+
+React to a status with a sticker.
+
+```js
+await sock.sendMessage(jid, {
+  statusStickerInteraction: {
+    key:       { remoteJid: jid, id: 'STATUS_MSG_ID' },
+    stickerKey: 'sticker-hash-key',
+    type: 1    // 1 = REACTION
+  }
+})
+// full proto key: statusStickerInteractionMessage
+```
+
+### Newsletter Follower Invite Message
+
+> [!NOTE]
+> Added in WA 2.3000+
+
+Invite a user to follow a newsletter.
+
+```js
+await sock.sendMessage(jid, {
+  newsletterFollowerInvite: {
+    newsletterJid:  '120363xxxxxx@newsletter',
+    newsletterName: 'My Channel',
+    jpegThumbnail:  Buffer, // optional
+    caption: 'Join my channel!'
+  }
+})
+// full proto key: newsletterFollowerInviteMessageV2
+```
+
+### Message History Notice
+
+> [!NOTE]
+> Added in WA 2.3000+
+
+Notify about message history metadata.
+
+```js
+await sock.sendMessage(jid, {
+  messageHistoryNotice: {
+    contextInfo: { ... }
+    // messageHistoryMetadata is optional
+  }
+})
+```
+
 ### Sending Messages with Link Previews
 
 1. By default, wa does not have link generation when sent from the web
@@ -2001,7 +2400,7 @@ await sock.sendMessage(jid, {
 
 ```ts
 await sock.sendMessage(jid, {
-	text: 'Hi, this was sent using https://github.com/Exiqonbotz/phoenix-baileys-v2'
+	text: 'Hi, this was sent using https://github.com/Exiqonbotzs-Team/phoenix-baileys-v2'
 })
 ```
 

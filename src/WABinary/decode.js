@@ -3,31 +3,31 @@ var __createBinding =
 	(this && this.__createBinding) ||
 	(Object.create
 		? function (o, m, k, k2) {
-				if (k2 === undefined) k2 = k
-				var desc = Object.getOwnPropertyDescriptor(m, k)
-				if (!desc || ('get' in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-					desc = {
-						enumerable: true,
-						get: function () {
-							return m[k]
-						}
+			if (k2 === undefined) k2 = k
+			var desc = Object.getOwnPropertyDescriptor(m, k)
+			if (!desc || ('get' in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+				desc = {
+					enumerable: true,
+					get: function () {
+						return m[k]
 					}
 				}
-				Object.defineProperty(o, k2, desc)
 			}
+			Object.defineProperty(o, k2, desc)
+		}
 		: function (o, m, k, k2) {
-				if (k2 === undefined) k2 = k
-				o[k2] = m[k]
-			})
+			if (k2 === undefined) k2 = k
+			o[k2] = m[k]
+		})
 var __setModuleDefault =
 	(this && this.__setModuleDefault) ||
 	(Object.create
 		? function (o, v) {
-				Object.defineProperty(o, 'default', { enumerable: true, value: v })
-			}
+			Object.defineProperty(o, 'default', { enumerable: true, value: v })
+		}
 		: function (o, v) {
-				o['default'] = v
-			})
+			o['default'] = v
+		})
 var __importStar =
 	(this && this.__importStar) ||
 	(function () {
@@ -205,6 +205,17 @@ const decodeDecompressedBinaryNode = (buffer, opts, indexRef = { index: 0 }) => 
 		}
 		return `${integrator}-${user}:${device}@${server}`
 	}
+	const readInteropJidTuple = () => {
+		const user = readString(readByte())
+		const device = readInt(2)
+		const integrator = readInt(2)
+		const domain = readByte()
+		if (domain !== 0) {
+			throw new Error(`invalid domain for INTEROP_JID_TUPLE: ${domain}`)
+		}
+		const devicePart = device !== 0 ? `:${device}` : ''
+		return `${integrator}-${user}${devicePart}@interop`
+	}
 	const readString = tag => {
 		if (tag >= 1 && tag < SINGLE_BYTE_TOKENS.length) {
 			return SINGLE_BYTE_TOKENS[tag] || ''
@@ -227,6 +238,8 @@ const decodeDecompressedBinaryNode = (buffer, opts, indexRef = { index: 0 }) => 
 				return readJidPair()
 			case TAGS.FB_JID:
 				return readFbJid()
+			case TAGS.INTEROP_JID_TUPLE:
+				return readInteropJidTuple()
 			case TAGS.INTEROP_JID:
 				return readInteropJid()
 			case TAGS.AD_JID:
@@ -235,7 +248,9 @@ const decodeDecompressedBinaryNode = (buffer, opts, indexRef = { index: 0 }) => 
 			case TAGS.NIBBLE_8:
 				return readPacked8(tag)
 			default:
-				throw new Error('invalid string with tag: ' + tag)
+				// Unknown tag — token table may be outdated (new WA protocol version)
+				console.log(`[WABinary] unknown string tag 0x${tag.toString(16)} — token table outdated?`)
+				return ''
 		}
 	}
 	const readList = tag => {
@@ -249,11 +264,15 @@ const decodeDecompressedBinaryNode = (buffer, opts, indexRef = { index: 0 }) => 
 	const getTokenDouble = (index1, index2) => {
 		const dict = DOUBLE_BYTE_TOKENS[index1]
 		if (!dict) {
-			throw new Error(`Invalid double token dict (${index1})`)
+			// Unknown dictionary — token table may be outdated (new WA protocol version)
+			console.log(`[WABinary] unknown double-byte token dict ${index1} — token table outdated?`)
+			return ''
 		}
 		const value = dict[index2]
 		if (typeof value === 'undefined') {
-			throw new Error(`Invalid double token (${index2})`)
+			// Unknown token in known dictionary — token table may be outdated
+			console.log(`[WABinary] unknown double-byte token dict=${index1} idx=${index2} — token table outdated?`)
+			return ''
 		}
 		return value
 	}

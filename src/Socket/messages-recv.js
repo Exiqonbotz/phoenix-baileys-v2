@@ -17,6 +17,7 @@ const jid_display_normalization_1 = require('../Utils/jid-display-normalization'
 const make_mutex_1 = require('../Utils/make-mutex')
 const offline_node_processor_1 = require('../Utils/offline-node-processor')
 const stanza_ack_1 = require('../Utils/stanza-ack')
+const tc_token_utils_1 = require('../Utils/tc-token-utils')
 const WABinary_1 = require('../WABinary')
 const groups_1 = require('./groups')
 const aigroup_1 = require('./aigroups')
@@ -44,8 +45,13 @@ const makeMessagesRecvSocket = config => {
 		sendReceipt,
 		uploadPreKeys,
 		sendPeerDataOperationMessage,
-		messageRetryManager
+		messageRetryManager,
+		issuePrivacyTokens
 	} = sock
+	const getLIDForPN = signalRepository.lidMapping.getLIDForPN.bind(signalRepository.lidMapping)
+	// Track when the socket fully opens so pending pre-connect messages are treated as history
+	const socketCreatedAt = Math.floor(Date.now() / 1000)
+	let isConnected = false
 	/** this mutex ensures that each retryRequest will wait for the previous one to finish */
 	const retryMutex = (0, make_mutex_1.makeMutex)()
 	const msgRetryCache =
@@ -499,6 +505,39 @@ const makeMessagesRecvSocket = config => {
 			logger.info({ msgAttrs: node.attrs, retryCount }, 'sent retry receipt')
 		}, authState?.creds?.me?.id || 'sendRetryRequest')
 	}
+	/**
+	 * Fire-and-forget tctoken re-issuance after a peer's device identity changed.
+	 * Runs in parallel with the session refresh (not after it).
+	 */
+	const reissueTcTokenAfterIdentityChange = from => {
+		void (async () => {
+			const normalizedJid = (0, WABinary_1.jidNormalizedUser)(from)
+			const tcJid = await (0, tc_token_utils_1.resolveTcTokenJid)(normalizedJid, getLIDForPN)
+			const tcTokenData = await authState.keys.get('tctoken', [tcJid])
+			const senderTs = tcTokenData?.[tcJid]?.senderTimestamp
+			if (senderTs === null || senderTs === undefined || (0, tc_token_utils_1.isTcTokenExpired)(senderTs)) {
+				return
+			}
+			logger.debug({ jid: normalizedJid, senderTimestamp: senderTs }, 'identity changed, re-issuing tctoken')
+			const getPNForLID = signalRepository.lidMapping.getPNForLID.bind(signalRepository.lidMapping)
+			const issueJid = await (0, tc_token_utils_1.resolveIssuanceJid)(
+				normalizedJid,
+				sock.serverProps.lidTrustedTokenIssueToLid,
+				getLIDForPN,
+				getPNForLID
+			)
+			const result = await issuePrivacyTokens([issueJid], senderTs)
+			await (0, tc_token_utils_1.storeTcTokensFromIqResult)({
+				result,
+				fallbackJid: tcJid,
+				keys: authState.keys,
+				getLIDForPN,
+				onNewJidStored: trackTcTokenJid
+			})
+		})().catch(err => {
+			logger.debug({ jid: from, err: err?.message }, 'failed to re-issue tctoken after identity change')
+		})
+	}
 	const handleEncryptNotification = async node => {
 		const from = node.attrs.from
 		if (from === WABinary_1.S_WHATSAPP_NET) {
@@ -516,7 +555,8 @@ const makeMessagesRecvSocket = config => {
 				validateSession: signalRepository.validateSession,
 				assertSessions,
 				debounceCache: identityAssertDebounce,
-				logger
+				logger,
+				onBeforeSessionRefresh: reissueTcTokenAfterIdentityChange
 			})
 			if (result.action === 'no_identity_node') {
 				logger.info({ node }, 'unknown encrypt notification')
@@ -527,6 +567,7 @@ const makeMessagesRecvSocket = config => {
 		// TODO: Support PN/LID (Here is only LID now)
 		const actingParticipantLid = fullNode.attrs.participant
 		const actingParticipantPn = fullNode.attrs.participant_pn
+		const actingParticipantUsername = fullNode.attrs.participant_username
 		const affectedParticipantLid =
 			(0, WABinary_1.getBinaryNodeChild)(child, 'participant')?.attrs?.jid || actingParticipantLid
 		const affectedParticipantPn =
@@ -548,7 +589,8 @@ const makeMessagesRecvSocket = config => {
 					{
 						...metadata,
 						author: actingParticipantLid,
-						authorPn: actingParticipantPn
+						authorPn: actingParticipantPn,
+						authorUsername: actingParticipantUsername
 					}
 				])
 				break
@@ -582,6 +624,7 @@ const makeMessagesRecvSocket = config => {
 								? attrs.phone_number
 								: undefined,
 						lid: (0, WABinary_1.isPnUser)(attrs.jid) && (0, WABinary_1.isLidUser)(attrs.lid) ? attrs.lid : undefined,
+						username: attrs.participant_username || attrs.username || undefined,
 						admin: attrs.type || null
 					}
 				})
@@ -964,29 +1007,64 @@ const makeMessagesRecvSocket = config => {
 			return result
 		}
 	}
+	/**
+	 * In-memory cache of storage JIDs with stored tctokens, seeded from the persisted index.
+	 * Used to coalesce writes during a session; pruning always re-reads the persisted index.
+	 */
+	const tcTokenKnownJids = new Set()
+	const tcTokenIndexLoaded = (async () => {
+		try {
+			const jids = await (0, tc_token_utils_1.readTcTokenIndex)(authState.keys)
+			for (const jid of jids) tcTokenKnownJids.add(jid)
+			logger.debug({ count: tcTokenKnownJids.size }, 'loaded tctoken index')
+		} catch (err) {
+			logger.warn({ err: err?.message }, 'failed to load tctoken index')
+		}
+	})()
+	let tcTokenIndexTimer
+	async function flushTcTokenIndex() {
+		if (tcTokenIndexTimer) {
+			clearTimeout(tcTokenIndexTimer)
+			tcTokenIndexTimer = undefined
+		}
+		const write = await (0, tc_token_utils_1.buildMergedTcTokenIndexWrite)(authState.keys, tcTokenKnownJids)
+		return authState.keys.set({ tctoken: write })
+	}
+	function scheduleTcTokenIndexSave() {
+		if (tcTokenIndexTimer) {
+			clearTimeout(tcTokenIndexTimer)
+		}
+		tcTokenIndexTimer = setTimeout(() => {
+			tcTokenIndexTimer = undefined
+			flushTcTokenIndex().catch(err => {
+				logger.warn({ err: err?.message }, 'failed to save tctoken index')
+			})
+		}, 5000)
+	}
+	function trackTcTokenJid(jid) {
+		if (jid && jid !== tc_token_utils_1.TC_TOKEN_INDEX_KEY && !tcTokenKnownJids.has(jid)) {
+			tcTokenKnownJids.add(jid)
+			scheduleTcTokenIndexSave()
+		}
+	}
 	const handlePrivacyTokenNotification = async node => {
 		const tokensNode = (0, WABinary_1.getBinaryNodeChild)(node, 'tokens')
-		const from = (0, WABinary_1.jidNormalizedUser)(node.attrs.from)
 		if (!tokensNode) return
-		const tokenNodes = (0, WABinary_1.getBinaryNodeChildren)(tokensNode, 'token')
-		for (const tokenNode of tokenNodes) {
-			const { attrs, content } = tokenNode
-			const type = attrs.type
-			const timestamp = attrs.t
-			if (type === 'trusted_contact' && content instanceof Buffer) {
-				logger.debug(
-					{
-						from,
-						timestamp,
-						tcToken: content
-					},
-					'received trusted contact token'
-				)
-				await authState.keys.set({
-					tctoken: { [from]: { token: content, timestamp } }
-				})
-			}
-		}
+		const from = (0, WABinary_1.jidNormalizedUser)(node.attrs.from)
+		// WA Web uses: senderLid ?? toLid(from) for the storage key
+		const senderLid =
+			node.attrs.sender_lid && (0, WABinary_1.isLidUser)((0, WABinary_1.jidNormalizedUser)(node.attrs.sender_lid))
+				? (0, WABinary_1.jidNormalizedUser)(node.attrs.sender_lid)
+				: undefined
+		const fallbackJid = senderLid ?? (await (0, tc_token_utils_1.resolveTcTokenJid)(from, getLIDForPN))
+		logger.debug({ from, storageJid: fallbackJid }, 'processing privacy token notification')
+		await (0, tc_token_utils_1.storeTcTokensFromIqResult)({
+			result: node,
+			fallbackJid,
+			keys: authState.keys,
+			getLIDForPN,
+			onNewJidStored: trackTcTokenJid
+		})
 	}
 	async function decipherLinkPublicKey(data) {
 		const buffer = toRequiredBuffer(data)
@@ -1197,6 +1275,7 @@ const makeMessagesRecvSocket = config => {
 							fromMe,
 							participant: node.attrs.participant,
 							participantAlt,
+							participantUsername: node.attrs.participant_username,
 							addressingMode,
 							id: node.attrs.id,
 							...(msg.key || {})
@@ -1233,7 +1312,22 @@ const makeMessagesRecvSocket = config => {
 		}
 	}
 	const handleMessage = async node => {
+		const isInteropNode = (0, WABinary_1.isInteropUser)(node.attrs.from)
+		if (isInteropNode) {
+			logger.info(
+				{
+					from: node.attrs.from,
+					id: node.attrs.id,
+					type: node.attrs.type,
+					sts: node.attrs.sts,
+					display_name: node.attrs.display_name,
+					encType: (0, WABinary_1.getBinaryNodeChild)(node, 'enc')?.attrs?.type
+				},
+				'[interop] node arrived'
+			)
+		}
 		if (shouldIgnoreJid(node.attrs.from) && node.attrs.from !== WABinary_1.S_WHATSAPP_NET) {
+			if (isInteropNode) logger.warn({ from: node.attrs.from }, '[interop] node dropped by shouldIgnoreJid')
 			logger.debug({ key: node.attrs.key }, 'ignored message')
 			await sendMessageAck(node, Utils_1.NACK_REASONS.UnhandledError)
 			return
@@ -1274,6 +1368,12 @@ const makeMessagesRecvSocket = config => {
 				signalRepository,
 				logger
 			)
+			if (isInteropNode) {
+				logger.info(
+					{ remoteJid: msg.key.remoteJid, id: msg.key.id, fromMe: msg.key.fromMe, pushName: msg.pushName },
+					'[interop] decodeMessageNode OK'
+				)
+			}
 			const alt = msg.key.participantAlt || msg.key.remoteJidAlt
 			// store new mappings we didn't have before
 			if (!!alt) {
@@ -1291,12 +1391,27 @@ const makeMessagesRecvSocket = config => {
 			}
 			await messageMutex.mutex(async () => {
 				await decrypt()
+				if (isInteropNode) {
+					const stubType = msg.messageStubType
+					const stubText = msg.messageStubParameters?.[0]
+					logger.info(
+						{
+							id: msg.key.id,
+							hasMessage: !!msg.message,
+							messageKeys: msg.message ? Object.keys(msg.message) : [],
+							stubType,
+							stubText
+						},
+						'[interop] decrypt() done'
+					)
+				}
 				if (msg.key?.remoteJid && msg.key?.id && msg.message && messageRetryManager) {
 					messageRetryManager.addRecentMessage(msg.key.remoteJid, msg.key.id, msg.message)
 				}
 				// message failed to decrypt
 				if (msg.messageStubType === index_js_1.proto.WebMessageInfo.StubType.CIPHERTEXT && msg.category !== 'peer') {
 					if (msg?.messageStubParameters?.[0] === Utils_1.MISSING_KEYS_ERROR_TEXT) {
+						if (isInteropNode) logger.warn({ id: msg.key.id }, '[interop] decrypt failed: MISSING_KEYS')
 						acked = true
 						return sendMessageAck(node, Utils_1.NACK_REASONS.ParsingError)
 					}
@@ -1440,7 +1555,9 @@ const makeMessagesRecvSocket = config => {
 							type = 'inactive'
 						}
 						acked = true
-						await sendReceipt(msg.key.remoteJid, participant, [msg.key.id], type)
+						// Pass sts from the original stanza for interop contacts (BirdyChat/Haiket)
+						const interopSts = (0, WABinary_1.isInteropUser)(msg.key.remoteJid) ? node.attrs.sts : undefined
+						await sendReceipt(msg.key.remoteJid, participant, [msg.key.id], type, interopSts)
 						// send ack for history message
 						const isAnyHistoryMsg = (0, Utils_1.getHistoryMsg)(msg.message)
 						if (isAnyHistoryMsg) {
@@ -1454,6 +1571,25 @@ const makeMessagesRecvSocket = config => {
 					}
 				}
 				;(0, Utils_1.cleanMessage)(msg, authState.creds.me.id, authState.creds.me.lid)
+				const msgTs = (0, Utils_1.toNumber)(msg.messageTimestamp)
+				const isPending = !isConnected || node.attrs.offline || msgTs < socketCreatedAt
+				if (isInteropNode) {
+					logger.info(
+						{
+							id: msg.key.id,
+							isPending,
+							isConnected,
+							offline: node.attrs.offline,
+							msgTs,
+							socketCreatedAt
+						},
+						isPending ? '[interop] upsert as append (pending/offline)' : '[interop] upsert as notify'
+					)
+				}
+				if (isPending) {
+					await upsertMessage(msg, 'append')
+					return
+				}
 				let groupDataForNormalization
 				if ((0, WABinary_1.isJidGroup)(msg?.key?.remoteJid)) {
 					try {
@@ -1471,9 +1607,15 @@ const makeMessagesRecvSocket = config => {
 					logger,
 					groupDataForNormalization
 				)
-				await upsertMessage(msg, node.attrs.offline ? 'append' : 'notify')
+				await upsertMessage(msg, 'notify')
 			})
 		} catch (error) {
+			if (isInteropNode) {
+				logger.error(
+					{ error: error?.message, stack: error?.stack, from: node.attrs.from, id: node.attrs.id },
+					'[interop] unhandled error in handleMessage'
+				)
+			}
 			logger.error({ error, node: (0, WABinary_1.binaryNodeToString)(node) }, 'error in handling message')
 			if (!acked) {
 				await sendMessageAck(node, Utils_1.NACK_REASONS.UnhandledError).catch(ackErr =>
@@ -1500,6 +1642,13 @@ const makeMessagesRecvSocket = config => {
 				date: new Date(+attrs.t * 1000),
 				offline: !!attrs.offline,
 				status
+			}
+			if (status === 'relaylatency') {
+				const latencyValue = infoChild.attrs.latency || infoChild.attrs['latency_ms'] || infoChild.attrs['latency-ms']
+				const latencyMs = latencyValue ? Number(latencyValue) : undefined
+				if (Number.isFinite(latencyMs)) {
+					call.latencyMs = latencyMs
+				}
 			}
 			if (status === 'offer') {
 				call.isVideo = !!(0, WABinary_1.getBinaryNodeChild)(infoChild, 'video')
@@ -1544,7 +1693,22 @@ const makeMessagesRecvSocket = config => {
 		// error in acknowledgement,
 		// device could not display the message
 		if (attrs.error) {
-			logger.warn({ attrs }, 'received error in ack')
+			if (attrs.error === Utils_1.SERVER_ERROR_CODES.MissingTcToken) {
+				// 463 = account restricted + no tctoken for this contact.
+				// WA Web prevents this client-side (disables compose bar).
+				// No retry — retrying worsens the restriction by counting as another "reach out" to an unknown contact.
+				logger.warn(
+					{ msgId: attrs.id, from: attrs.from },
+					'error 463: account restricted or missing tctoken for contact'
+				)
+			} else if (attrs.error === Utils_1.SERVER_ERROR_CODES.SmaxInvalid) {
+				logger.warn(
+					{ msgId: attrs.id, from: attrs.from },
+					'smax-invalid (479): stanza rejected by server — likely stale device session or malformed addressing'
+				)
+			} else {
+				logger.warn({ attrs }, 'received error in ack')
+			}
 			ev.emit('messages.update', [
 				{
 					key,
@@ -1682,12 +1846,76 @@ const makeMessagesRecvSocket = config => {
 			await upsertMessage(protoMsg, call.offline ? 'append' : 'notify')
 		}
 	})
-	ev.on('connection.update', ({ isOnline }) => {
+	let lastTcTokenPruneTs = 0
+	ev.on('connection.update', ({ isOnline, connection }) => {
+		if (connection === 'open') {
+			isConnected = true
+		}
 		if (typeof isOnline !== 'undefined') {
 			sendActiveReceipts = isOnline
 			logger.trace(`sendActiveReceipts set to "${sendActiveReceipts}"`)
 		}
+		// Daily cleanup of expired tctokens (mirrors WA Web's CLEAN_TC_TOKENS task)
+		if (isOnline) {
+			const now = Date.now()
+			const DAY_MS = 24 * 60 * 60 * 1000
+			if (now - lastTcTokenPruneTs >= DAY_MS) {
+				lastTcTokenPruneTs = now
+				void pruneExpiredTcTokens()
+			}
+		}
 	})
+	async function pruneExpiredTcTokens() {
+		try {
+			await tcTokenIndexLoaded
+			const persisted = await (0, tc_token_utils_1.readTcTokenIndex)(authState.keys)
+			const allJids = new Set(tcTokenKnownJids)
+			for (const jid of persisted) allJids.add(jid)
+			if (!allJids.size) return
+			const jids = [...allJids]
+			const allTokens = await authState.keys.get('tctoken', jids)
+			const writes = {}
+			const survivors = new Set()
+			let mutated = 0
+			for (const jid of jids) {
+				const entry = allTokens[jid]
+				if (!entry) {
+					mutated++
+					continue
+				}
+				const hasPeerToken = !!entry.token?.length
+				const peerTokenExpired = hasPeerToken && (0, tc_token_utils_1.isTcTokenExpired)(entry.timestamp)
+				const hasSenderTs = entry.senderTimestamp !== undefined
+				const senderTsExpired = hasSenderTs && (0, tc_token_utils_1.isTcTokenExpired)(entry.senderTimestamp)
+				const keepPeerToken = hasPeerToken && !peerTokenExpired
+				const keepSenderTs = hasSenderTs && !senderTsExpired
+				if (!keepPeerToken && !keepSenderTs) {
+					writes[jid] = null
+					mutated++
+				} else if (peerTokenExpired && keepSenderTs) {
+					writes[jid] = { token: Buffer.alloc(0), senderTimestamp: entry.senderTimestamp }
+					survivors.add(jid)
+					mutated++
+				} else {
+					survivors.add(jid)
+				}
+			}
+			if (mutated === 0) return
+			await authState.keys.set({
+				tctoken: {
+					...writes,
+					[tc_token_utils_1.TC_TOKEN_INDEX_KEY]: {
+						token: Buffer.from(JSON.stringify([...survivors]))
+					}
+				}
+			})
+			tcTokenKnownJids.clear()
+			for (const jid of survivors) tcTokenKnownJids.add(jid)
+			logger.debug({ mutated, remaining: survivors.size }, 'pruned expired tctokens')
+		} catch (err) {
+			logger.warn({ err: err?.message }, 'failed to prune expired tctokens')
+		}
+	}
 	return {
 		...sock,
 		sendMessageAck,
