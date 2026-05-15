@@ -2,8 +2,6 @@
 Object.defineProperty(exports, '__esModule', { value: true })
 const Defaults_1 = require('../Defaults')
 const communities_1 = require('./communities')
-// Antiban protection — bundled directly into phoenix-baileys-v2
-const { wrapSocket: _wrapSocket } = require('../antiban')
 
 // export the last socket layer
 const makeWASocket = (config) => {
@@ -20,11 +18,6 @@ const makeWASocket = (config) => {
 		'computed syncFullHistory policy'
 	)
 	const sock = (0, communities_1.makeCommunitiesSocket)(newConfig)
-	// Auto-wrap with antiban if available (config.antiban = false to opt-out)
-	if (_wrapSocket && config?.antiban !== false) {
-		const antibanConfig = config?.antiban || 'aggressive'
-		return _wrapSocket(sock, antibanConfig)
-	}
 	return sock
 }
 exports.default = makeWASocket
