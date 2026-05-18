@@ -227,7 +227,7 @@ const buildRichContextInfo = (quoted, options) => {
 		isForwarded: true,
 		forwardedAiBotMessageInfo: { botJid: '1@bot' }, // Adding a different JID that isn't from Meta AI will prevent "Meta AI" from appearing at the top of the message.
 		forwardOrigin: 4,
-		...(options.mentions ? { mentionedJid: mentions } : {})
+		...(options.mentions ? { mentionedJid: options.mentions } : {})
 	}
 	if (quoted?.key) {
 		ctxInfo.stanzaId = quoted.key.id
