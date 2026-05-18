@@ -2244,7 +2244,8 @@ await sock.sendRichMessage(
     { messageType: 2, messageText: 'Header text' },
     { messageType: 5, codeMetadata: { codeLanguage: 'javascript', codeBlocks: [...] } }
   ],
-  quoted
+  quoted, // optional
+  options: { mentions: [...] } // optional
 )
 ```
 
