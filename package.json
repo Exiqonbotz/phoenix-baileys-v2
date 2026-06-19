@@ -1,6 +1,6 @@
 {
   "name": "phoenix-baileys-v2",
-  "version": "2.2.16",
+  "version": "2.2.18",
   "description": "A WebSockets library for interacting with WhatsApp Web",
   "keywords": [
     "whatsapp",
@@ -47,7 +47,7 @@
     "pino": "^9.6",
     "protobufjs": "^7.2.4",
     "uuid": "^9.0.0",
-    "whatsapp-rust-bridge": "git+https://github.com/7ucg/whatsapp-rust-bridge.git",
+    "whatsapp-rust-bridge": "git+https://github.com/7ucg/whatsapp-rust-bridge.git#cde82a0610da9eb572407e888dd217ee720a3376",
     "ws": "^8.13.0"
   },
   "devDependencies": {
