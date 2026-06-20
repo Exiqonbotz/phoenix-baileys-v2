@@ -25,6 +25,16 @@ exports.isWABusinessPlatform =
 	exports.isStringNullOrEmpty =
 	exports.getKeyAuthor =
 	exports.BufferJSON =
+	exports.jitterDelay =
+	exports.exponentialBackoff =
+	exports.bytesToHex =
+	exports.hexToBytes =
+	exports.bytesToBase64Url =
+	exports.sha256Hex =
+	exports.hmacSha256 =
+	exports.normalizeJidBatch =
+	exports.sleep =
+	exports.withRetry =
 		void 0
 exports.promiseTimeout = promiseTimeout
 exports.bindWaitForEvent = bindWaitForEvent
@@ -33,6 +43,7 @@ exports.bytesToCrockford = bytesToCrockford
 exports.encodeNewsletterMessage = encodeNewsletterMessage
 const boom_1 = require('@hapi/boom')
 const crypto_1 = require('crypto')
+const rb = require('whatsapp-rust-bridge')
 const DEFAULTS_1 = require('../Defaults')
 const index_js_1 = require('../../WAProto/index.js')
 const baileysVersion = DEFAULTS_1.VERSION
@@ -197,7 +208,7 @@ const generateMessageIDV2 = userId => {
 	}
 	const random = (0, crypto_1.randomBytes)(16)
 	random.copy(data, 28)
-	const hash = (0, crypto_1.createHash)('sha256').update(data).digest()
+	const hash = Buffer.from(rb.sha256(data))
 	return '3EB0' + hash.toString('hex').toUpperCase().substring(0, 18)
 }
 exports.generateMessageIDV2 = generateMessageIDV2
@@ -448,3 +459,91 @@ function bytesToCrockford(buffer) {
 function encodeNewsletterMessage(message) {
 	return index_js_1.proto.Message.encode(message).finish()
 }
+
+/**
+ * Add human-like jitter to a base delay
+ * @param baseMs base delay in milliseconds
+ * @param varianceFraction fraction of baseMs to use as variance (0–1), default 0.3
+ */
+const jitterDelay = (baseMs, varianceFraction = 0.3) => {
+	const variance = baseMs * varianceFraction
+	return baseMs + (Math.random() * 2 - 1) * variance
+}
+exports.jitterDelay = jitterDelay
+
+/**
+ * Compute exponential backoff delay for a given attempt number (0-based)
+ * @param attempt attempt index (0 = first retry)
+ * @param baseMs starting delay in ms (default 500)
+ * @param maxMs maximum delay cap in ms (default 30000)
+ */
+const exponentialBackoff = (attempt, baseMs = 500, maxMs = 30000) => {
+	return Math.min(baseMs * Math.pow(2, attempt), maxMs)
+}
+exports.exponentialBackoff = exponentialBackoff
+
+/** Convert buffer/Uint8Array to hex string */
+const bytesToHex = buf => Buffer.from(buf).toString('hex')
+exports.bytesToHex = bytesToHex
+
+/** Convert hex string to Buffer */
+const hexToBytes = hex => Buffer.from(hex, 'hex')
+exports.hexToBytes = hexToBytes
+
+/** Convert buffer to base64url string */
+const bytesToBase64Url = buf => Buffer.from(buf).toString('base64url')
+exports.bytesToBase64Url = bytesToBase64Url
+
+/** Compute SHA-256 hex digest of data */
+const sha256Hex = data => (0, crypto_1.createHash)('sha256').update(data).digest('hex')
+exports.sha256Hex = sha256Hex
+
+/** Compute HMAC-SHA-256 of data with key, returns Buffer */
+const hmacSha256 = (data, key) => (0, crypto_1.createHmac)('sha256', key).update(data).digest()
+exports.hmacSha256 = hmacSha256
+
+/**
+ * Normalize and deduplicate an array of JIDs
+ */
+const normalizeJidBatch = (jids, normalizer) => {
+	const seen = new Set()
+	const result = []
+	for (const jid of jids) {
+		if (!jid) continue
+		const normalized = normalizer ? normalizer(jid) : jid
+		if (!seen.has(normalized)) {
+			seen.add(normalized)
+			result.push(normalized)
+		}
+	}
+	return result
+}
+exports.normalizeJidBatch = normalizeJidBatch
+
+/**
+ * Sleep for a given number of milliseconds, returns a cancellable promise
+ */
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+exports.sleep = sleep
+
+/**
+ * Run an async function with retry using exponential backoff
+ * @param fn async function to retry
+ * @param maxAttempts maximum number of attempts
+ * @param baseDelayMs base delay between retries
+ */
+const withRetry = async (fn, maxAttempts = 3, baseDelayMs = 500) => {
+	let lastErr
+	for (let i = 0; i < maxAttempts; i++) {
+		try {
+			return await fn()
+		} catch (err) {
+			lastErr = err
+			if (i < maxAttempts - 1) {
+				await sleep(exponentialBackoff(i, baseDelayMs))
+			}
+		}
+	}
+	throw lastErr
+}
+exports.withRetry = withRetry

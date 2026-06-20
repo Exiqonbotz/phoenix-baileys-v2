@@ -124,6 +124,48 @@ const makeMessagesRecvSocket = config => {
 		}, 8000)
 		return sendPeerDataOperationMessage(pdoMessage)
 	}
+	/**
+	 * Request a Waffle (Meta-account) linking nonce from the paired phone.
+	 * The phone responds via a PeerDataOperationRequestResponseMessage containing
+	 * a WaffleNonceFetchResponse with the nonce needed for Meta account linking.
+	 */
+	const requestWaffleNonce = async () => {
+		if (!authState.creds.me?.id) {
+			throw new boom_1.Boom('Not authenticated')
+		}
+		return sendPeerDataOperationMessage({
+			peerDataOperationRequestType: index_js_1.proto.Message.PeerDataOperationRequestType.WAFFLE_LINKING_NONCE_FETCH
+		})
+	}
+	/**
+	 * Request a Companion Canonical User nonce from the paired phone.
+	 * Used during companion linking to canonicalize the user identity across devices.
+	 * The phone responds with a CompanionCanonicalUserNonceFetchResponse (nonce + waFbid).
+	 *
+	 * @param {string} [registrationTraceId] - Optional trace ID for this registration attempt.
+	 */
+	const requestCompanionCanonicalNonce = async (registrationTraceId) => {
+		if (!authState.creds.me?.id) {
+			throw new boom_1.Boom('Not authenticated')
+		}
+		return sendPeerDataOperationMessage({
+			companionCanonicalUserNonceFetchRequest: registrationTraceId ? { registrationTraceId } : {},
+			peerDataOperationRequestType: index_js_1.proto.Message.PeerDataOperationRequestType.COMPANION_CANONICAL_USER_NONCE_FETCH
+		})
+	}
+	/**
+	 * Request a Companion Meta nonce from the paired phone.
+	 * Used during Meta-account companion linking flow.
+	 * The phone responds with a CompanionMetaNonceFetchResponse (nonce).
+	 */
+	const requestCompanionMetaNonce = async () => {
+		if (!authState.creds.me?.id) {
+			throw new boom_1.Boom('Not authenticated')
+		}
+		return sendPeerDataOperationMessage({
+			peerDataOperationRequestType: index_js_1.proto.Message.PeerDataOperationRequestType.COMPANION_META_NONCE_FETCH
+		})
+	}
 	// Handles mex newsletter notifications
 	const handleMexNewsletterNotification = async node => {
 		const mexNode = (0, WABinary_1.getBinaryNodeChild)(node, 'mex')
@@ -248,6 +290,37 @@ const makeMessagesRecvSocket = config => {
 						logger.error({ error }, 'Failed to decode plaintext newsletter message')
 					}
 				}
+				break
+			case 'live_updates':
+				// Live view count / engagement update
+				const liveCount = parseInt(child.attrs.count || child.content?.toString() || '0', 10)
+				ev.emit('newsletter.live-update', {
+					id: from,
+					server_id: child.attrs.message_id || child.attrs.server_id,
+					liveViewers: liveCount,
+					timestamp: child.attrs.t ? +child.attrs.t : undefined
+				})
+				break
+			case 'pin':
+				ev.emit('newsletter.pin', {
+					id: from,
+					server_id: child.attrs.message_id || child.attrs.server_id,
+					pinned: child.attrs.action !== 'unpin'
+				})
+				break
+			case 'category':
+				ev.emit('newsletter-settings.update', {
+					id: from,
+					update: { category: child.attrs.value || child.content?.toString() }
+				})
+				break
+			case 'invite':
+				ev.emit('newsletter.invite', {
+					id: from,
+					inviteCode: child.attrs.code,
+					inviter: child.attrs.jid || author,
+					role: child.attrs.role || 'SUBSCRIBER'
+				})
 				break
 			default:
 				logger.warn({ node }, 'Unknown newsletter notification')
@@ -375,6 +448,143 @@ const makeMessagesRecvSocket = config => {
 			]
 		}
 		await query(stanza)
+	}
+
+	const acceptCall = async (callId, callFrom) => {
+		const stanza = {
+			tag: 'call',
+			attrs: {
+				from: authState.creds.me.id,
+				to: callFrom
+			},
+			content: [
+				{
+					tag: 'accept',
+					attrs: {
+						'call-id': callId,
+						'call-creator': callFrom,
+						count: '0'
+					},
+					content: undefined
+				}
+			]
+		}
+		await query(stanza)
+	}
+
+	const terminateCall = async (callId, callFrom) => {
+		const stanza = {
+			tag: 'call',
+			attrs: {
+				from: authState.creds.me.id,
+				to: callFrom
+			},
+			content: [
+				{
+					tag: 'terminate',
+					attrs: {
+						'call-id': callId,
+						'call-creator': callFrom,
+						reason: 'user-terminated',
+						count: '0'
+					},
+					content: undefined
+				}
+			]
+		}
+		await query(stanza)
+	}
+
+	/**
+	 * Re-encrypt call key for a device that reconnected mid-call.
+	 * Source: OutgoingSignalingHandler.java enc_rekey / rekeyEncryptionTask
+	 *
+	 * @param {string} callId - Active call ID
+	 * @param {string} callFrom - JID of the call creator
+	 * @param {Buffer} encryptedKeyBytes - Re-encrypted call session key bytes
+	 * @param {number} [count=0] - Retry counter (0–4)
+	 */
+	const rekeyCall = async (callId, callFrom, encryptedKeyBytes, count = 0) => {
+		const stanza = {
+			tag: 'call',
+			attrs: {
+				from: authState.creds.me.id,
+				to: callFrom
+			},
+			content: [
+				{
+					tag: 'enc_rekey',
+					attrs: {
+						'call-id': callId,
+						'call-creator': callFrom,
+						count: count.toString()
+					},
+					content: [
+						{
+							tag: 'enc',
+							attrs: { v: '2', type: 'msg' },
+							content: encryptedKeyBytes
+						}
+					]
+				}
+			]
+		}
+		await query(stanza)
+	}
+
+	/**
+	 * Join a call via an invite link.
+	 * Source: OutgoingSignalingHandler.java link_join tag
+	 *
+	 * @param {string} callId - Call ID from the link
+	 * @param {string} callCreator - JID of the call creator
+	 * @param {string} linkToken - Token from the call link
+	 */
+	const joinCallLink = async (callId, callCreator, linkToken) => {
+		const stanza = {
+			tag: 'call',
+			attrs: {
+				from: authState.creds.me.id,
+				to: callCreator
+			},
+			content: [
+				{
+					tag: 'link_join',
+					attrs: {
+						'call-id': callId,
+						'call-creator': callCreator,
+						token: linkToken
+					},
+					content: undefined
+				}
+			]
+		}
+		await query(stanza)
+	}
+
+	/**
+	 * Query info about a call link before joining.
+	 * Source: OutgoingSignalingHandler.java link_query tag
+	 *
+	 * @param {string} callLinkCode - The call link code to query
+	 * @param {string} to - JID to send the query to
+	 */
+	const queryCallLink = async (callLinkCode, to) => {
+		const stanza = {
+			tag: 'call',
+			attrs: {
+				from: authState.creds.me.id,
+				to
+			},
+			content: [
+				{
+					tag: 'link_query',
+					attrs: { code: callLinkCode },
+					content: undefined
+				}
+			]
+		}
+		return query(stanza)
 	}
 	const sendRetryRequest = async (node, forceIncludeKeys = false) => {
 		const { fullMessage } = (0, Utils_1.decodeMessageNode)(node, authState.creds.me.id, authState.creds.me.lid || '')
@@ -770,7 +980,9 @@ const makeMessagesRecvSocket = config => {
 					}
 					normalized.push(JSON.stringify(parsed))
 					continue
-				} catch {}
+				} catch (err) {
+					logger.debug({ err, entry }, 'failed to normalize stub parameter JSON')
+				}
 			}
 			normalized.push(entry)
 		}
@@ -825,6 +1037,71 @@ const makeMessagesRecvSocket = config => {
 		}
 	}
 
+	/**
+	 * Handle incoming interop notifications (type="interop").
+	 *
+	 * The APK emits these for:
+	 *  - stella_interop_enabled / stella_ios_enabled  → feature-flag toggles
+	 *  - ig_professional / ig_handle / followers       → Instagram profile data updates
+	 *  - fbid:thread / fbid:devices                   → Meta thread/device association
+	 *  - peer_device_presence                         → interop contact online/offline
+	 *  - group membership changes in interop groups   → add/remove/promote events
+	 */
+	const handleInteropNotification = (node, child) => {
+		const childTag = child?.tag
+		const attrs = child?.attrs || {}
+
+		// Feature flag: server toggled stella_interop_enabled or stella_ios_enabled
+		if (childTag === 'feature') {
+			const feature = attrs.name
+			const enabled = attrs.value === 'true' || attrs.value === '1'
+			logger.info({ feature, enabled }, '[interop] feature flag update')
+			ev.emit('interop.feature-update', { feature, enabled })
+			return
+		}
+
+		// Instagram profile data pushed for an interop contact
+		if (childTag === 'ig_profile') {
+			const contactUpdate = {
+				id: (0, WABinary_1.jidNormalizedUser)(node.attrs.from),
+				...(attrs.ig_handle ? { igHandle: attrs.ig_handle } : {}),
+				...(attrs.ig_professional !== undefined ? { igProfessional: attrs.ig_professional === 'true' } : {}),
+				...(attrs.followers !== undefined ? { igFollowers: parseInt(attrs.followers, 10) } : {})
+			}
+			logger.debug({ contactUpdate }, '[interop] ig_profile update')
+			ev.emit('contacts.update', [contactUpdate])
+			return
+		}
+
+		// peer_device_presence — interop contact came online or went offline
+		if (childTag === 'peer_device_presence') {
+			const jid = attrs.jid || (0, WABinary_1.jidNormalizedUser)(node.attrs.from)
+			const presence = attrs.type === 'unavailable' ? 'unavailable' : 'available'
+			logger.debug({ jid, presence }, '[interop] peer_device_presence')
+			ev.emit('presence.update', { id: jid, presences: { [jid]: { lastKnownPresence: presence } } })
+			return
+		}
+
+		// fbid:thread / fbid:devices — Meta thread or device list association
+		if (childTag === 'fbid_thread' || childTag === 'fbid_devices') {
+			logger.debug({ childTag, attrs, from: node.attrs.from }, '[interop] fbid association update')
+			ev.emit('interop.fbid-update', { type: childTag, jid: node.attrs.from, attrs })
+			return
+		}
+
+		// Interop group membership changes (add / remove / promote / demote)
+		if (childTag === 'participants') {
+			const groupJid = node.attrs.from
+			const action = attrs.type // 'add' | 'remove' | 'promote' | 'demote'
+			const participants = (0, WABinary_1.getBinaryNodeChildren)(child, 'participant').map(p => p.attrs.jid)
+			logger.info({ groupJid, action, participants }, '[interop] group participants update')
+			ev.emit('group-participants.update', { id: groupJid, participants, action })
+			return
+		}
+
+		logger.debug({ childTag, from: node.attrs.from }, '[interop] unhandled interop notification subtype')
+	}
+
 	const processNotification = async node => {
 		const result = {}
 		const [child] = (0, WABinary_1.getAllBinaryNodeChildren)(node)
@@ -853,14 +1130,23 @@ const makeMessagesRecvSocket = config => {
 				break
 			case 'devices':
 				const devices = (0, WABinary_1.getBinaryNodeChildren)(child, 'device')
+				const deviceOwnerJid = child.attrs.jid || child.attrs.lid
+				const deviceData = devices.map(d => ({
+					id: d.attrs.jid,
+					lid: d.attrs.lid,
+					keyIndex: d.attrs.key_index ? +d.attrs.key_index : undefined,
+					platform: d.attrs.platform || undefined,
+					isCompanion: d.attrs.companion === 'true' || undefined
+				}))
 				if (
 					(0, WABinary_1.areJidsSameUser)(child.attrs.jid, authState.creds.me.id) ||
 					(0, WABinary_1.areJidsSameUser)(child.attrs.lid, authState.creds.me.lid)
 				) {
-					const deviceData = devices.map(d => ({ id: d.attrs.jid, lid: d.attrs.lid }))
 					logger.info({ deviceData }, 'my own devices changed')
+					ev.emit('devices.update', { id: deviceOwnerJid, devices: deviceData, isSelf: true })
+				} else if (deviceOwnerJid) {
+					ev.emit('devices.update', { id: deviceOwnerJid, devices: deviceData, isSelf: false })
 				}
-				//TODO: drop a new event, add hashes
 				break
 			case 'server_sync':
 				const update = (0, WABinary_1.getBinaryNodeChild)(node, 'collection')
@@ -913,6 +1199,38 @@ const makeMessagesRecvSocket = config => {
 						const type = attrs.action === 'block' ? 'add' : 'remove'
 						ev.emit('blocklist.update', { blocklist, type })
 					}
+				}
+				break
+			case 'business':
+				// SMB privacy / data-sharing settings sync push
+				// (WhatsApp Web: WASmaxInBizSettingsSyncPrivacySettingRequest)
+				if (child?.tag === 'privacy') {
+					ev.emit('business.privacy-settings-sync', {
+						jid: from,
+						categories: (0, WABinary_1.getBinaryNodeChildren)(child, 'category').map(c => ({
+							name: c.attrs.name,
+							value: c.attrs.value
+						})),
+						attrs: child.attrs
+					})
+				}
+				break
+			case 'hosted':
+				// Coexistence (WhatsApp <-> Messenger/Instagram) onboarding/offboarding push
+				// (WhatsApp Web: WASmaxInCoexistenceOnboarding/OffboardingNotification)
+				if (child?.tag === 'onboarding_status') {
+					ev.emit('coexistence.update', {
+						jid: from,
+						kind: 'onboarding',
+						status: child.attrs.status,
+						productSurface: child.attrs['product_surface']
+					})
+				} else if (child?.tag === 'offboarding') {
+					ev.emit('coexistence.update', {
+						jid: from,
+						kind: 'offboarding',
+						productSurface: child.attrs['product_surface']
+					})
 				}
 				break
 			case 'link_code_companion_reg':
@@ -1001,6 +1319,84 @@ const makeMessagesRecvSocket = config => {
 				break
 			case 'privacy_token':
 				await handlePrivacyTokenNotification(node)
+				break
+			case 'security':
+				// Security notifications (compromised session, location change alerts)
+				const securityType = child?.tag || node.attrs.type
+				const securityData = {
+					type: securityType,
+					jid: from,
+					timestamp: node.attrs.t ? +node.attrs.t : Math.floor(Date.now() / 1000),
+					details: child?.attrs || {}
+				}
+				logger.warn({ securityData }, 'received security notification')
+				ev.emit('security.alert', securityData)
+				break
+			case 'identity':
+				// Identity change notifications — peer changed their identity key
+				const identityJid = node.attrs.from
+				const identityNewKey = child?.content ? Buffer.from(child.content) : undefined
+				ev.emit('identity.update', {
+					jid: (0, WABinary_1.jidNormalizedUser)(identityJid),
+					newIdentityKey: identityNewKey,
+					timestamp: node.attrs.t ? +node.attrs.t : Math.floor(Date.now() / 1000)
+				})
+				break
+			case 'server':
+				// Server-issued notifications (config changes, client config refresh)
+				const serverTag = child?.tag
+				if (serverTag === 'config') {
+					const configData = {}
+					for (const attr of Object.keys(child?.attrs || {})) {
+						configData[attr] = child.attrs[attr]
+					}
+					ev.emit('server.config', configData)
+				} else if (serverTag === 'app_state_key') {
+					// Server pushed a new app-state key — trigger resync
+					logger.info('server pushed app state key update')
+					await resyncAppState(['critical_block', 'regular_high', 'regular_low'], false)
+				} else {
+					logger.debug({ node }, 'unhandled server notification')
+				}
+				break
+			case 'status':
+				// Contact status (about) change notification
+				const statusOwner = node.attrs.from
+				const statusText = child?.content ? child.content.toString() : undefined
+				if (statusOwner && statusText !== undefined) {
+					ev.emit('contacts.update', [
+						{
+							id: (0, WABinary_1.jidNormalizedUser)(statusOwner),
+							status: statusText
+						}
+					])
+				}
+				break
+			case 'usync':
+				// USync result push from server
+				const usyncResults = (0, WABinary_1.getBinaryNodeChildren)(child || node, 'user')
+				if (usyncResults.length) {
+					const updates = usyncResults
+						.map(u => ({
+							id: (0, WABinary_1.jidNormalizedUser)(u.attrs.jid),
+							...(u.attrs.lid ? { lid: u.attrs.lid } : {}),
+							...(u.attrs.username ? { username: u.attrs.username } : {}),
+							...(u.attrs.status ? { status: u.attrs.status } : {})
+						}))
+						.filter(u => u.id)
+					if (updates.length) {
+						ev.emit('contacts.update', updates)
+					}
+				}
+				break
+			case 'interop':
+				// Interop-related server notifications — covers:
+				//   stella_interop_enabled / stella_ios_enabled feature flags
+				//   ig_professional / ig_handle / followers (Instagram account data)
+				//   fbid:thread / fbid:devices (Meta thread/device references)
+				//   peer_device_presence updates
+				//   group membership changes in interop groups
+				handleInteropNotification(node, child)
 				break
 		}
 		if (Object.keys(result).length) {
@@ -1350,7 +1746,9 @@ const makeMessagesRecvSocket = config => {
 						if (secret) {
 							;(0, Utils_1.setBotMessageSecret)(targetId, secret)
 						}
-					} catch {}
+					} catch (err) {
+						logger.debug({ err, targetId }, 'failed to retrieve message secret for msmsg')
+					}
 				}
 			}
 		}
@@ -1675,6 +2073,54 @@ const makeMessagesRecvSocket = config => {
 			await sendMessageAck(node).catch(ackErr => logger.error({ ackErr }, 'failed to ack call'))
 		}
 	}
+	// Some accounts receive call signalling as TOP-LEVEL stanzas (<offer>, <terminate>,
+	// <mute_v2>, <transport>, … each with a call-id) instead of wrapped in <call>.
+	// This additively handles those: emit a 'call' event for state stanzas and ack ALL
+	// of them (otherwise WhatsApp keeps redelivering). The <call> path above is untouched.
+	const CALL_STATE_TAGS = new Set(['offer', 'offer_notice', 'terminate', 'accept', 'reject', 'preaccept'])
+	const handleStandaloneCallStanza = async node => {
+		try {
+			if (!CALL_STATE_TAGS.has(node.tag)) {
+				return // media/relay signalling (transport, video, duration, mute_v2, lobby, …): ack only
+			}
+			const { attrs } = node
+			const status = (0, Utils_1.getCallStatusFromNode)(node)
+			const callId = attrs['call-id']
+			const from = attrs.from || attrs['call-creator']
+			const call = {
+				chatId: attrs.from || from,
+				from,
+				callerPn: attrs['caller_pn'],
+				id: callId,
+				date: attrs.t ? new Date(+attrs.t * 1000) : new Date(),
+				offline: !!attrs.offline,
+				status
+			}
+			if (status === 'offer') {
+				call.isVideo = !!(0, WABinary_1.getBinaryNodeChild)(node, 'video')
+				call.isGroup = attrs.type === 'group' || !!attrs['group-jid']
+				call.groupJid = attrs['group-jid']
+				if (callId) {
+					await callOfferCache.set(callId, call)
+				}
+			}
+			const existingCall = callId ? await callOfferCache.get(callId) : undefined
+			if (existingCall) {
+				call.isVideo = existingCall.isVideo
+				call.isGroup = existingCall.isGroup
+				call.callerPn = call.callerPn || existingCall.callerPn
+			}
+			if (callId && (status === 'reject' || status === 'accept' || status === 'timeout' || status === 'terminate')) {
+				await callOfferCache.del(callId)
+			}
+			await normalizeCallEventJids(call, node)
+			ev.emit('call', [call])
+		} catch (error) {
+			logger.error({ error, node: (0, WABinary_1.binaryNodeToString)(node) }, 'error handling standalone call stanza')
+		} finally {
+			await sendMessageAck(node).catch(ackErr => logger.error({ ackErr }, 'failed to ack standalone call'))
+		}
+	}
 	const handleBadAck = async ({ attrs }) => {
 		const key = { remoteJid: attrs.from, fromMe: true, id: attrs.id }
 		// WARNING: REFRAIN FROM ENABLING THIS FOR NOW. IT WILL CAUSE A LOOP
@@ -1782,6 +2228,16 @@ const makeMessagesRecvSocket = config => {
 		nodelogger(node)
 		await processNode('call', node, 'handling call', handleCall)
 	})
+	// additive: top-level call-signalling stanzas (some accounts send these instead of <call>)
+	for (const callTag of [
+		'offer', 'offer_notice', 'terminate', 'accept', 'reject', 'preaccept',
+		'transport', 'video', 'duration', 'mute_v2', 'lobby', 'heartbeat', 'relaylatency', 'link_query'
+	]) {
+		ws.on('CB:' + callTag, node => {
+			nodelogger(node)
+			handleStandaloneCallStanza(node).catch(error => onUnexpectedError(error, 'handling standalone call stanza'))
+		})
+	}
 	ws.on('CB:receipt', async node => {
 		nodelogger(node)
 		await processNode('receipt', node, 'handling receipt', handleReceipt)
@@ -1922,10 +2378,18 @@ const makeMessagesRecvSocket = config => {
 		sendRetryRequest,
 		offerCall,
 		rejectCall,
+		acceptCall,
+		terminateCall,
+		rekeyCall,
+		joinCallLink,
+		queryCallLink,
 		nodelogger,
 		setNodeLoggerListener,
 		fetchMessageHistory,
 		requestPlaceholderResend,
+		requestWaffleNonce,
+		requestCompanionCanonicalNonce,
+		requestCompanionMetaNonce,
 		messageRetryManager
 	}
 }

@@ -662,6 +662,185 @@ const chatModificationToAppPatch = (mod, jid) => {
 			apiVersion: 3,
 			operation: OP.SET
 		}
+	} else if ('markAsUnread' in mod) {
+		patch = {
+			syncAction: {
+				markChatAsReadAction: {
+					read: false,
+					messageRange: getMessageRange(mod.lastMessages)
+				}
+			},
+			index: ['markChatAsRead', jid],
+			type: 'regular_low',
+			apiVersion: 3,
+			operation: OP.SET
+		}
+	} else if ('setChatEphemeral' in mod) {
+		const duration =
+			typeof mod.setChatEphemeral === 'number' ? mod.setChatEphemeral : (mod.setChatEphemeral?.duration ?? 0)
+		patch = {
+			syncAction: {
+				chatEphemeralAction: {
+					ephemeralExpiration: duration,
+					ephemeralSettingTimestamp: Date.now()
+				}
+			},
+			index: ['ephemeral', jid],
+			type: 'regular',
+			apiVersion: 1,
+			operation: OP.SET
+		}
+	} else if ('silenceChat' in mod) {
+		patch = {
+			syncAction: {
+				muteAction: {
+					muted: mod.silenceChat.silent !== false,
+					muteEndTimestamp: mod.silenceChat.until ?? null
+				}
+			},
+			index: ['mute', jid],
+			type: 'regular_high',
+			apiVersion: 2,
+			operation: OP.SET
+		}
+	} else if ('muteStatus' in mod) {
+		patch = {
+			syncAction: {
+				userStatusMuteAction: { muted: mod.muteStatus.muted !== false }
+			},
+			index: ['user_status_mute', jid],
+			type: 'regular',
+			apiVersion: 1,
+			operation: OP.SET
+		}
+	} else if ('favorite' in mod) {
+		patch = {
+			syncAction: {
+				favoritesAction: { isFavorite: !!mod.favorite.isFavorite }
+			},
+			index: ['favorites', jid],
+			type: 'regular',
+			apiVersion: 1,
+			operation: OP.SET
+		}
+	} else if ('reorderLabel' in mod) {
+		patch = {
+			syncAction: {
+				labelReorderingAction: { sortedLabelIds: mod.reorderLabel.sortedLabelIds || [] }
+			},
+			index: ['label_reordering'],
+			type: 'regular',
+			apiVersion: 1,
+			operation: OP.SET
+		}
+	} else if ('deleteCallLog' in mod) {
+		patch = {
+			syncAction: {
+				deleteIndividualCallLog: { callId: mod.deleteCallLog.callId || mod.deleteCallLog }
+			},
+			index: ['delete_call_log', jid],
+			type: 'regular',
+			apiVersion: 1,
+			operation: OP.SET
+		}
+	} else if ('noteEdit' in mod) {
+		patch = {
+			syncAction: {
+				noteEditAction: { note: mod.noteEdit.note || mod.noteEdit, deleted: mod.noteEdit.deleted ?? false }
+			},
+			index: ['note_edit', jid],
+			type: 'regular',
+			apiVersion: 1,
+			operation: OP.SET
+		}
+	} else if ('aiThreadRename' in mod) {
+		patch = {
+			syncAction: {
+				aiThreadRenameAction: {
+					newTitle: mod.aiThreadRename.title || mod.aiThreadRename
+				}
+			},
+			index: ['ai_thread_rename', jid],
+			type: 'regular_high',
+			apiVersion: 1,
+			operation: OP.SET
+		}
+	} else if ('threadPin' in mod) {
+		patch = {
+			syncAction: {
+				threadPinAction: {
+					pinned: !!mod.threadPin.pinned
+				}
+			},
+			index: ['thread_pin', jid, mod.threadPin.messageId || ''],
+			type: 'regular_low',
+			apiVersion: 1,
+			operation: OP.SET
+		}
+	} else if ('chatLock' in mod) {
+		patch = {
+			syncAction: {
+				lockChatAction: {
+					locked: mod.chatLock.locked !== false
+				}
+			},
+			index: ['lock_chat', jid],
+			type: 'regular_high',
+			apiVersion: 1,
+			operation: OP.SET
+		}
+	} else if ('wallpaper' in mod) {
+		const wallpaperData = mod.wallpaper || {}
+		patch = {
+			syncAction: {
+				chatCustomImageWallpaper: wallpaperData.remove
+					? {}
+					: {
+							directPath: wallpaperData.directPath,
+							mediaKey: wallpaperData.mediaKey,
+							fileEncSha256: wallpaperData.fileEncSha256,
+							fileSha256: wallpaperData.fileSha256,
+							dimLevel: wallpaperData.dimLevel ?? 0
+						}
+			},
+			index: ['chat_custom_image_wallpaper', jid],
+			type: 'regular',
+			apiVersion: 1,
+			operation: wallpaperData.remove ? OP.REMOVE : OP.SET
+		}
+	} else if ('mediaVisibility' in mod) {
+		const visibilityEnum = index_js_1.proto.MediaVisibility
+		const visMap = { default: visibilityEnum.DEFAULT, off: visibilityEnum.OFF, on: visibilityEnum.ON }
+		const visibility =
+			typeof mod.mediaVisibility === 'string'
+				? (visMap[mod.mediaVisibility.toLowerCase()] ?? visibilityEnum.DEFAULT)
+				: (mod.mediaVisibility ?? visibilityEnum.DEFAULT)
+		patch = {
+			syncAction: {
+				mediaVisibilityAction: { visibility }
+			},
+			index: ['media_visibility', jid],
+			type: 'regular',
+			apiVersion: 1,
+			operation: OP.SET
+		}
+	} else if ('privateProcessingSetting' in mod) {
+		const statusEnum = index_js_1.proto.SyncActionValue.PrivateProcessingSettingAction.PrivateProcessingStatus
+		const statusMap = { enabled: statusEnum.ENABLED, disabled: statusEnum.DISABLED }
+		const status =
+			typeof mod.privateProcessingSetting === 'string'
+				? (statusMap[mod.privateProcessingSetting.toLowerCase()] ?? statusEnum.ENABLED)
+				: (mod.privateProcessingSetting.status ??
+					(mod.privateProcessingSetting.enabled ? statusEnum.ENABLED : statusEnum.DISABLED))
+		patch = {
+			syncAction: {
+				privateProcessingSettingAction: { privateProcessingStatus: status }
+			},
+			index: ['setting_private_processing'],
+			type: 'regular',
+			apiVersion: 1,
+			operation: OP.SET
+		}
 	} else {
 		throw new boom_1.Boom('not supported')
 	}
@@ -845,6 +1024,166 @@ const processSyncAction = (syncAction, ev, me, initialSyncOpts, logger) => {
 			setting: 'channelsPersonalisedRecommendation',
 			value: action.privacySettingChannelsPersonalisedRecommendationAction
 		})
+	} else if (action?.aiThreadRenameAction) {
+		ev.emit('chats.update', [
+			{
+				id,
+				name: action.aiThreadRenameAction.newTitle,
+				conditional: getChatUpdateConditional(id, undefined)
+			}
+		])
+	} else if (action?.threadPinAction) {
+		ev.emit('chats.update', [
+			{
+				id,
+				pinned: action.threadPinAction.pinned ? (0, generics_1.toNumber)(action.timestamp) : null,
+				conditional: getChatUpdateConditional(id, undefined)
+			}
+		])
+	} else if (action?.privateProcessingSettingAction) {
+		ev.emit('settings.update', {
+			setting: 'privateProcessing',
+			value: action.privateProcessingSettingAction
+		})
+	} else if (action?.settingsSyncAction) {
+		ev.emit('settings.update', {
+			setting: 'clientSettings',
+			value: action.settingsSyncAction
+		})
+	} else if (action?.musicUserIdAction) {
+		ev.emit('settings.update', {
+			setting: 'musicUserId',
+			value: action.musicUserIdAction
+		})
+	} else if (action?.avatarUpdatedAction) {
+		ev.emit('settings.update', {
+			setting: 'avatarUpdated',
+			value: action.avatarUpdatedAction
+		})
+	} else if (action?.recentEmojiWeightsAction) {
+		ev.emit('settings.update', {
+			setting: 'recentEmojiWeights',
+			value: action.recentEmojiWeightsAction?.weights || []
+		})
+	} else if (action?.stickerAction) {
+		ev.emit('settings.update', { setting: 'stickerSync', value: action.stickerAction })
+	} else if (action?.removeRecentStickerAction) {
+		ev.emit('settings.update', { setting: 'removedRecentSticker', value: action.removeRecentStickerAction })
+	} else if (action?.userStatusMuteAction) {
+		ev.emit('contacts.update', [{ id, statusMuted: !!action.userStatusMuteAction.muted }])
+	} else if (action?.chatAssignment) {
+		ev.emit('chats.update', [
+			{
+				id,
+				chatAssignment: action.chatAssignment,
+				conditional: getChatUpdateConditional(id, undefined)
+			}
+		])
+	} else if (action?.chatAssignmentOpenedStatus) {
+		ev.emit('chats.update', [
+			{
+				id,
+				chatAssignmentOpened: !!action.chatAssignmentOpenedStatus.opened,
+				conditional: getChatUpdateConditional(id, undefined)
+			}
+		])
+	} else if (action?.callLogAction) {
+		ev.emit('settings.update', { setting: 'callLog', value: action.callLogAction })
+	} else if (action?.deleteIndividualCallLog) {
+		ev.emit('settings.update', { setting: 'callLogDeleted', value: action.deleteIndividualCallLog })
+	} else if (action?.labelReorderingAction) {
+		ev.emit('labels.reorder', { labelIds: action.labelReorderingAction.sortedLabelIds || [] })
+	} else if (action?.paymentInfoAction) {
+		ev.emit('settings.update', { setting: 'paymentInfo', value: action.paymentInfoAction })
+	} else if (action?.noteEditAction) {
+		ev.emit('chats.update', [
+			{ id, draftNote: action.noteEditAction, conditional: getChatUpdateConditional(id, undefined) }
+		])
+	} else if (action?.favoritesAction) {
+		ev.emit('contacts.update', [{ id, favorite: !!action.favoritesAction.isFavorite }])
+	} else if (action?.usernameChatStartMode) {
+		ev.emit('settings.update', { setting: 'usernameChatStartMode', value: action.usernameChatStartMode })
+	} else if (action?.maibaAiFeaturesControlAction) {
+		ev.emit('settings.update', { setting: 'aiFeatures', value: action.maibaAiFeaturesControlAction })
+	} else if (action?.statusPostOptInNotificationPreferencesAction) {
+		ev.emit('settings.update', {
+			setting: 'statusPostOptInNotifications',
+			value: action.statusPostOptInNotificationPreferencesAction
+		})
+	} else if (action?.subscriptionsSyncV2Action) {
+		ev.emit('settings.update', { setting: 'subscriptions', value: action.subscriptionsSyncV2Action })
+	} else if (action?.newsletterSavedInterestsAction) {
+		ev.emit('settings.update', { setting: 'newsletterSavedInterests', value: action.newsletterSavedInterestsAction })
+	} else if (action?.interactiveMessageAction) {
+		ev.emit('settings.update', { setting: 'interactiveMessageAction', value: action.interactiveMessageAction })
+	} else if (action?.outContactAction) {
+		const results = (0, sync_action_utils_1.processContactAction)(
+			{
+				fullName: action.outContactAction.fullName,
+				firstName: action.outContactAction.firstName
+			},
+			id,
+			logger
+		)
+		;(0, sync_action_utils_1.emitSyncActionResults)(ev, results)
+	} else if (action?.businessBroadcastListAction) {
+		ev.emit('settings.update', { setting: 'broadcastList', value: action.businessBroadcastListAction })
+	} else if (action?.customerDataAction) {
+		ev.emit('chats.update', [
+			{ id, customerData: action.customerDataAction, conditional: getChatUpdateConditional(id, undefined) }
+		])
+	} else if (action?.autoOrganizeBusinessChatSetting) {
+		ev.emit('settings.update', { setting: 'autoOrganizeBusinessChat', value: action.autoOrganizeBusinessChatSetting })
+	} else if (action?.chatLockSettings) {
+		ev.emit('chats.update', [
+			{ id, chatLockSettings: action.chatLockSettings, conditional: getChatUpdateConditional(id, undefined) }
+		])
+	} else if (action?.agentAction) {
+		ev.emit('settings.update', { setting: 'agentAction', value: action.agentAction })
+	} else if (action?.nuxAction) {
+		ev.emit('settings.update', { setting: 'nux', value: action.nuxAction })
+	} else if (action?.quickReplyAction) {
+		ev.emit('settings.update', { setting: 'quickReply', value: action.quickReplyAction })
+	} else if (action?.keyExpiration) {
+		ev.emit('settings.update', { setting: 'keyExpiration', value: action.keyExpiration })
+	} else if (action?.primaryFeature) {
+		ev.emit('settings.update', { setting: 'primaryFeature', value: action.primaryFeature })
+	} else if (action?.androidUnsupportedActions) {
+		ev.emit('settings.update', { setting: 'androidUnsupported', value: action.androidUnsupportedActions })
+	} else if (action?.subscriptionAction) {
+		ev.emit('settings.update', { setting: 'subscription', value: action.subscriptionAction })
+	} else if (action?.primaryVersionAction) {
+		ev.emit('settings.update', { setting: 'primaryVersion', value: action.primaryVersionAction })
+	} else if (action?.marketingMessageAction) {
+		ev.emit('settings.update', { setting: 'marketingMessage', value: action.marketingMessageAction })
+	} else if (action?.marketingMessageBroadcastAction) {
+		ev.emit('settings.update', { setting: 'marketingMessageBroadcast', value: action.marketingMessageBroadcastAction })
+	} else if (action?.externalWebBetaAction) {
+		ev.emit('settings.update', { setting: 'externalWebBeta', value: action.externalWebBetaAction })
+	} else if (action?.botWelcomeRequestAction) {
+		ev.emit('settings.update', { setting: 'botWelcomeRequest', value: action.botWelcomeRequestAction })
+	} else if (action?.customPaymentMethodsAction) {
+		ev.emit('settings.update', { setting: 'customPaymentMethods', value: action.customPaymentMethodsAction })
+	} else if (action?.wamoUserIdentifierAction) {
+		ev.emit('settings.update', { setting: 'wamoUserIdentifier', value: action.wamoUserIdentifierAction })
+	} else if (action?.merchantPaymentPartnerAction) {
+		ev.emit('settings.update', { setting: 'merchantPaymentPartner', value: action.merchantPaymentPartnerAction })
+	} else if (action?.waffleAccountLinkStateAction) {
+		ev.emit('settings.update', { setting: 'waffleAccountLinkState', value: action.waffleAccountLinkStateAction })
+	} else if (action?.ctwaPerCustomerDataSharingAction) {
+		ev.emit('settings.update', { setting: 'ctwaDataSharing', value: action.ctwaPerCustomerDataSharingAction })
+	} else if (action?.paymentTosAction) {
+		ev.emit('settings.update', { setting: 'paymentTos', value: action.paymentTosAction })
+	} else if (action?.detectedOutcomesStatusAction) {
+		ev.emit('settings.update', { setting: 'detectedOutcomesStatus', value: action.detectedOutcomesStatusAction })
+	} else if (action?.nctSaltSyncAction) {
+		ev.emit('settings.update', { setting: 'nctSaltSync', value: action.nctSaltSyncAction })
+	} else if (action?.businessBroadcastCampaignAction) {
+		ev.emit('settings.update', { setting: 'businessBroadcastCampaign', value: action.businessBroadcastCampaignAction })
+	} else if (action?.businessBroadcastInsightsAction) {
+		ev.emit('settings.update', { setting: 'businessBroadcastInsights', value: action.businessBroadcastInsightsAction })
+	} else if (action?.bizAiSettingsNudgeAction) {
+		ev.emit('settings.update', { setting: 'bizAiSettingsNudge', value: action.bizAiSettingsNudgeAction })
 	} else {
 		logger?.debug({ syncAction, id }, 'unprocessable update')
 	}

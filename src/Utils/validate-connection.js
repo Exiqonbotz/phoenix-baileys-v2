@@ -7,6 +7,7 @@ exports.encodeSignedDeviceIdentity =
 		void 0
 const boom_1 = require('@hapi/boom')
 const crypto_1 = require('crypto')
+const rb = require('whatsapp-rust-bridge')
 const index_js_1 = require('../../WAProto/index.js')
 const Defaults_1 = require('../Defaults')
 const WABinary_1 = require('../WABinary')
@@ -51,7 +52,7 @@ const getClientPayload = config => {
 	payload.webInfo = getWebInfo(config)
 	return payload
 }
-const generateLoginNode = (userJid, config) => {
+const generateLoginNode = (userJid, config, creds) => {
 	const { user, device } = (0, WABinary_1.jidDecode)(userJid)
 	// masqueradeAsPrimary: connect as device 0 so the WA server (and interop bridges)
 	// route primary-device traffic — including interop messages — to this session.
@@ -63,8 +64,16 @@ const generateLoginNode = (userJid, config) => {
 		pull: !config.masqueradeAsPrimary,
 		username: +user,
 		device: effectiveDevice,
-		// TODO: investigate (hard set as false atm)
 		lidDbMigrated: false
+	}
+	// InteropData is required for Meta/FB-linked accounts (AccountType = HOSTED).
+	// Populated from creds when present so the server routes interop traffic correctly.
+	if (creds?.interopData?.accountId) {
+		payload.interopData = {
+			accountId: creds.interopData.accountId,
+			token: creds.interopData.token,
+			enableReadReceipts: creds.interopData.enableReadReceipts ?? true
+		}
 	}
 	return index_js_1.proto.ClientPayload.fromObject(payload)
 }
@@ -76,9 +85,7 @@ const getPlatformType = platform => {
 const generateRegistrationNode = ({ registrationId, signedPreKey, signedIdentityKey }, config) => {
 	// the app version needs to be md5 hashed
 	// and passed in
-	const appVersionBuf = (0, crypto_1.createHash)('md5')
-		.update(config.version.join('.')) // join as string
-		.digest()
+	const appVersionBuf = Buffer.from(rb.md5(Buffer.from(config.version.join('.'))))
 	const companion = {
 		os: config.browser[0],
 		platformType: getPlatformType(config.browser[1]),

@@ -52,10 +52,7 @@ var __importStar =
 	})()
 Object.defineProperty(exports, '__esModule', { value: true })
 exports.makeLibSignalRepository = makeLibSignalRepository
-// @ts-ignore
-const libsignal = __importStar(require('libsignal'))
-// @ts-ignore
-const protobufs_1 = require('libsignal/src/protobufs')
+const rb = require('whatsapp-rust-bridge')
 const lru_cache_1 = require('lru-cache')
 const Utils_1 = require('../Utils')
 const WABinary_1 = require('../WABinary')
@@ -75,9 +72,9 @@ function extractIdentityFromPkmsg(ciphertext) {
 			return undefined
 		}
 		// Parse protobuf (skip version byte)
-		const preKeyProto = protobufs_1.PreKeyWhisperMessage.decode(ciphertext.slice(1))
-		if (preKeyProto.identityKey?.length === 33) {
-			return new Uint8Array(preKeyProto.identityKey)
+		const identityKeyArr = rb.getPreKeyMessageIdentityKey(ciphertext)
+		if (identityKeyArr) {
+			return identityKeyArr
 		}
 		return undefined
 	} catch {
@@ -130,7 +127,7 @@ function makeLibSignalRepository(auth, logger, pnToLIDFunc) {
 		},
 		async decryptMessage({ jid, type, ciphertext }) {
 			const addr = jidToSignalProtocolAddress(jid)
-			const session = new libsignal.SessionCipher(storage, addr)
+			const session = new rb.SessionCipher(storage, addr)
 			// Extract and save sender's identity key before decryption for identity change detection
 			if (type === 'pkmsg') {
 				const identityKey = extractIdentityFromPkmsg(ciphertext)
@@ -162,7 +159,7 @@ function makeLibSignalRepository(auth, logger, pnToLIDFunc) {
 		},
 		async encryptMessage({ jid, data }) {
 			const addr = jidToSignalProtocolAddress(jid)
-			const cipher = new libsignal.SessionCipher(storage, addr)
+			const cipher = new rb.SessionCipher(storage, addr)
 			// Use transaction to ensure atomicity
 			return parsedKeys.transaction(async () => {
 				const { type: sigType, body } = await cipher.encrypt(data)
@@ -190,7 +187,7 @@ function makeLibSignalRepository(auth, logger, pnToLIDFunc) {
 		},
 		async injectE2ESession({ jid, session }) {
 			logger.trace({ jid }, 'injecting E2EE session')
-			const cipher = new libsignal.SessionBuilder(storage, jidToSignalProtocolAddress(jid))
+			const cipher = new rb.SessionBuilder(storage, jidToSignalProtocolAddress(jid))
 			return parsedKeys.transaction(async () => {
 				await cipher.initOutgoing(session)
 			}, jid)
@@ -203,13 +200,10 @@ function makeLibSignalRepository(auth, logger, pnToLIDFunc) {
 		async validateSession(jid) {
 			try {
 				const addr = jidToSignalProtocolAddress(jid)
-				const session = await storage.loadSession(addr.toString())
-				if (!session) {
-					return { exists: false, reason: 'no session' }
-				}
-				if (!session.haveOpenSession()) {
-					return { exists: false, reason: 'no open session' }
-				}
+				const sessBytes = await storage.loadSession(addr.toString())
+				if (!sessBytes) return { exists: false, reason: 'no session' }
+				const session = rb.SessionRecord.deserialize(sessBytes)
+				if (!session.haveOpenSession()) return { exists: false, reason: 'no open session' }
 				return { exists: true }
 			} catch (error) {
 				return { exists: false, reason: 'validation error' }
@@ -310,7 +304,7 @@ function makeLibSignalRepository(auth, logger, pnToLIDFunc) {
 						const pnSession = pnSessions[pnAddrStr]
 						if (pnSession) {
 							// Session exists (guaranteed from device discovery)
-							const fromSession = libsignal.SessionRecord.deserialize(pnSession)
+							const fromSession = rb.SessionRecord.deserialize(pnSession)
 							if (fromSession.haveOpenSession()) {
 								// Queue for bulk update: copy to LID, delete from PN
 								sessionUpdates[lidAddrStr] = fromSession.serialize()
@@ -353,7 +347,7 @@ const jidToSignalProtocolAddress = jid => {
 	if (device === 99 && decoded.server !== 'hosted' && decoded.server !== 'hosted.lid') {
 		throw new Error('Unexpected non-hosted device JID with device 99. This ID seems invalid. ID:' + jid)
 	}
-	return new libsignal.ProtocolAddress(signalUser, finalDevice)
+	return new rb.ProtocolAddress(signalUser, finalDevice)
 }
 const jidToSignalSenderKeyName = (group, user) => {
 	return new sender_key_name_1.SenderKeyName(group, jidToSignalProtocolAddress(user))
@@ -365,7 +359,12 @@ function signalStorage({ creds, keys }, lidMapping) {
 			const [deviceId, device] = id.split('.')
 			const [user, domainType_] = deviceId.split('_')
 			const domainType = parseInt(domainType_ || '0')
-			if (domainType === WABinary_1.WAJIDDomains.LID || domainType === WABinary_1.WAJIDDomains.HOSTED_LID || user.includes('-')) return id
+			if (
+				domainType === WABinary_1.WAJIDDomains.LID ||
+				domainType === WABinary_1.WAJIDDomains.HOSTED_LID ||
+				user.includes('-')
+			)
+				return id
 			const pnJid = `${user}${device !== '0' ? `:${device}` : ''}@${domainType === WABinary_1.WAJIDDomains.HOSTED ? 'hosted' : 's.whatsapp.net'}`
 			const lidForPN = await lidMapping.getLIDForPN(pnJid)
 			if (lidForPN) {
@@ -379,18 +378,23 @@ function signalStorage({ creds, keys }, lidMapping) {
 		loadSession: async id => {
 			try {
 				const wireJid = await resolveLIDSignalAddress(id)
-				const { [wireJid]: sess } = await keys.get('session', [wireJid])
-				if (sess) {
-					return libsignal.SessionRecord.deserialize(sess)
+				const keysToFetch = wireJid !== id ? [wireJid, id] : [id]
+				const fetched = await keys.get('session', keysToFetch)
+				const sess = fetched[wireJid] || fetched[id]
+				if (!sess) return null
+				// Detect old libsignal-node JSON format → treat as no session
+				if (typeof sess === 'object' && !Buffer.isBuffer(sess) && !ArrayBuffer.isView(sess) && sess._sessions) {
+					return null
 				}
+				// Return raw bytes — Rust storage adapter expects Uint8Array, not SessionRecord object
+				return Buffer.isBuffer(sess) ? sess : Buffer.from(sess)
 			} catch (e) {
 				return null
 			}
-			return null
 		},
 		storeSession: async (id, session) => {
-			const wireJid = await resolveLIDSignalAddress(id)
-			await keys.set({ session: { [wireJid]: session.serialize() } })
+			// Store under raw ID so it's always findable regardless of LID mapping state
+			await keys.set({ session: { [id]: session.serialize() } })
 		},
 		isTrustedIdentity: () => {
 			return true // TOFU - Trust on First Use (same as WhatsApp Web)

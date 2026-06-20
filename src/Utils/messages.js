@@ -604,7 +604,13 @@ const generateWAMessageContent = async (message, options) => {
 		if (options.font) {
 			extContent.font = options.font
 		}
-		if (options.jid && (0, WABinary_1.isInteropUser)(options.jid) && !options.backgroundColor && !options.font && !urlInfo) {
+		if (
+			options.jid &&
+			(0, WABinary_1.isInteropUser)(options.jid) &&
+			!options.backgroundColor &&
+			!options.font &&
+			!urlInfo
+		) {
 			m.conversation = message.text
 		} else {
 			m.extendedTextMessage = extContent
@@ -753,15 +759,34 @@ const generateWAMessageContent = async (message, options) => {
 			})
 		}
 		m.messageContextInfo = {
-			// encKey
 			messageSecret: message.poll.messageSecret || (0, crypto_1.randomBytes)(32)
 		}
+		const isQuiz = message.poll.type === 'quiz' || message.poll.pollType === WAProto_1.proto.Message.PollType.QUIZ
+		const pollTypeEnum = WAProto_1.proto.Message.PollType
 		const pollCreationMessage = {
 			name: message.poll.name,
 			selectableOptionsCount: message.poll.selectableCount,
-			options: message.poll.values.map(optionName => ({ optionName }))
+			options: message.poll.values.map(optionName => ({ optionName })),
+			pollType: isQuiz ? pollTypeEnum.QUIZ : pollTypeEnum.POLL,
+			...(isQuiz && message.poll.correctAnswer ? { correctAnswer: { optionName: message.poll.correctAnswer } } : {}),
+			...(message.poll.endTime
+				? {
+						endTime:
+							message.poll.endTime instanceof Date
+								? Math.floor(message.poll.endTime.getTime() / 1000)
+								: Number(message.poll.endTime)
+					}
+				: {}),
+			...(message.poll.hideParticipantName !== undefined
+				? { hideParticipantName: !!message.poll.hideParticipantName }
+				: {}),
+			...(message.poll.allowAddOption !== undefined ? { allowAddOption: !!message.poll.allowAddOption } : {})
 		}
-		if (message.poll.toAnnouncementGroup) {
+		if (message.poll.version === 6 || message.poll.v6) {
+			m.pollCreationMessageV6 = pollCreationMessage
+		} else if (message.poll.version === 5 || message.poll.v5) {
+			m.pollCreationMessageV5 = pollCreationMessage
+		} else if (message.poll.toAnnouncementGroup) {
 			// poll v2 is for community announcement groups (single select and multiple)
 			m.pollCreationMessageV2 = pollCreationMessage
 		} else {
@@ -923,12 +948,21 @@ const generateWAMessageContent = async (message, options) => {
 		if (!Array.isArray(message.pollResult.values)) {
 			throw new boom_1.Boom('Invalid pollResult values', { statusCode: 400 })
 		}
-		m.pollResultSnapshotMessage = {
+		const isQuizResult =
+			message.pollResult.type === 'quiz' || message.pollResult.pollType === WAProto_1.proto.Message.PollType.QUIZ
+		const pollVotes = message.pollResult.values.map(([optionName, optionVoteCount]) => ({
+			optionName,
+			optionVoteCount
+		}))
+		const snapshotPayload = {
 			name: message.pollResult.name,
-			pollVotes: message.pollResult.values.map(([optionName, optionVoteCount]) => ({
-				optionName,
-				optionVoteCount
-			}))
+			pollVotes,
+			pollType: isQuizResult ? WAProto_1.proto.Message.PollType.QUIZ : WAProto_1.proto.Message.PollType.POLL
+		}
+		if (message.pollResult.version === 3 || message.pollResult.v3) {
+			m.pollResultSnapshotMessageV3 = WAProto_1.proto.Message.PollResultSnapshotMessage.fromObject(snapshotPayload)
+		} else {
+			m.pollResultSnapshotMessage = snapshotPayload
 		}
 	} else if ('stickerPack' in message || 'stickerPackMessage' in message) {
 		if ('stickerPack' in message && 'stickerPackMessage' in message) {
@@ -1133,18 +1167,28 @@ const generateWAMessageContent = async (message, options) => {
 		}
 	}
 	if ('richResponse' in message) {
-		const { text, code, language = 'javascript', botJid = '259786046210223@bot' } = message.richResponse
-		const sections = [
-			{
+		const {
+			text,
+			code,
+			language = 'javascript',
+			botJid = '259786046210223@bot',
+			table,
+			latex,
+			map,
+			imageUrl,
+			imageUrls,
+			responseId,
+			messageSecret: richSecret
+		} = message.richResponse
+		const sections = []
+		if (text) {
+			sections.push({
 				view_model: {
-					primitive: {
-						text: text,
-						__typename: 'GenAIMarkdownTextUXPrimitive'
-					},
+					primitive: { text, __typename: 'GenAIMarkdownTextUXPrimitive' },
 					__typename: 'GenAISingleLayoutViewModel'
 				}
-			}
-		]
+			})
+		}
 		if (code) {
 			sections.push({
 				view_model: {
@@ -1157,15 +1201,81 @@ const generateWAMessageContent = async (message, options) => {
 				}
 			})
 		}
+		if (table && Array.isArray(table.rows)) {
+			sections.push({
+				view_model: {
+					primitive: {
+						rows: table.rows.map(row => ({
+							cells: Array.isArray(row) ? row.map(c => ({ text: String(c) })) : row.cells
+						})),
+						__typename: 'GenAITableUXPrimitive'
+					},
+					__typename: 'GenAISingleLayoutViewModel'
+				}
+			})
+		}
+		if (latex) {
+			const expressions = Array.isArray(latex)
+				? latex.map(e => (typeof e === 'string' ? { expression: e } : e))
+				: [{ expression: String(latex) }]
+			sections.push({
+				view_model: {
+					primitive: { expressions, __typename: 'GenAILatexUXPrimitive' },
+					__typename: 'GenAISingleLayoutViewModel'
+				}
+			})
+		}
+		if (map) {
+			sections.push({
+				view_model: {
+					primitive: {
+						latitude: map.latitude,
+						longitude: map.longitude,
+						zoom: map.zoom,
+						title: map.title,
+						annotations: map.annotations || [],
+						__typename: 'GenAIMapUXPrimitive'
+					},
+					__typename: 'GenAISingleLayoutViewModel'
+				}
+			})
+		}
+		if (imageUrl) {
+			sections.push({
+				view_model: {
+					primitive: { url: imageUrl, __typename: 'GenAIInlineImageUXPrimitive' },
+					__typename: 'GenAISingleLayoutViewModel'
+				}
+			})
+		}
+		if (imageUrls && Array.isArray(imageUrls) && imageUrls.length > 0) {
+			sections.push({
+				view_model: {
+					primitive: {
+						urls: imageUrls.map(u => (typeof u === 'string' ? { url: u } : u)),
+						__typename: 'GenAIGridImageUXPrimitive'
+					},
+					__typename: 'GenAISingleLayoutViewModel'
+				}
+			})
+		}
+		if (!sections.length && !text) {
+			sections.push({
+				view_model: {
+					primitive: { text: '', __typename: 'GenAIMarkdownTextUXPrimitive' },
+					__typename: 'GenAISingleLayoutViewModel'
+				}
+			})
+		}
 		const unifiedData = {
-			response_id: (0, crypto_1.randomUUID)(),
+			response_id: responseId || (0, crypto_1.randomUUID)(),
 			sections
 		}
 		return WAProto_1.proto.Message.fromObject({
 			messageContextInfo: {
 				deviceListMetadata: {},
 				deviceListMetadataVersion: 2,
-				messageSecret: (0, crypto_1.randomBytes)(32)
+				messageSecret: richSecret || (0, crypto_1.randomBytes)(32)
 			},
 			botForwardedMessage: {
 				message: {
@@ -1214,6 +1324,924 @@ const generateWAMessageContent = async (message, options) => {
 		}
 	} else if ('messageHistoryNotice' in message) {
 		m = { messageHistoryNotice: WAProto_1.proto.Message.MessageHistoryNotice.fromObject(message.messageHistoryNotice) }
+	} else if ('scheduledCall' in message || 'scheduledCallCreationMessage' in message) {
+		if ('scheduledCall' in message && 'scheduledCallCreationMessage' in message) {
+			throw new boom_1.Boom('Use either scheduledCall or scheduledCallCreationMessage, not both', { statusCode: 400 })
+		}
+		const sc = message.scheduledCall || message.scheduledCallCreationMessage
+		const scheduledTs =
+			sc.scheduledAt instanceof Date
+				? sc.scheduledAt.getTime()
+				: sc.scheduledAt
+					? Number(sc.scheduledAt)
+					: sc.scheduledTimestampMs
+						? Number(sc.scheduledTimestampMs)
+						: Date.now() + 3600000
+		const callTypeEnum = WAProto_1.proto.Message.ScheduledCallCreationMessage.CallType
+		let callType = callTypeEnum.UNKNOWN
+		if (sc.isVideo || sc.callType === 'video' || sc.callType === callTypeEnum.VIDEO) {
+			callType = callTypeEnum.VIDEO
+		} else if (sc.callType === 'voice' || sc.callType === callTypeEnum.VOICE || sc.callType === undefined) {
+			callType = callTypeEnum.VOICE
+		} else {
+			callType = sc.callType ?? callTypeEnum.VOICE
+		}
+		m.scheduledCallCreationMessage = WAProto_1.proto.Message.ScheduledCallCreationMessage.fromObject({
+			scheduledTimestampMs: scheduledTs,
+			callType,
+			title: sc.title || ''
+		})
+	} else if ('editScheduledCall' in message || 'scheduledCallEditMessage' in message) {
+		if ('editScheduledCall' in message && 'scheduledCallEditMessage' in message) {
+			throw new boom_1.Boom('Use either editScheduledCall or scheduledCallEditMessage, not both', { statusCode: 400 })
+		}
+		const esc = message.editScheduledCall || message.scheduledCallEditMessage
+		const key = esc.key || esc
+		if (!key || typeof key !== 'object' || !key.id) {
+			throw new boom_1.Boom('editScheduledCall requires a valid message key with id', { statusCode: 400 })
+		}
+		m.scheduledCallEditMessage = WAProto_1.proto.Message.ScheduledCallEditMessage.fromObject({
+			key,
+			editType: WAProto_1.proto.Message.ScheduledCallEditMessage.EditType.CANCEL
+		})
+	} else if ('eventInvite' in message || 'eventInviteMessage' in message) {
+		if ('eventInvite' in message && 'eventInviteMessage' in message) {
+			throw new boom_1.Boom('Use either eventInvite or eventInviteMessage, not both', { statusCode: 400 })
+		}
+		const ei = message.eventInvite || message.eventInviteMessage
+		const startTime =
+			ei.startDate instanceof Date
+				? Math.floor(ei.startDate.getTime() / 1000)
+				: ei.startTime
+					? Number(ei.startTime)
+					: undefined
+		const endTime =
+			ei.endDate instanceof Date ? Math.floor(ei.endDate.getTime() / 1000) : ei.endTime ? Number(ei.endTime) : undefined
+		if (!ei.eventId && !ei.id) {
+			throw new boom_1.Boom('eventInvite requires an eventId', { statusCode: 400 })
+		}
+		m.eventInviteMessage = WAProto_1.proto.Message.EventInviteMessage.fromObject({
+			eventId: ei.eventId || ei.id,
+			eventTitle: ei.title || ei.eventTitle || '',
+			caption: ei.text || ei.caption || '',
+			startTime,
+			endTime,
+			isCanceled: ei.isCancelled ?? ei.isCanceled ?? false,
+			jpegThumbnail: ei.thumbnail || ei.jpegThumbnail,
+			contextInfo: ei.contextInfo
+		})
+	} else if ('comment' in message || 'commentMessage' in message) {
+		if ('comment' in message && 'commentMessage' in message) {
+			throw new boom_1.Boom('Use either comment or commentMessage, not both', { statusCode: 400 })
+		}
+		const cm = message.comment || message.commentMessage
+		if (!cm.targetMessageKey && !cm.key) {
+			throw new boom_1.Boom('comment requires a targetMessageKey', { statusCode: 400 })
+		}
+		m.commentMessage = WAProto_1.proto.Message.CommentMessage.fromObject({
+			message: cm.message || cm.replyMessage,
+			targetMessageKey: cm.targetMessageKey || cm.key
+		})
+	} else if ('splitPayment' in message || 'splitPaymentMessage' in message) {
+		if ('splitPayment' in message && 'splitPaymentMessage' in message) {
+			throw new boom_1.Boom('Use either splitPayment or splitPaymentMessage, not both', { statusCode: 400 })
+		}
+		const sp = message.splitPayment || message.splitPaymentMessage
+		if (!sp.totalAmount || !sp.participants?.length) {
+			throw new boom_1.Boom('splitPayment requires totalAmount and at least one participant', { statusCode: 400 })
+		}
+		m.splitPaymentMessage = WAProto_1.proto.Message.SplitPaymentMessage.fromObject({
+			splitId: sp.splitId || (0, crypto_1.randomUUID)(),
+			totalAmount: sp.totalAmount,
+			description: sp.description || '',
+			requesterJid: sp.requesterJid || options.userJid,
+			participants: sp.participants.map(p => ({
+				jid: p.jid,
+				amount: p.amount,
+				status: p.status ?? WAProto_1.proto.Message.SplitPaymentParticipant.SplitPaymentStatus.PENDING
+			})),
+			createdAtMs: sp.createdAtMs || Date.now(),
+			contextInfo: sp.contextInfo
+		})
+	} else if ('p2pPaymentReminder' in message || 'p2PPaymentReminderNotification' in message) {
+		if ('p2pPaymentReminder' in message && 'p2PPaymentReminderNotification' in message) {
+			throw new boom_1.Boom('Use either p2pPaymentReminder or p2PPaymentReminderNotification, not both', {
+				statusCode: 400
+			})
+		}
+		const pr = message.p2pPaymentReminder || message.p2PPaymentReminderNotification
+		const freqEnum = WAProto_1.proto.Message.P2PPaymentReminderNotification.ReminderFrequency
+		const stateEnum = WAProto_1.proto.Message.P2PPaymentReminderNotification.ReminderState
+		const freqMap = {
+			weekly: freqEnum.WEEKLY,
+			biweekly: freqEnum.BIWEEKLY,
+			monthly: freqEnum.MONTHLY,
+			custom: freqEnum.CUSTOM
+		}
+		const stateMap = {
+			active: stateEnum.ACTIVE,
+			paused: stateEnum.PAUSED,
+			stopped: stateEnum.STOPPED,
+			expired: stateEnum.EXPIRED,
+			cancelled: stateEnum.CANCELLED
+		}
+		m.p2PPaymentReminderNotification = WAProto_1.proto.Message.P2PPaymentReminderNotification.fromObject({
+			reminderId: pr.reminderId || (0, crypto_1.randomUUID)(),
+			amount: pr.amount,
+			frequency:
+				typeof pr.frequency === 'string'
+					? (freqMap[pr.frequency.toLowerCase()] ?? freqEnum.UNKNOWN_FREQUENCY)
+					: (pr.frequency ?? freqEnum.UNKNOWN_FREQUENCY),
+			nextReminderTimestamp: pr.nextReminderTimestamp,
+			expiryTimestamp: pr.expiryTimestamp,
+			state:
+				typeof pr.state === 'string'
+					? (stateMap[pr.state.toLowerCase()] ?? stateEnum.ACTIVE)
+					: (pr.state ?? stateEnum.ACTIVE),
+			description: pr.description || '',
+			creatorJid: pr.creatorJid || options.userJid,
+			receiverJid: pr.receiverJid,
+			upiId: pr.upiId,
+			createdTimestamp: pr.createdTimestamp || Date.now()
+		})
+	} else if ('conditionalReveal' in message || 'conditionalRevealMessage' in message) {
+		if ('conditionalReveal' in message && 'conditionalRevealMessage' in message) {
+			throw new boom_1.Boom('Use either conditionalReveal or conditionalRevealMessage, not both', { statusCode: 400 })
+		}
+		const cr = message.conditionalReveal || message.conditionalRevealMessage
+		m.conditionalRevealMessage = WAProto_1.proto.Message.ConditionalRevealMessage.fromObject({
+			conditionalRevealMessageType:
+				WAProto_1.proto.Message.ConditionalRevealMessage.ConditionalRevealMessageType.SCHEDULED_MESSAGE,
+			revealKeyId: cr.revealKeyId || (0, crypto_1.randomUUID)()
+		})
+		m.messageContextInfo = {
+			messageSecret: cr.messageSecret || (0, crypto_1.randomBytes)(32)
+		}
+	} else if ('callLog' in message || 'callLogMessage' in message) {
+		if ('callLog' in message && 'callLogMessage' in message) {
+			throw new boom_1.Boom('Use either callLog or callLogMessage, not both', { statusCode: 400 })
+		}
+		const cl = message.callLog || message.callLogMessage
+		const outcomeEnum = WAProto_1.proto.Message.CallLogMessage.CallOutcome
+		const callTypeEnum = WAProto_1.proto.Message.CallLogMessage.CallType
+		const outcomeMap = {
+			connected: outcomeEnum.CONNECTED,
+			missed: outcomeEnum.MISSED,
+			failed: outcomeEnum.FAILED,
+			rejected: outcomeEnum.REJECTED,
+			accepted_elsewhere: outcomeEnum.ACCEPTED_ELSEWHERE,
+			ongoing: outcomeEnum.ONGOING,
+			silenced_by_dnd: outcomeEnum.SILENCED_BY_DND,
+			silenced_unknown_caller: outcomeEnum.SILENCED_UNKNOWN_CALLER
+		}
+		const callTypeMap = {
+			regular: callTypeEnum.REGULAR,
+			scheduled_call: callTypeEnum.SCHEDULED_CALL,
+			voice_chat: callTypeEnum.VOICE_CHAT
+		}
+		m.callLogMesssage = WAProto_1.proto.Message.CallLogMessage.fromObject({
+			isVideo: cl.isVideo ?? false,
+			callOutcome:
+				typeof cl.outcome === 'string'
+					? (outcomeMap[cl.outcome.toLowerCase()] ?? outcomeEnum.CONNECTED)
+					: (cl.outcome ?? outcomeEnum.CONNECTED),
+			durationSecs: cl.durationSecs || 0,
+			callType:
+				typeof cl.callType === 'string'
+					? (callTypeMap[cl.callType.toLowerCase()] ?? callTypeEnum.REGULAR)
+					: (cl.callType ?? callTypeEnum.REGULAR),
+			participants: (cl.participants || []).map(p => ({
+				jid: p.jid,
+				callOutcome:
+					typeof p.outcome === 'string'
+						? (outcomeMap[p.outcome.toLowerCase()] ?? outcomeEnum.CONNECTED)
+						: (p.outcome ?? p.callOutcome ?? outcomeEnum.CONNECTED)
+			}))
+		})
+	} else if ('statusMention' in message || 'statusMentionMsg' in message) {
+		const sm = message.statusMention || message.statusMentionMsg
+		if (!sm || typeof sm !== 'object') {
+			throw new boom_1.Boom('statusMention must be an object with a message property', { statusCode: 400 })
+		}
+		m.statusMentionMessage = WAProto_1.proto.Message.FutureProofMessage.fromObject({
+			message: sm.message || sm
+		})
+	} else if ('question' in message || 'questionMessage' in message) {
+		const q = message.question || message.questionMessage
+		m.questionMessage = WAProto_1.proto.Message.FutureProofMessage.fromObject({
+			message: q.message || (typeof q === 'object' && 'conversation' in q ? q : { conversation: String(q) })
+		})
+	} else if ('questionReply' in message || 'questionReplyMessage' in message) {
+		const qr = message.questionReply || message.questionReplyMessage
+		m.questionReplyMessage = WAProto_1.proto.Message.FutureProofMessage.fromObject({
+			message: qr.message || (typeof qr === 'object' && 'conversation' in qr ? qr : { conversation: String(qr) })
+		})
+	} else if ('statusAddYours' in message) {
+		const say = message.statusAddYours
+		m.statusAddYours = WAProto_1.proto.Message.FutureProofMessage.fromObject({
+			message: say.message || say
+		})
+	} else if ('eventCoverImage' in message) {
+		const eci = message.eventCoverImage
+		m.eventCoverImage = WAProto_1.proto.Message.FutureProofMessage.fromObject({
+			message: eci.message || eci
+		})
+	} else if ('spoilerMessage' in message || 'spoiler' in message) {
+		const sp = message.spoilerMessage || message.spoiler
+		m.spoilerMessage = WAProto_1.proto.Message.FutureProofMessage.fromObject({
+			message: sp.message || sp
+		})
+	} else if ('lottieStickerMessage' in message || 'lottieSticker' in message) {
+		const ls = message.lottieStickerMessage || message.lottieSticker
+		m.lottieStickerMessage = WAProto_1.proto.Message.FutureProofMessage.fromObject({
+			message: ls.message || ls
+		})
+	} else if ('groupStatusV2' in message || 'groupStatusMessageV2' in message) {
+		const gsv2 = message.groupStatusV2 || message.groupStatusMessageV2
+		m.groupStatusMessageV2 = WAProto_1.proto.Message.FutureProofMessage.fromObject({
+			message: gsv2.message || gsv2
+		})
+	} else if ('newsletterAdminProfile' in message || 'newsletterAdminProfileMessage' in message) {
+		const nap = message.newsletterAdminProfile || message.newsletterAdminProfileMessage
+		m.newsletterAdminProfileMessage = WAProto_1.proto.Message.FutureProofMessage.fromObject({
+			message: nap.message || nap
+		})
+	} else if ('newsletterAdminProfileV2' in message || 'newsletterAdminProfileMessageV2' in message) {
+		const nap2 = message.newsletterAdminProfileV2 || message.newsletterAdminProfileMessageV2
+		m.newsletterAdminProfileMessageV2 = WAProto_1.proto.Message.FutureProofMessage.fromObject({
+			message: nap2.message || nap2
+		})
+	} else if ('botTask' in message || 'botTaskMessage' in message) {
+		const bt = message.botTask || message.botTaskMessage
+		m.botTaskMessage = WAProto_1.proto.Message.FutureProofMessage.fromObject({
+			message: bt.message || bt
+		})
+	} else if ('botInvoke' in message || 'botInvokeMessage' in message) {
+		const bi = message.botInvoke || message.botInvokeMessage
+		m.botInvokeMessage = WAProto_1.proto.Message.FutureProofMessage.fromObject({
+			message: bi.message || bi
+		})
+	} else if ('associatedChild' in message || 'associatedChildMessage' in message) {
+		const ac = message.associatedChild || message.associatedChildMessage
+		m.associatedChildMessage = WAProto_1.proto.Message.FutureProofMessage.fromObject({
+			message: ac.message || ac
+		})
+	} else if ('groupStatusMention' in message || 'groupStatusMentionMessage' in message) {
+		const gsm = message.groupStatusMention || message.groupStatusMentionMessage
+		m.groupStatusMentionMessage = WAProto_1.proto.Message.FutureProofMessage.fromObject({
+			message: gsm.message || gsm
+		})
+	} else if ('pollCreationOptionImage' in message || 'pollCreationOptionImageMessage' in message) {
+		const pcoi = message.pollCreationOptionImage || message.pollCreationOptionImageMessage
+		m.pollCreationOptionImageMessage = WAProto_1.proto.Message.FutureProofMessage.fromObject({
+			message: pcoi.message || pcoi
+		})
+	} else if ('newsletterAdminProfileStatus' in message || 'newsletterAdminProfileStatusMessage' in message) {
+		const naps = message.newsletterAdminProfileStatus || message.newsletterAdminProfileStatusMessage
+		m.newsletterAdminProfileStatusMessage = WAProto_1.proto.Message.FutureProofMessage.fromObject({
+			message: naps.message || naps
+		})
+	} else if ('placeholder' in message || 'placeholderMessage' in message) {
+		const ph = message.placeholder || message.placeholderMessage
+		const phTypeEnum = WAProto_1.proto.Message.PlaceholderMessage.PlaceholderType
+		const phTypeMap = {
+			e2e_reenable: phTypeEnum.PLACEHOLDER_MESSAGE_TYPE_E2E_REENABLE_MSG,
+			linked_devices: phTypeEnum.PLACEHOLDER_MESSAGE_TYPE_LINKED_DEVICES_MESSAGE
+		}
+		m.placeholderMessage = WAProto_1.proto.Message.PlaceholderMessage.fromObject({
+			type:
+				typeof ph.type === 'string'
+					? (phTypeMap[ph.type.toLowerCase()] ?? phTypeEnum.PLACEHOLDER_MESSAGE_TYPE_E2E_REENABLE_MSG)
+					: (ph.type ?? phTypeEnum.PLACEHOLDER_MESSAGE_TYPE_E2E_REENABLE_MSG)
+		})
+	} else if ('tapLink' in message || 'tapLinkMessage' in message) {
+		const tl = message.tapLink || message.tapLinkMessage
+		const inner = {
+			extendedTextMessage: {
+				text: tl.text || tl.title || '',
+				matchedText: tl.url || tl.tapUrl,
+				title: tl.title || tl.text || '',
+				contextInfo: {
+					actionLink: {
+						url: tl.url || tl.tapUrl || '',
+						buttonTitle: tl.buttonTitle || 'Open'
+					}
+				}
+			}
+		}
+		Object.assign(m, inner)
+	} else if ('citation' in message) {
+		const cit = message.citation
+		m.extendedTextMessage = {
+			text: cit.text || cit.title || '',
+			title: cit.title || '',
+			description: cit.subtitle || cit.description || '',
+			...(cit.imageUrl ? { jpegThumbnail: undefined, previewType: 0 } : {})
+		}
+	} else if ('embeddedMusic' in message) {
+		const em = message.embeddedMusic
+		m.extendedTextMessage = {
+			text: em.text || `🎵 ${em.title || ''} — ${em.author || ''}`,
+			title: em.title || '',
+			description: em.author || em.artistAttribution || '',
+			previewType: 0
+		}
+	}
+	if ('keepInChat' in message || 'keepInChatMessage' in message) {
+		const kic = message.keepInChat || message.keepInChatMessage
+		const keepTypeEnum = WAProto_1.proto.KeepType
+		const keepTypeMap = { keep: keepTypeEnum.KEEP_FOR_ALL, undo: keepTypeEnum.UNDO_KEEP_FOR_ALL }
+		m.keepInChatMessage = WAProto_1.proto.Message.KeepInChatMessage.fromObject({
+			key: kic.key || kic,
+			keepType:
+				typeof kic.keepType === 'string'
+					? (keepTypeMap[kic.keepType.toLowerCase()] ?? keepTypeEnum.KEEP_FOR_ALL)
+					: (kic.keepType ?? keepTypeEnum.KEEP_FOR_ALL),
+			timestampMs: kic.timestampMs || Date.now()
+		})
+	}
+	if ('botFeedback' in message || 'botFeedbackMessage' in message) {
+		const bf = message.botFeedback || message.botFeedbackMessage
+		const kindEnum = WAProto_1.proto.BotFeedbackMessage.BotFeedbackKind
+		const kindMap = {
+			positive: kindEnum.BOT_FEEDBACK_POSITIVE,
+			negative: kindEnum.BOT_FEEDBACK_NEGATIVE,
+			negative_generic: kindEnum.BOT_FEEDBACK_NEGATIVE_GENERIC,
+			negative_helpful: kindEnum.BOT_FEEDBACK_NEGATIVE_HELPFUL,
+			negative_interesting: kindEnum.BOT_FEEDBACK_NEGATIVE_INTERESTING,
+			negative_accurate: kindEnum.BOT_FEEDBACK_NEGATIVE_ACCURATE,
+			negative_safe: kindEnum.BOT_FEEDBACK_NEGATIVE_SAFE,
+			negative_other: kindEnum.BOT_FEEDBACK_NEGATIVE_OTHER
+		}
+		m.protocolMessage = {
+			type: WAProto_1.proto.Message.ProtocolMessage.Type.BOT_FEEDBACK_MESSAGE,
+			key: bf.key,
+			botFeedbackMessage: WAProto_1.proto.BotFeedbackMessage.fromObject({
+				feedbackId: bf.feedbackId || bf.key?.id || '',
+				kind:
+					typeof bf.kind === 'string'
+						? (kindMap[bf.kind.toLowerCase()] ?? kindEnum.BOT_FEEDBACK_POSITIVE)
+						: (bf.kind ?? kindEnum.BOT_FEEDBACK_POSITIVE)
+			})
+		}
+	}
+	if ('pollAddOption' in message || 'pollAddOptionMessage' in message) {
+		const pao = message.pollAddOption || message.pollAddOptionMessage
+		if (!pao.pollCreationMessageKey && !pao.key) {
+			throw new boom_1.Boom('pollAddOption requires a pollCreationMessageKey', { statusCode: 400 })
+		}
+		m.pollAddOptionMessage = WAProto_1.proto.Message.PollAddOptionMessage.fromObject({
+			pollCreationMessageKey: pao.pollCreationMessageKey || pao.key,
+			addOption: { optionName: pao.optionName || pao.option }
+		})
+	}
+	if ('chatTheme' in message || 'chatThemeMessage' in message) {
+		const ct = message.chatTheme || message.chatThemeMessage
+		const themeSetting = {
+			settingTimestampMs: Date.now(),
+			clearTheme: ct.clear ?? false,
+			colorSchemeId: ct.colorSchemeId
+		}
+		if (ct.solidColor) {
+			const sc = typeof ct.solidColor === 'object' ? ct.solidColor : {}
+			themeSetting.solidColor = WAProto_1.proto.Message.ChatSolidColorWallpaper.fromObject({
+				colorLight: sc.colorLight || sc.color || '#FFFFFF',
+				colorDark: sc.colorDark || sc.color || '#000000',
+				isDoodleEnabled: sc.isDoodleEnabled ?? false
+			})
+		} else if (ct.stockImage) {
+			const si = typeof ct.stockImage === 'object' ? ct.stockImage : {}
+			themeSetting.stockImage = WAProto_1.proto.Message.ChatStockImageWallpaper.fromObject({
+				stockImageId: si.id || si.stockImageId || String(ct.stockImage),
+				dimLevel: (si.dimLevel ?? si.opacity != null) ? (si.opacity ?? 100) / 100 : 0
+			})
+		} else if (ct.defaultWallpaper) {
+			themeSetting.defaultWallpaper = WAProto_1.proto.Message.ChatDefaultWallpaper.fromObject({
+				isDoodleEnabled: ct.defaultWallpaper.isDoodleEnabled ?? false
+			})
+		} else if (ct.customImage) {
+			themeSetting.customImage = WAProto_1.proto.Message.ChatCustomImageWallpaper.fromObject({
+				directPath: ct.customImage.directPath,
+				mediaKey: ct.customImage.mediaKey,
+				fileEncSha256: ct.customImage.fileEncSha256,
+				fileSha256: ct.customImage.fileSha256,
+				dimLevel: ct.customImage.dimLevel ?? 0
+			})
+		}
+		m.protocolMessage = {
+			type: WAProto_1.proto.Message.ProtocolMessage.Type.CHAT_THEME_SETTING,
+			chatThemeSetting: WAProto_1.proto.Message.ChatThemeSetting.fromObject(themeSetting)
+		}
+	}
+	if ('stopGeneration' in message) {
+		const sg = message.stopGeneration
+		m.protocolMessage = {
+			type: WAProto_1.proto.Message.ProtocolMessage.Type.STOP_GENERATION_MESSAGE,
+			key: sg.key || sg
+		}
+	}
+	if ('unscheduleMessage' in message) {
+		const us = message.unscheduleMessage
+		m.protocolMessage = {
+			type: WAProto_1.proto.Message.ProtocolMessage.Type.MESSAGE_UNSCHEDULE,
+			key: us.key || us
+		}
+	}
+	if ('bcall' in message || 'bcallMessage' in message) {
+		const bc = message.bcall || message.bcallMessage
+		const mediaTypeEnum = WAProto_1.proto.Message.BCallMessage.MediaType
+		const mediaTypeMap = { audio: mediaTypeEnum.AUDIO, video: mediaTypeEnum.VIDEO }
+		m.bcallMessage = WAProto_1.proto.Message.BCallMessage.fromObject({
+			sessionId: bc.sessionId || (0, crypto_1.randomUUID)(),
+			mediaType:
+				typeof bc.mediaType === 'string'
+					? (mediaTypeMap[bc.mediaType.toLowerCase()] ?? mediaTypeEnum.AUDIO)
+					: (bc.mediaType ?? mediaTypeEnum.AUDIO),
+			masterKey: bc.masterKey || (0, crypto_1.randomBytes)(32),
+			caption: bc.caption || ''
+		})
+	}
+	if ('liveLocationUpdate' in message) {
+		const llu = message.liveLocationUpdate
+		m.liveLocationMessage = WAProto_1.proto.Message.LiveLocationMessage.fromObject({
+			degreesLatitude: llu.latitude,
+			degreesLongitude: llu.longitude,
+			accuracyInMeters: llu.accuracy,
+			speedInMps: llu.speed,
+			degreesClockwiseFromMagneticNorth: llu.heading,
+			sequenceNumber: llu.sequence || 1,
+			timeOffset: llu.timeOffset || 0,
+			jpegThumbnail: llu.thumbnail
+		})
+	}
+	if ('stopLiveLocation' in message) {
+		const sll = message.stopLiveLocation
+		m.protocolMessage = {
+			type: WAProto_1.proto.Message.ProtocolMessage.Type.REVOKE,
+			key: sll.key || sll
+		}
+	}
+	if ('carousel' in message || 'carouselMessage' in message) {
+		const c = message.carousel || message.carouselMessage
+		if (!Array.isArray(c.cards) || !c.cards.length) {
+			throw new boom_1.Boom('carousel requires at least one card', { statusCode: 400 })
+		}
+		const cardTypeEnum = WAProto_1.proto.Message.InteractiveMessage.CarouselMessage.CarouselCardType
+		const cardTypeMap = {
+			horizontal: cardTypeEnum.HSCROLL_CARDS,
+			album: cardTypeEnum.ALBUM_IMAGE,
+			hscroll: cardTypeEnum.HSCROLL_CARDS
+		}
+		m.interactiveMessage = {
+			carouselMessage: WAProto_1.proto.Message.InteractiveMessage.CarouselMessage.fromObject({
+				cards: c.cards.map(card => card.interactiveMessage || card),
+				messageVersion: c.messageVersion || 1,
+				carouselCardType:
+					typeof c.cardType === 'string'
+						? (cardTypeMap[c.cardType.toLowerCase()] ?? cardTypeEnum.HSCROLL_CARDS)
+						: (c.carouselCardType ?? cardTypeEnum.HSCROLL_CARDS)
+			})
+		}
+	}
+	if ('aiMediaCollection' in message || 'aiMediaCollectionMessage' in message) {
+		const amc = message.aiMediaCollection || message.aiMediaCollectionMessage
+		m.protocolMessage = {
+			type: WAProto_1.proto.Message.ProtocolMessage.Type.AI_MEDIA_COLLECTION_MESSAGE,
+			aiMediaCollectionMessage: WAProto_1.proto.AIMediaCollectionMessage.fromObject({
+				collectionId: amc.collectionId || (0, crypto_1.randomUUID)(),
+				expectedMediaCount: amc.expectedMediaCount || amc.count || 1,
+				hasGlobalCaption: amc.hasGlobalCaption ?? false
+			})
+		}
+	}
+	if ('botCapabilities' in message && Array.isArray(message.botCapabilities) && message.botCapabilities.length) {
+		const capEnum = WAProto_1.proto.BotCapabilityMetadata.BotCapabilityType
+		const capStrMap = Object.fromEntries(Object.entries(capEnum).map(([k, v]) => [k.toLowerCase(), v]))
+		const caps = message.botCapabilities
+			.map(c => (typeof c === 'string' ? (capStrMap[c.toLowerCase()] ?? capEnum.UNKNOWN) : c))
+			.filter(c => typeof c === 'number' && c !== capEnum.UNKNOWN)
+		m.messageContextInfo = m.messageContextInfo || {}
+		m.messageContextInfo.botMetadata = WAProto_1.proto.BotMetadata.fromObject({
+			capabilityMetadata: { capabilities: caps }
+		})
+	}
+	if ('botThreadInfo' in message && message.botThreadInfo) {
+		const bt = message.botThreadInfo
+		const threadTypeEnum = WAProto_1.proto.AIThreadInfo.AIThreadClientInfo.AIThreadType
+		const threadTypeMap = Object.fromEntries(Object.entries(threadTypeEnum).map(([k, v]) => [k.toLowerCase(), v]))
+		const existing = m.messageContextInfo?.botMetadata
+			? WAProto_1.proto.BotMetadata.toObject(m.messageContextInfo.botMetadata)
+			: {}
+		m.messageContextInfo = m.messageContextInfo || {}
+		m.messageContextInfo.botMetadata = WAProto_1.proto.BotMetadata.fromObject({
+			...existing,
+			botThreadInfo: {
+				clientInfo: {
+					type: typeof bt.type === 'string'
+						? (threadTypeMap[bt.type.toLowerCase()] ?? threadTypeEnum.UNKNOWN)
+						: (bt.type ?? threadTypeEnum.UNKNOWN),
+					sourceChatJid: bt.sourceChatJid || ''
+				}
+			}
+		})
+	}
+	if ('messageAssociation' in message && message.messageAssociation) {
+		const ma = message.messageAssociation
+		const assocTypeEnum = WAProto_1.proto.MessageAssociation.AssociationType
+		const assocTypeMap = Object.fromEntries(Object.entries(assocTypeEnum).map(([k, v]) => [k.toLowerCase(), v]))
+		m.messageContextInfo = m.messageContextInfo || {}
+		m.messageContextInfo.messageAssociation = WAProto_1.proto.MessageAssociation.fromObject({
+			associationType:
+				typeof ma.type === 'string'
+					? (assocTypeMap[ma.type.toLowerCase()] ?? assocTypeEnum.UNKNOWN)
+					: (ma.associationType ?? ma.type ?? assocTypeEnum.UNKNOWN),
+			parentMessageKey: ma.parentMessageKey || ma.parentKey,
+			messageIndex: ma.messageIndex || 0
+		})
+	}
+	if ('threadId' in message && message.threadId) {
+		const tid = message.threadId
+		const threadTypeEnum = WAProto_1.proto.ThreadID.ThreadType
+		m.messageContextInfo = m.messageContextInfo || {}
+		m.messageContextInfo.threadId = [
+			WAProto_1.proto.ThreadID.fromObject({
+				threadType:
+					tid.type === 'ai'
+						? threadTypeEnum.AI_THREAD
+						: tid.type === 'replies'
+							? threadTypeEnum.VIEW_REPLIES
+							: (tid.threadType ?? threadTypeEnum.UNKNOWN),
+				threadKey: tid.key || tid.threadKey
+			})
+		]
+	}
+	if ('featureEligibilities' in message && message.featureEligibilities) {
+		const fe = message.featureEligibilities
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				featureEligibilities: {
+					cannotBeReactedTo: fe.cannotBeReactedTo ?? false,
+					cannotBeRanked: fe.cannotBeRanked ?? false,
+					canRequestFeedback: fe.canRequestFeedback ?? false,
+					canBeReshared: fe.canBeReshared ?? true,
+					canReceiveMultiReact: fe.canReceiveMultiReact ?? true
+				}
+			}
+		}
+	}
+	if ('forwardOrigin' in message) {
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			const foEnum = WAProto_1.proto.ContextInfo.ForwardOrigin
+			const foMap = {
+				chat: foEnum.CHAT,
+				status: foEnum.STATUS,
+				channels: foEnum.CHANNELS,
+				meta_ai: foEnum.META_AI,
+				ugc: foEnum.UGC
+			}
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				forwardOrigin:
+					typeof message.forwardOrigin === 'string'
+						? (foMap[message.forwardOrigin.toLowerCase()] ?? foEnum.CHAT)
+						: (message.forwardOrigin ?? foEnum.CHAT)
+			}
+		}
+	}
+	if ('statusAudienceMetadata' in message && message.statusAudienceMetadata) {
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			const audType = WAProto_1.proto.ContextInfo.StatusAudienceMetadata.AudienceType
+			const sam = message.statusAudienceMetadata
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				statusAudienceMetadata: {
+					audienceType: sam.closeFriends ? audType.CLOSE_FRIENDS : audType.UNKNOWN,
+					listName: sam.listName,
+					listEmoji: sam.listEmoji
+				}
+			}
+		}
+	}
+	if ('aiGenerated' in message && message.aiGenerated === true) {
+		if (m.videoMessage) {
+			m.videoMessage.videoSourceType = WAProto_1.proto.Message.VideoMessage.VideoSourceType.AI_GENERATED
+		}
+		if (m.imageMessage) {
+			m.imageMessage.imageSourceType = WAProto_1.proto.Message.ImageMessage.ImageSourceType.AI_GENERATED
+		}
+	}
+	if ('aiModified' in message && message.aiModified === true) {
+		if (m.imageMessage) {
+			m.imageMessage.imageSourceType = WAProto_1.proto.Message.ImageMessage.ImageSourceType.AI_MODIFIED
+		}
+	}
+	if ('imageSourceType' in message) {
+		if (m.imageMessage) {
+			const istEnum = WAProto_1.proto.Message.ImageMessage.ImageSourceType
+			const istMap = {
+				user: istEnum.USER_IMAGE,
+				ai_generated: istEnum.AI_GENERATED,
+				ai_modified: istEnum.AI_MODIFIED,
+				rasterized: istEnum.RASTERIZED_TEXT_STATUS
+			}
+			m.imageMessage.imageSourceType =
+				typeof message.imageSourceType === 'string'
+					? (istMap[message.imageSourceType.toLowerCase()] ?? istEnum.USER_IMAGE)
+					: (message.imageSourceType ?? istEnum.USER_IMAGE)
+		}
+	}
+	if ('qrUrl' in message && message.qrUrl && m.imageMessage) {
+		m.imageMessage.qrUrl = message.qrUrl
+	}
+	if ('videoContentUrl' in message && message.videoContentUrl && m.extendedTextMessage) {
+		m.extendedTextMessage.videoContentUrl = message.videoContentUrl
+	}
+	if ('endCardTiles' in message && Array.isArray(message.endCardTiles) && m.extendedTextMessage) {
+		m.extendedTextMessage.endCardTiles = message.endCardTiles.map(tile =>
+			WAProto_1.proto.Message.VideoEndCard.fromObject({
+				username: tile.username || tile.user,
+				caption: tile.caption || tile.text,
+				thumbnailImageUrl: tile.thumbnailUrl || tile.thumbnail,
+				profilePictureUrl: tile.profilePictureUrl || tile.avatar
+			})
+		)
+	}
+	if ('musicMetadata' in message && message.musicMetadata && m.extendedTextMessage) {
+		const mm = message.musicMetadata
+		m.extendedTextMessage.musicMetadata = WAProto_1.proto.EmbeddedMusic.fromObject({
+			songId: mm.songId,
+			author: mm.author || mm.artist,
+			title: mm.title,
+			artistAttribution: mm.artistAttribution,
+			isExplicit: mm.isExplicit ?? false,
+			musicSongStartTimeInMs: mm.startTimeMs || 0,
+			derivedContentStartTimeInMs: mm.derivedStartTimeMs || 0,
+			overlapDurationInMs: mm.overlapDurationMs || 0
+		})
+	}
+	if ('businessInteractionPills' in message && message.businessInteractionPills) {
+		const bip = message.businessInteractionPills
+		const pillTypeEnum = WAProto_1.proto.ContextInfo.BusinessInteractionPills.PillType
+		const entryEnum = WAProto_1.proto.ContextInfo.BusinessInteractionPills.EntryPoint
+		const pillMap = Object.fromEntries(Object.entries(pillTypeEnum).map(([k, v]) => [k.toLowerCase(), v]))
+		const entryMap = Object.fromEntries(Object.entries(entryEnum).map(([k, v]) => [k.toLowerCase(), v]))
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				businessInteractionPills: WAProto_1.proto.ContextInfo.BusinessInteractionPills.fromObject({
+					businessJid: bip.businessJid,
+					entryPoint:
+						typeof bip.entryPoint === 'string'
+							? (entryMap[bip.entryPoint.toLowerCase()] ?? entryEnum.ENTRY_POINT_UNKNOWN)
+							: bip.entryPoint,
+					pills: (bip.pills || []).map(p => ({
+						pillType:
+							typeof p.type === 'string'
+								? (pillMap[p.type.toLowerCase()] ?? pillTypeEnum.UNKNOWN)
+								: (p.pillType ?? pillTypeEnum.UNKNOWN),
+						actionUrl: p.url || p.actionUrl
+					}))
+				})
+			}
+		}
+	}
+	if ('dataSharingContext' in message && message.dataSharingContext) {
+		const dsc = message.dataSharingContext
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				dataSharingContext: WAProto_1.proto.ContextInfo.DataSharingContext.fromObject({
+					showMmDisclosure: dsc.showMmDisclosure ?? false,
+					encryptedSignalTokenConsented: dsc.encryptedToken,
+					dataSharingFlags: dsc.flags || 0
+				})
+			}
+		}
+	}
+	if ('botSession' in message && message.botSession) {
+		const bs = message.botSession
+		const srcEnum = WAProto_1.proto.BotSessionSource
+		const srcMap = Object.fromEntries(Object.entries(srcEnum).map(([k, v]) => [k.toLowerCase(), v]))
+		m.messageContextInfo = m.messageContextInfo || {}
+		const existing = m.messageContextInfo.botMetadata
+			? WAProto_1.proto.BotMetadata.toObject(m.messageContextInfo.botMetadata)
+			: {}
+		m.messageContextInfo.botMetadata = WAProto_1.proto.BotMetadata.fromObject({
+			...existing,
+			sessionMetadata: {
+				sessionId: bs.sessionId,
+				sessionSource:
+					typeof bs.source === 'string'
+						? (srcMap[bs.source.toLowerCase()] ?? srcEnum.NONE)
+						: (bs.sessionSource ?? srcEnum.NONE)
+			}
+		})
+	}
+	if ('botReminder' in message && message.botReminder) {
+		const br = message.botReminder
+		const actionEnum = WAProto_1.proto.BotReminderMetadata.ReminderAction
+		const freqEnum = WAProto_1.proto.BotReminderMetadata.ReminderFrequency
+		const actionMap = {
+			notify: actionEnum.NOTIFY,
+			create: actionEnum.CREATE,
+			delete: actionEnum.DELETE,
+			update: actionEnum.UPDATE
+		}
+		const freqMap = {
+			once: freqEnum.ONCE,
+			daily: freqEnum.DAILY,
+			weekly: freqEnum.WEEKLY,
+			biweekly: freqEnum.BIWEEKLY,
+			monthly: freqEnum.MONTHLY
+		}
+		m.messageContextInfo = m.messageContextInfo || {}
+		const existing = m.messageContextInfo.botMetadata
+			? WAProto_1.proto.BotMetadata.toObject(m.messageContextInfo.botMetadata)
+			: {}
+		m.messageContextInfo.botMetadata = WAProto_1.proto.BotMetadata.fromObject({
+			...existing,
+			reminderMetadata: {
+				requestMessageKey: br.requestMessageKey || br.key,
+				action:
+					typeof br.action === 'string'
+						? (actionMap[br.action.toLowerCase()] ?? actionEnum.NOTIFY)
+						: (br.action ?? actionEnum.NOTIFY),
+				name: br.name,
+				nextTriggerTimestamp: br.nextTriggerTimestamp || br.timestamp,
+				frequency:
+					typeof br.frequency === 'string'
+						? (freqMap[br.frequency.toLowerCase()] ?? freqEnum.ONCE)
+						: (br.frequency ?? freqEnum.ONCE)
+			}
+		})
+	}
+	if ('botPlugin' in message && message.botPlugin) {
+		const bp = message.botPlugin
+		const ptEnum = WAProto_1.proto.BotPluginMetadata.PluginType
+		const spEnum = WAProto_1.proto.BotPluginMetadata.SearchProvider
+		const ptMap = { reels: ptEnum.REELS, search: ptEnum.SEARCH }
+		const spMap = { bing: spEnum.BING, google: spEnum.GOOGLE, support: spEnum.SUPPORT }
+		m.messageContextInfo = m.messageContextInfo || {}
+		const existing = m.messageContextInfo.botMetadata
+			? WAProto_1.proto.BotMetadata.toObject(m.messageContextInfo.botMetadata)
+			: {}
+		m.messageContextInfo.botMetadata = WAProto_1.proto.BotMetadata.fromObject({
+			...existing,
+			pluginMetadata: WAProto_1.proto.BotPluginMetadata.fromObject({
+				provider:
+					typeof bp.provider === 'string'
+						? (spMap[bp.provider.toLowerCase()] ?? spEnum.UNKNOWN)
+						: (bp.provider ?? spEnum.UNKNOWN),
+				pluginType:
+					typeof bp.pluginType === 'string'
+						? (ptMap[bp.pluginType.toLowerCase()] ?? ptEnum.UNKNOWN_PLUGIN)
+						: (bp.pluginType ?? ptEnum.UNKNOWN_PLUGIN),
+				searchProviderUrl: bp.searchProviderUrl,
+				searchQuery: bp.searchQuery,
+				thumbnailCdnUrl: bp.thumbnailCdnUrl,
+				profilePhotoCdnUrl: bp.profilePhotoCdnUrl,
+				expectedLinksCount: bp.expectedLinksCount || 0,
+				referenceIndex: bp.referenceIndex || 0
+			})
+		})
+	}
+	if ('isSpoiler' in message && message.isSpoiler === true) {
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				isSpoiler: true
+			}
+		}
+	}
+	if ('expiration' in message && typeof message.expiration === 'number') {
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				expiration: message.expiration
+			}
+		}
+	}
+	if ('ephemeralSettingTimestamp' in message) {
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				ephemeralSettingTimestamp: message.ephemeralSettingTimestamp
+			}
+		}
+	}
+	if ('groupSubject' in message && message.groupSubject) {
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				groupSubject: message.groupSubject
+			}
+		}
+	}
+	if ('parentGroupJid' in message && message.parentGroupJid) {
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				parentGroupJid: message.parentGroupJid
+			}
+		}
+	}
+	if ('memberLabel' in message && message.memberLabel) {
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				memberLabel: message.memberLabel
+			}
+		}
+	}
+	if ('trustBanner' in message && message.trustBanner) {
+		const tb = message.trustBanner
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				...(tb.type != null ? { trustBannerType: tb.type } : {}),
+				...(tb.action != null ? { trustBannerAction: tb.action } : {})
+			}
+		}
+	}
+	if ('entryPoint' in message && message.entryPoint) {
+		const ep = message.entryPoint
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				...(ep.source ? { entryPointConversionSource: ep.source } : {}),
+				...(ep.app ? { entryPointConversionApp: ep.app } : {}),
+				...(ep.delaySecs != null ? { entryPointConversionDelaySeconds: ep.delaySecs } : {}),
+				...(ep.externalSource ? { entryPointConversionExternalSource: ep.externalSource } : {}),
+				...(ep.externalMedium ? { entryPointConversionExternalMedium: ep.externalMedium } : {})
+			}
+		}
+	}
+	if ('utm' in message && message.utm) {
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				utm: WAProto_1.proto.ContextInfo.UTMInfo.fromObject({
+					utmSource: message.utm.source,
+					utmCampaign: message.utm.campaign
+				})
+			}
+		}
+	}
+	if ('partiallySelectedContent' in message && message.partiallySelectedContent) {
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				partiallySelectedContent: message.partiallySelectedContent
+			}
+		}
+	}
+	if ('crossAppSource' in message && message.crossAppSource) {
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				crossAppSource: message.crossAppSource
+			}
+		}
+	}
+	if ('isQuestion' in message && message.isQuestion === true) {
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				isQuestion: true
+			}
+		}
+	}
+	if ('afterReadDuration' in message && typeof message.afterReadDuration === 'number') {
+		const [msgType] = Object.keys(m)
+		if (msgType && m[msgType] && typeof m[msgType] === 'object') {
+			m[msgType].contextInfo = {
+				...(m[msgType].contextInfo || {}),
+				afterReadDuration: message.afterReadDuration
+			}
+		}
+		m.messageContextInfo = {
+			...(m.messageContextInfo || {}),
+			messageAddOnDurationInSecs: message.afterReadDuration,
+			messageAddOnExpiryType: index_js_1.proto.MessageContextInfo.MessageAddonExpiryType.DEPENDENT_ON_PARENT
+		}
 	}
 	if ('raw' in message && !!message.raw) {
 		const { raw: _, externalAdReply: _ear, ...rawMsg } = message
@@ -1233,7 +2261,23 @@ const generateWAMessageContent = async (message, options) => {
 	}
 
 	if (hasOptionalProperty(message, 'viewOnce') && !!message.viewOnce) {
-		m = { viewOnceMessage: { message: m } }
+		const viewOnceVersion = message.viewOnceVersion || message.viewOnce
+		if (viewOnceVersion === 'v2' || viewOnceVersion === 2) {
+			m = { viewOnceMessageV2: { message: m } }
+		} else if (viewOnceVersion === 'v2ext' || viewOnceVersion === 'v2extension') {
+			m = { viewOnceMessageV2Extension: { message: m } }
+		} else {
+			m = { viewOnceMessage: { message: m } }
+		}
+	}
+	if (hasOptionalProperty(message, 'documentWithCaption') && !!message.documentWithCaption) {
+		m = { documentWithCaptionMessage: { message: m } }
+	}
+	if (hasOptionalProperty(message, 'ephemeral') && !!message.ephemeral) {
+		m = { ephemeralMessage: { message: m } }
+	}
+	if (hasOptionalProperty(message, 'groupMentioned') && !!message.groupMentioned) {
+		m = { groupMentionedMessage: { message: m } }
 	}
 	if ('groupStatus' in message && !!message.groupStatus) {
 		m = { groupStatusMessage: { message: m } }
@@ -1457,7 +2501,13 @@ const normalizeMessageContent = content => {
 			message.questionMessage ||
 			message.groupStatusMessageV2 ||
 			message.botForwardedMessage ||
-			message.questionReplyMessage
+			message.questionReplyMessage ||
+			message.newsletterAdminProfileMessage ||
+			message.newsletterAdminProfileMessageV2 ||
+			message.newsletterAdminProfileStatusMessage ||
+			message.spoilerMessage ||
+			message.groupStatusV3Message ||
+			message.pollCreationMessageV6
 		)
 	}
 }
@@ -1566,6 +2616,10 @@ function getAggregateVotesInPollMessage({ message, pollUpdates }, meId) {
 		message?.pollCreationMessage?.options ||
 		message?.pollCreationMessageV2?.options ||
 		message?.pollCreationMessageV3?.options ||
+		message?.pollCreationMessageV5?.options ||
+		message?.pollCreationMessageV6?.options ||
+		message?.pollCreationMessageV4?.message?.pollCreationMessage?.options ||
+		message?.pollCreationMessageV4?.message?.pollCreationMessageV3?.options ||
 		[]
 	const voteHashMap = opts.reduce((acc, opt) => {
 		const hash = (0, crypto_2.sha256)(Buffer.from(opt.optionName || '')).toString()
@@ -1595,29 +2649,6 @@ function getAggregateVotesInPollMessage({ message, pollUpdates }, meId) {
 	}
 	return Object.values(voteHashMap)
 }
-/**
- * Aggregates all event responses in an event message.
- * @param msg the event creation message
- * @param meId your jid
- * @returns A list of response types & their responders
- */
-function getAggregateResponsesInEventMessage({ eventResponses }, meId) {
-	const responseTypes = ['GOING', 'NOT_GOING', 'MAYBE']
-	const responseMap = {}
-	for (const type of responseTypes) {
-		responseMap[type] = {
-			response: type,
-			responders: []
-		}
-	}
-	for (const update of eventResponses || []) {
-		const responseType = update.eventResponse || 'UNKNOWN'
-		if (responseType !== 'UNKNOWN' && responseMap[responseType]) {
-			responseMap[responseType].responders.push((0, generics_1.getKeyAuthor)(update.eventResponseMessageKey, meId))
-		}
-	}
-	return Object.values(responseMap)
-}
 /** Given a list of message keys, aggregates them by chat & sender. Useful for sending read receipts in bulk */
 const aggregateMessageKeysNotFromMe = keys => {
 	const keyMap = {}
@@ -1642,6 +2673,56 @@ const aggregateMessageKeysNotFromMe = keys => {
 	return Object.values(keyMap)
 }
 exports.aggregateMessageKeysNotFromMe = aggregateMessageKeysNotFromMe
+
+/**
+ * Check if a WebMessageInfo has a scheduled reveal time (ConditionalRevealMessage)
+ */
+const isScheduledMessage = msg => !!msg?.scheduledMessageMetadata?.scheduledTime
+exports.isScheduledMessage = isScheduledMessage
+
+/**
+ * Get scheduled reveal time of a message as a Date, or null
+ */
+const getScheduledMessageTime = msg => {
+	const t = msg?.scheduledMessageMetadata?.scheduledTime
+	if (!t) return null
+	return new Date(Number(t) * 1000)
+}
+exports.getScheduledMessageTime = getScheduledMessageTime
+
+/**
+ * Extract PaymentInfo from a WebMessageInfo (the payment status field, not the message content)
+ */
+const getMessagePaymentInfo = msg => msg?.paymentInfo || msg?.quotedPaymentInfo || null
+exports.getMessagePaymentInfo = getMessagePaymentInfo
+
+/**
+ * Get all comment metadata from a WebMessageInfo
+ */
+const getMessageCommentMetadata = msg => msg?.commentMetadata || null
+exports.getMessageCommentMetadata = getMessageCommentMetadata
+
+/**
+ * Get all message add-ons (reactions, poll updates, pins) from a WebMessageInfo
+ */
+const getMessageAddOns = msg => msg?.messageAddOns || []
+exports.getMessageAddOns = getMessageAddOns
+
+/**
+ * Get the quiz correct answer from a poll creation message, if it's a quiz
+ */
+const getPollCorrectAnswer = pollMsg => {
+	const poll =
+		pollMsg?.pollCreationMessage ||
+		pollMsg?.pollCreationMessageV2 ||
+		pollMsg?.pollCreationMessageV3 ||
+		pollMsg?.pollCreationMessageV5 ||
+		pollMsg?.pollCreationMessageV6
+	if (!poll) return null
+	const isQuiz = poll.pollType === WAProto_1.proto.Message.PollType?.QUIZ || poll.pollType === 1
+	return isQuiz ? poll.correctAnswer?.optionName || null : null
+}
+exports.getPollCorrectAnswer = getPollCorrectAnswer
 
 /**
  * Aggregates all event responses in an event message.

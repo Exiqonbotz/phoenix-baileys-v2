@@ -54,6 +54,9 @@ const makeChatsSocket = config => {
 		unblockInteropUser,
 		reportInteropSpam,
 		trustInteropContact,
+		createInteropGroup,
+		leaveInteropGroup,
+		getInteropGroupAddPrivacy,
 		INTEGRATOR_BIRDYCHAT,
 		INTEGRATOR_HAIKET
 	} = sock
@@ -158,6 +161,70 @@ const makeChatsSocket = config => {
 	const updateStatusPrivacy = async value => {
 		await privacyQuery('status', value)
 	}
+	/**
+	 * Fetch status privacy settings via `xmlns="status"` IQ GET.
+	 * Returns the current distribution type and any custom lists.
+	 * Source: GetStatusPrivacyJob.java, feature flag 3843 controls retry.
+	 */
+	const getStatusPrivacy = async () => {
+		const result = await query({
+			tag: 'iq',
+			attrs: {
+				xmlns: 'status',
+				to: WABinary_1.S_WHATSAPP_NET,
+				type: 'get'
+			},
+			content: [{ tag: 'privacy', attrs: {} }]
+		})
+		const privacyNode = result?.content?.[0]
+		if (!privacyNode) return null
+		const lists = []
+		for (const listNode of (privacyNode.content || [])) {
+			const { type, id, listname, emoji, selected, deleted } = listNode.attrs || {}
+			const members = (listNode.content || []).map(u => u.attrs?.jid).filter(Boolean)
+			lists.push({ type, id, listname, emoji, selected: selected === 'true', deleted: deleted === 'true', members })
+		}
+		return lists
+	}
+	/**
+	 * Set status privacy via `xmlns="status"` IQ SET.
+	 * Supports simple distribution types and contact-level whitelist/blacklist/customlist.
+	 *
+	 * @param {'contacts'|'whitelist'|'blacklist'|'null'} type - Distribution type
+	 * @param {string[]} [jids] - JIDs for the list (whitelist/blacklist)
+	 * @param {Array<{id: string, listname: string, emoji?: string, selected?: boolean, deleted?: boolean, members?: string[]}>} [customLists]
+	 */
+	const setStatusPrivacy = async (type, jids = [], customLists = []) => {
+		const content = []
+		// main distribution list
+		const mainList = {
+			tag: 'list',
+			attrs: { type },
+			content: jids.map(jid => ({ tag: 'user', attrs: { jid }, content: [] }))
+		}
+		content.push(mainList)
+		// custom named lists
+		for (const cl of customLists) {
+			const attrs = { type: 'customlist', id: cl.id, listname: cl.listname }
+			if (cl.emoji) attrs.emoji = cl.emoji
+			if (cl.selected) attrs.selected = 'true'
+			if (cl.deleted) attrs.deleted = 'true'
+			content.push({
+				tag: 'list',
+				attrs,
+				content: (cl.members || []).map(jid => ({ tag: 'user', attrs: { jid }, content: [] }))
+			})
+		}
+		await query({
+			tag: 'iq',
+			attrs: {
+				xmlns: 'status',
+				to: WABinary_1.S_WHATSAPP_NET,
+				type: 'set'
+			},
+			content: [{ tag: 'privacy', attrs: {}, content }]
+		})
+	}
 	const updateReadReceiptsPrivacy = async value => {
 		await privacyQuery('readreceipts', value)
 	}
@@ -182,6 +249,38 @@ const makeChatsSocket = config => {
 			]
 		})
 	}
+	/**
+	 * Fetch broadcast list quota from the server.
+	 * Source: BroadcastListQuotaProtocol.java — IQ xmlns="w:biz", 32s timeout.
+	 *
+	 * Returns: { messagesLeft, totalLimit, isHeavySender, startTs, endTs, resetTs }
+	 */
+	const fetchBroadcastListQuota = async () => {
+		const result = await query(
+			{
+				tag: 'iq',
+				attrs: {
+					xmlns: 'w:biz',
+					to: WABinary_1.S_WHATSAPP_NET,
+					type: 'get'
+				},
+				content: [{ tag: 'broadcast_list_quota', attrs: {}, content: [] }]
+			},
+			32000
+		)
+		const limitsNode = (0, WABinary_1.getBinaryNodeChild)(result, 'limits')
+		const timeframeNode = (0, WABinary_1.getBinaryNodeChild)(result, 'timeframe')
+		if (!limitsNode) return null
+		return {
+			messagesLeft: parseInt(limitsNode.attrs?.messages_left ?? (0, WABinary_1.getBinaryNodeChild)(limitsNode, 'messages_left')?.content ?? '0'),
+			totalLimit: parseInt(limitsNode.attrs?.total_limit ?? (0, WABinary_1.getBinaryNodeChild)(limitsNode, 'total_limit')?.content ?? '0'),
+			isHeavySender: (limitsNode.attrs?.is_heavy_sender ?? (0, WABinary_1.getBinaryNodeChild)(limitsNode, 'is_heavy_sender')?.content) === 'true',
+			startTs: parseInt(timeframeNode?.attrs?.start_ts_s ?? (0, WABinary_1.getBinaryNodeChild)(timeframeNode, 'start_ts_s')?.content ?? '0'),
+			endTs: parseInt(timeframeNode?.attrs?.end_ts_s ?? (0, WABinary_1.getBinaryNodeChild)(timeframeNode, 'end_ts_s')?.content ?? '0'),
+			resetTs: parseInt(timeframeNode?.attrs?.reset_ts_s ?? (0, WABinary_1.getBinaryNodeChild)(timeframeNode, 'reset_ts_s')?.content ?? '0')
+		}
+	}
+
 	const getBotListV2 = async () => {
 		const resp = await query({
 			tag: 'iq',
@@ -212,6 +311,91 @@ const makeChatsSocket = config => {
 			}
 		}
 		return botList
+	}
+	/**
+	 * Get the global chat-blocking status (block messages from unknown accounts).
+	 * Ported from WhatsApp Web's WASmaxPsaChatBlockGetRPC (xmlns `w:comms:chat`).
+	 * @returns {Promise<'blocked' | 'unblocked' | undefined>}
+	 */
+	const getChatBlockingStatus = async () => {
+		const result = await query({
+			tag: 'iq',
+			attrs: {
+				to: WABinary_1.S_WHATSAPP_NET,
+				xmlns: 'w:comms:chat',
+				type: 'get'
+			},
+			content: [{ tag: 'query', attrs: {}, content: [{ tag: 'blocking_status', attrs: {} }] }]
+		})
+		const blocking =
+			(0, WABinary_1.getBinaryNodeChild)(result, 'blocking') ||
+			(0, WABinary_1.getBinaryNodeChild)((0, WABinary_1.getBinaryNodeChild)(result, 'query'), 'blocking')
+		return blocking?.attrs?.status
+	}
+	/**
+	 * Set the global chat-blocking status (block messages from unknown accounts).
+	 * Ported from WhatsApp Web's WASmaxPsaChatBlockSetRPC (xmlns `w:comms:chat`).
+	 * @param {'block' | 'unblock'} action
+	 * @returns {Promise<'blocked' | 'unblocked' | undefined>} the resulting status
+	 */
+	const updateChatBlockingStatus = async action => {
+		const result = await query({
+			tag: 'iq',
+			attrs: {
+				to: WABinary_1.S_WHATSAPP_NET,
+				xmlns: 'w:comms:chat',
+				type: 'set'
+			},
+			content: [{ tag: 'blocking', attrs: { action } }]
+		})
+		const blocking = (0, WABinary_1.getBinaryNodeChild)(result, 'blocking')
+		return blocking?.attrs?.status
+	}
+	/**
+	 * Get the user's pending TOS disclosures / notices.
+	 * Ported from WhatsApp Web's WASmaxUserNoticeGetDisclosuresRPC (xmlns `tos`).
+	 * @param {number} [t] last-seen disclosure timestamp
+	 * @returns {Promise<Array<Record<string, string>>>} the `<notice>` attributes
+	 */
+	const getUserDisclosures = async (t = 0) => {
+		const result = await query({
+			tag: 'iq',
+			attrs: { to: WABinary_1.S_WHATSAPP_NET, xmlns: 'tos', type: 'get' },
+			content: [{ tag: 'get_user_disclosures', attrs: { t: String(t) } }]
+		})
+		return (0, WABinary_1.getBinaryNodeChildren)(result, 'notice').map(n => ({ ...n.attrs }))
+	}
+	/**
+	 * Get the account opt-out list (`optoutlist` IQ). Returns the raw result node.
+	 */
+	const getOptOutList = async () => {
+		return query({
+			tag: 'iq',
+			attrs: { to: WABinary_1.S_WHATSAPP_NET, xmlns: 'optoutlist', type: 'get' }
+		})
+	}
+	/**
+	 * Get push-notification settings (`urn:xmpp:whatsapp:push`).
+	 */
+	const getPushConfig = async () => {
+		const result = await query({
+			tag: 'iq',
+			attrs: { to: WABinary_1.S_WHATSAPP_NET, xmlns: 'urn:xmpp:whatsapp:push', type: 'get' },
+			content: [{ tag: 'settings', attrs: {} }]
+		})
+		return (0, WABinary_1.getBinaryNodeChild)(result, 'settings')
+	}
+	/**
+	 * Set push-notification config (`urn:xmpp:whatsapp:push`). Mainly web push —
+	 * pass the FCM-style config (platform / endpoint / auth / p256dh).
+	 * @param {Record<string, string>} config
+	 */
+	const setPushConfig = async config => {
+		await query({
+			tag: 'iq',
+			attrs: { to: WABinary_1.S_WHATSAPP_NET, xmlns: 'urn:xmpp:whatsapp:push', type: 'set' },
+			content: [{ tag: 'config', attrs: config }]
+		})
 	}
 	const fetchStatus = async (...jids) => {
 		const usyncQuery = new WAUSync_1.USyncQuery().withStatusProtocol()
@@ -637,6 +821,27 @@ const makeChatsSocket = config => {
 		const child = (0, WABinary_1.getBinaryNodeChild)(result, 'link_create')
 		return child?.attrs?.token
 	}
+	/**
+	 * Toggle the waiting room on an existing call link.
+	 * Ported from WhatsApp Web's WASmaxVoipWaitingRoomToggleCallLinkRPC.
+	 * @param {string} linkToken the call link token (from createCallLink)
+	 * @param {boolean} enabled
+	 * @param {'audio' | 'video'} [media]
+	 */
+	const toggleCallLinkWaitingRoom = async (linkToken, enabled, media = 'audio') => {
+		const result = await query({
+			tag: 'call',
+			attrs: { id: generateMessageTag(), to: '@call' },
+			content: [
+				{
+					tag: 'waiting_room_toggle',
+					attrs: { enabled: enabled ? '1' : '0', 'link-token': linkToken, media }
+				}
+			]
+		})
+		const child = (0, WABinary_1.getBinaryNodeChild)(result, 'waiting_room_toggle')
+		return child?.attrs
+	}
 	const sendPresenceUpdate = async (type, toJid) => {
 		const me = authState.creds.me
 		const isAvailableType = type === 'available'
@@ -983,6 +1188,300 @@ const makeChatsSocket = config => {
 		)
 	}
 	/**
+	 * Rename an AI chat thread
+	 */
+	const renameAIThread = (jid, title) => {
+		return chatModify({ aiThreadRename: { title } }, jid)
+	}
+	/**
+	 * Pin or unpin a message in a thread/AI chat
+	 */
+	const pinThreadMessage = (jid, messageId, pinned = true) => {
+		return chatModify({ threadPin: { pinned, messageId } }, jid)
+	}
+	/**
+	 * Toggle AI private processing (end-to-end encrypted AI processing)
+	 */
+	const updatePrivateProcessingSetting = enabled => {
+		return chatModify({ privateProcessingSetting: enabled ? 'enabled' : 'disabled' }, '')
+	}
+	/**
+	 * Update bio/about privacy (who can see your About text)
+	 * @param value 'all' | 'contacts' | 'contact_blacklist' | 'none'
+	 */
+	const updateBioPrivacy = async value => {
+		await privacyQuery('about', value)
+	}
+	/**
+	 * Block a bot JID
+	 */
+	const blockBot = async botJid => {
+		await query({
+			tag: 'iq',
+			attrs: {
+				xmlns: 'disappearing_mode',
+				to: WABinary_1.S_WHATSAPP_NET,
+				type: 'set'
+			},
+			content: [
+				{
+					tag: 'block',
+					attrs: { jid: botJid }
+				}
+			]
+		})
+	}
+	/**
+	 * Unblock a bot JID
+	 */
+	const unblockBot = async botJid => {
+		await updateBlockStatus(botJid, 'unblock')
+	}
+	/**
+	 * Mute or unmute a contact's status updates
+	 */
+	const muteContactStatus = (jid, muted = true) => {
+		return chatModify({ muteStatus: { muted } }, jid)
+	}
+	/**
+	 * Add or remove a contact from favorites
+	 */
+	const toggleFavorite = (jid, isFavorite = true) => {
+		return chatModify({ favorite: { isFavorite } }, jid)
+	}
+	/**
+	 * Reorder labels
+	 * @param sortedLabelIds ordered array of label IDs
+	 */
+	const reorderLabels = sortedLabelIds => {
+		return chatModify({ reorderLabel: { sortedLabelIds } }, '')
+	}
+	/**
+	 * Delete an individual call log entry
+	 */
+	const deleteCallLog = (callId, jid = '') => {
+		return chatModify({ deleteCallLog: { callId } }, jid)
+	}
+	/**
+	 * Create or update a note/draft for a chat
+	 */
+	const setChatNote = (jid, note) => {
+		return chatModify({ noteEdit: { note } }, jid)
+	}
+	/**
+	 * Delete the note/draft for a chat
+	 */
+	const deleteChatNote = jid => {
+		return chatModify({ noteEdit: { note: '', deleted: true } }, jid)
+	}
+	/**
+	 * Explicitly mark a chat as unread (shows unread dot even if read)
+	 */
+	const markChatAsUnread = (jid, lastMessages) => {
+		return chatModify({ markAsUnread: true, lastMessages }, jid)
+	}
+	/**
+	 * Set per-chat ephemeral message duration
+	 * @param duration seconds (0 = off, 86400 = 1d, 604800 = 7d, 7776000 = 90d)
+	 */
+	const setChatEphemeral = (jid, duration) => {
+		return chatModify({ setChatEphemeral: duration }, jid)
+	}
+	/**
+	 * Silence a chat (mute without timestamp = permanent, or provide until timestamp)
+	 */
+	const silenceChat = (jid, silent = true, until = null) => {
+		return chatModify({ silenceChat: { silent, until } }, jid)
+	}
+	/**
+	 * Fetch bot profiles for a list of JIDs using USyncBotProfileProtocol
+	 */
+	const fetchBotProfiles = async jids => {
+		const { USyncQuery, USyncUser, USyncBotProfileProtocol } = require('../WAUSync')
+		const q = new USyncQuery()
+		q.protocols.push(new USyncBotProfileProtocol())
+		for (const jid of jids) {
+			q.withUser(new USyncUser().withId(jid))
+		}
+		const result = await sock.executeUSyncQuery(q)
+		return result?.list || []
+	}
+	/**
+	 * Lock or unlock a chat with an optional secret code
+	 */
+	const updateChatLock = (jid, locked) => {
+		return chatModify({ chatLock: { locked } }, jid)
+	}
+	/**
+	 * Set a custom wallpaper for a chat
+	 * @param jid the chat JID
+	 * @param wallpaper wallpaper data or null to remove
+	 */
+	const updateChatWallpaper = (jid, wallpaper) => {
+		if (!wallpaper) {
+			return chatModify({ wallpaper: { remove: true } }, jid)
+		}
+		return chatModify({ wallpaper }, jid)
+	}
+	/**
+	 * Set media visibility (auto-download) for a chat
+	 * @param jid the chat JID
+	 * @param visibility 'default' | 'on' | 'off'
+	 */
+	const updateChatMediaVisibility = (jid, visibility) => {
+		return chatModify({ mediaVisibility: visibility }, jid)
+	}
+	/**
+	 * Fetch details for a specific bot by JID
+	 */
+	const getBotProfile = async botJid => {
+		const resp = await query({
+			tag: 'iq',
+			attrs: {
+				xmlns: 'bot',
+				to: WABinary_1.S_WHATSAPP_NET,
+				type: 'get'
+			},
+			content: [
+				{
+					tag: 'bot',
+					attrs: { v: '2', jid: botJid }
+				}
+			]
+		})
+		const botNode = (0, WABinary_1.getBinaryNodeChild)(resp, 'bot')
+		if (!botNode) return null
+		return {
+			jid: botNode.attrs.jid,
+			personaId: botNode.attrs['persona_id'],
+			name: botNode.attrs.name,
+			description: botNode.attrs.description
+		}
+	}
+	/**
+	 * Fetch AB-test (abt) props from server.
+	 * Mirrors ABPropsProtocolHelper — protocol 1 or 2, optional hash/refresh_id/group.
+	 */
+	const fetchABProps = async (protocol = '2', hash = '', refreshId = null, group = null) => {
+		const propAttrs = { protocol }
+		if (hash) propAttrs.hash = hash
+		if (refreshId != null) propAttrs.refresh_id = String(refreshId)
+		if (group != null) propAttrs.group = String(group)
+		const result = await query({
+			tag: 'iq',
+			attrs: { to: WABinary_1.S_WHATSAPP_NET, xmlns: 'abt', type: 'get' },
+			content: [{ tag: 'props', attrs: propAttrs }]
+		})
+		const propsNode = (0, WABinary_1.getBinaryNodeChild)(result, 'props')
+		if (!propsNode) return {}
+		return (0, WABinary_1.reduceBinaryNodeToDictionary)(propsNode, 'prop')
+	}
+	/**
+	 * Remove a companion (linked) device from the account.
+	 * Mirrors CompanionDeviceRemovalJob — xmlns="md", child tag "remove-companion-device".
+	 * reason: "user_initiated" | "server_initiated" | any WA-defined reason string.
+	 */
+	const removeCompanionDevice = async (keyIndex, reason = 'user_initiated') => {
+		await query({
+			tag: 'iq',
+			attrs: { to: WABinary_1.S_WHATSAPP_NET, xmlns: 'md', type: 'set' },
+			content: [
+				{
+					tag: 'remove-companion-device',
+					attrs: { platform: 'true', reason, id: String(keyIndex) }
+				}
+			]
+		})
+	}
+	/**
+	 * Push an updated key-index-list to the server (multi-device key announcement).
+	 * Mirrors KeyIndexListJob — xmlns="md", child tag "key-index-list" with a binary proto body.
+	 * ts: unix timestamp seconds (string or number).
+	 * content: Buffer — serialized proto KeyIndexList.
+	 */
+	const updateKeyIndexList = async (ts, content) => {
+		await query({
+			tag: 'iq',
+			attrs: { to: WABinary_1.S_WHATSAPP_NET, xmlns: 'md', type: 'set' },
+			content: [
+				{
+					tag: 'key-index-list',
+					attrs: { ts: String(ts) },
+					content
+				}
+			]
+		})
+	}
+	/**
+	 * Request a media upload connection token from the server.
+	 * Mirrors MediaConnFetcher — xmlns="w:m", type="set", optional last_id.
+	 * Returns the raw media_conn node.
+	 */
+	const fetchMediaConn = async (lastId = null) => {
+		const attrs = {}
+		if (lastId != null) attrs.last_id = String(lastId)
+		const result = await query({
+			tag: 'iq',
+			attrs: { to: WABinary_1.S_WHATSAPP_NET, xmlns: 'w:m', type: 'set' },
+			content: [{ tag: 'media_conn', attrs }]
+		})
+		return (0, WABinary_1.getBinaryNodeChild)(result, 'media_conn') || null
+	}
+	/**
+	 * Delete a broadcast list by ID.
+	 * Mirrors BroadcastListDeleteJob — xmlns="w:b", wraps <delete><list id="..."/></delete>.
+	 */
+	const deleteBroadcastList = async listId => {
+		await query({
+			tag: 'iq',
+			attrs: { to: WABinary_1.S_WHATSAPP_NET, xmlns: 'w:b', type: 'set' },
+			content: [
+				{
+					tag: 'delete',
+					attrs: {},
+					content: [{ tag: 'list', attrs: { id: String(listId) } }]
+				}
+			]
+		})
+	}
+	/**
+	 * Fetch a QR code from the server (e.g. for linked-device linking).
+	 * Mirrors QRCodeFetcher — xmlns="w:qr", type="get".
+	 * addressingMode: "lid" | undefined — set to "lid" for LID-addressed QR.
+	 */
+	const fetchQRCode = async (code, addressingMode = null) => {
+		const attrs = { code }
+		if (addressingMode) attrs.addressing_mode = addressingMode
+		const result = await query({
+			tag: 'iq',
+			attrs: { to: WABinary_1.S_WHATSAPP_NET, xmlns: 'w:qr', type: 'get' },
+			content: [{ tag: 'qr', attrs }]
+		})
+		return (0, WABinary_1.getBinaryNodeChild)(result, 'qr') || null
+	}
+	/**
+	 * Confirm or deny a device-logout request from the server.
+	 * Mirrors AccountDefenceDeviceLogoutJob — xmlns="w:account_defence", smax_id=87.
+	 * approve: true to confirm the logout, false to deny.
+	 */
+	const confirmDeviceLogout = async (id, approve = true) => {
+		await query({
+			tag: 'iq',
+			attrs: {
+				to: WABinary_1.S_WHATSAPP_NET,
+				xmlns: 'w:account_defence',
+				type: 'set',
+				smax_id: '87'
+			},
+			content: [
+				{
+					tag: 'device_logout',
+					attrs: { approve: approve ? 'true' : 'false', id: String(id) }
+				}
+			]
+		})
+	}
+	/**
 	 * queries need to be fired on connection open
 	 * help ensure parity with WA Web
 	 * */
@@ -1214,7 +1713,14 @@ const makeChatsSocket = config => {
 		...sock,
 		serverProps,
 		createCallLink,
+		toggleCallLinkWaitingRoom,
 		getBotListV2,
+		getChatBlockingStatus,
+		updateChatBlockingStatus,
+		getUserDisclosures,
+		getOptOutList,
+		getPushConfig,
+		setPushConfig,
 		messageMutex,
 		receiptMutex,
 		appStatePatchMutex,
@@ -1240,9 +1746,12 @@ const makeChatsSocket = config => {
 		updateOnlinePrivacy,
 		updateProfilePicturePrivacy,
 		updateStatusPrivacy,
+		getStatusPrivacy,
+		setStatusPrivacy,
 		updateReadReceiptsPrivacy,
 		updateGroupsAddPrivacy,
 		updateDefaultDisappearingMode,
+		fetchBroadcastListQuota,
 		getBusinessProfile,
 		resyncAppState,
 		chatModify,
@@ -1257,6 +1766,26 @@ const makeChatsSocket = config => {
 		star,
 		addOrEditQuickReply,
 		removeQuickReply,
+		renameAIThread,
+		pinThreadMessage,
+		updatePrivateProcessingSetting,
+		updateBioPrivacy,
+		blockBot,
+		unblockBot,
+		getBotProfile,
+		muteContactStatus,
+		toggleFavorite,
+		reorderLabels,
+		deleteCallLog,
+		setChatNote,
+		deleteChatNote,
+		markChatAsUnread,
+		setChatEphemeral,
+		silenceChat,
+		fetchBotProfiles,
+		updateChatLock,
+		updateChatWallpaper,
+		updateChatMediaVisibility,
 		fetchIntegrators,
 		acceptInteropTOS,
 		optInIntegrators,
@@ -1270,8 +1799,18 @@ const makeChatsSocket = config => {
 		reportInteropSpam,
 		trustInteropContact,
 		initInterop,
+		createInteropGroup,
+		leaveInteropGroup,
+		getInteropGroupAddPrivacy,
 		INTEGRATOR_BIRDYCHAT,
-		INTEGRATOR_HAIKET
+		INTEGRATOR_HAIKET,
+		fetchABProps,
+		removeCompanionDevice,
+		updateKeyIndexList,
+		fetchMediaConn,
+		deleteBroadcastList,
+		fetchQRCode,
+		confirmDeviceLogout
 	}
 }
 exports.makeChatsSocket = makeChatsSocket

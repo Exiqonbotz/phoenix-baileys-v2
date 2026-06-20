@@ -42,7 +42,7 @@ const index_js_1 = require('../../WAProto/index.js')
 const libsignal_1 = require('../Signal/libsignal')
 const browser_utils_1 = require('../Utils/browser-utils')
 const logger_1 = __importDefault(require('../Utils/logger'))
-const version = [2, 3000, 1038585534]
+const version = [2, 3000, 1041467552]
 exports.VERSION = version
 exports.UNAUTHORIZED_CODES = [401, 403, 419]
 exports.DEFAULT_ORIGIN = 'https://web.whatsapp.com'
@@ -116,7 +116,13 @@ exports.DEFAULT_CONNECTION_CONFIG = {
 	countryCode: 'US',
 	getMessage: async () => undefined,
 	cachedGroupMetadata: async () => undefined,
-	makeSignalRepository: libsignal_1.makeLibSignalRepository
+	makeSignalRepository: libsignal_1.makeLibSignalRepository,
+	maxConcurrentUploads: 3,
+	presenceUpdateIntervalMs: 5000,
+	groupMetadataCacheTTL: 30 * 60 * 1000,
+	useCachedGroupMetadata: false,
+	enableCallHistory: false,
+	reconnectOnNetworkChange: false
 }
 exports.MEDIA_PATH_MAP = {
 	image: '/mms/image',
@@ -125,10 +131,14 @@ exports.MEDIA_PATH_MAP = {
 	audio: '/mms/audio',
 	sticker: '/mms/image',
 	'thumbnail-link': '/mms/image',
+	'thumbnail-image': '/mms/image',
+	'thumbnail-video': '/mms/video',
+	'thumbnail-document': '/mms/document',
 	'product-catalog-image': '/product/image',
 	'md-app-state': '',
 	'md-msg-hist': '/mms/md-app-state',
-	'biz-cover-photo': '/pps/biz-cover-photo'
+	'biz-cover-photo': '/pps/biz-cover-photo',
+	ptv: '/mms/video'
 }
 exports.MEDIA_HKDF_KEY_MAPPING = {
 	audio: 'Audio',
@@ -146,10 +156,13 @@ exports.MEDIA_HKDF_KEY_MAPPING = {
 	'thumbnail-link': 'Link Thumbnail',
 	'md-msg-hist': 'History',
 	'md-app-state': 'App State',
-	'product-catalog-image': '',
+	'product-catalog-image': 'Product Catalog Image',
 	'payment-bg-image': 'Payment Background',
 	ptv: 'Video',
-	'biz-cover-photo': 'Image'
+	'biz-cover-photo': 'Image',
+	location: 'Location',
+	contact: 'Contact',
+	'voip-token': 'Voip Token'
 }
 exports.MEDIA_KEYS = Object.keys(exports.MEDIA_PATH_MAP)
 exports.MIN_PREKEY_COUNT = 5
@@ -160,11 +173,17 @@ exports.DEFAULT_CACHE_TTLS = {
 	SIGNAL_STORE: 5 * 60, // 5 minutes
 	MSG_RETRY: 60 * 60, // 1 hour
 	CALL_OFFER: 5 * 60, // 5 minutes
-	USER_DEVICES: 5 * 60 // 5 minutes
+	USER_DEVICES: 5 * 60, // 5 minutes
+	GROUP_METADATA: 30 * 60, // 30 minutes
+	CALL_SESSION: 10 * 60, // 10 minutes
+	USYNC_RESULTS: 10 * 60, // 10 minutes
+	IDENTITY_PROOF: 60 * 60 // 1 hour
 }
 exports.TimeMs = {
+	Second: 1000,
 	Minute: 60 * 1000,
 	Hour: 60 * 60 * 1000,
 	Day: 24 * 60 * 60 * 1000,
-	Week: 7 * 24 * 60 * 60 * 1000
+	Week: 7 * 24 * 60 * 60 * 1000,
+	Month: 30 * 24 * 60 * 60 * 1000
 }

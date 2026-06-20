@@ -210,6 +210,31 @@ const processMessage = async (
 			chat.unreadCount = (chat.unreadCount || 0) + 1
 		}
 	}
+	if (message.statusPsa) {
+		ev.emit('status.psa', {
+			key: message.key,
+			psa: message.statusPsa,
+			chatId: chat.id
+		})
+	}
+	if (message.quarantinedMessage) {
+		ev.emit('message.quarantined', {
+			key: message.key,
+			quarantineInfo: message.quarantinedMessage,
+			chatId: chat.id
+		})
+	}
+	if (message.interactiveMessageAdditionalMetadata?.isGalaxyFlowCompleted) {
+		ev.emit('galaxy.flow.completed', {
+			key: message.key,
+			chatId: chat.id
+		})
+	}
+	if (message.ephemeralExpirationTimestamp) {
+		Object.assign(chat, {
+			ephemeralExpirationTimestamp: (0, generics_1.toNumber)(message.ephemeralExpirationTimestamp)
+		})
+	}
 	const content = (0, messages_1.normalizeMessageContent)(message.message)
 	// unarchive chat if it's a real message, or someone reacted to our message
 	// and we've the unarchive chats setting on
@@ -374,6 +399,115 @@ const processMessage = async (
 					})
 				}
 				break
+			case index_js_1.proto.Message.ProtocolMessage.Type.BOT_FEEDBACK_MESSAGE:
+				if (protocolMsg.botFeedbackMessage) {
+					ev.emit('bot.feedback', {
+						key: message.key,
+						botFeedback: protocolMsg.botFeedbackMessage,
+						targetKey: protocolMsg.key
+					})
+				}
+				break
+			case index_js_1.proto.Message.ProtocolMessage.Type.CLOUD_API_THREAD_CONTROL_NOTIFICATION:
+				if (protocolMsg.cloudAPIThreadControlNotification) {
+					ev.emit('cloud.thread.control', {
+						key: message.key,
+						notification: protocolMsg.cloudAPIThreadControlNotification,
+						chatId: chat.id
+					})
+				}
+				break
+			case index_js_1.proto.Message.ProtocolMessage.Type.CHAT_THEME_SETTING:
+				if (protocolMsg.chatThemeSetting) {
+					ev.emit('chats.update', [
+						{
+							id: chat.id,
+							chatThemeSetting: protocolMsg.chatThemeSetting
+						}
+					])
+				}
+				break
+			case index_js_1.proto.Message.ProtocolMessage.Type.STOP_GENERATION_MESSAGE:
+				ev.emit('bot.stop-generation', {
+					key: message.key,
+					targetKey: protocolMsg.key,
+					chatId: chat.id
+				})
+				break
+			case index_js_1.proto.Message.ProtocolMessage.Type.MEDIA_NOTIFY_MESSAGE:
+				if (protocolMsg.mediaNotifyMessage) {
+					ev.emit('media.notify', {
+						key: message.key,
+						mediaNotify: protocolMsg.mediaNotifyMessage
+					})
+				}
+				break
+			case index_js_1.proto.Message.ProtocolMessage.Type.REQUEST_WELCOME_MESSAGE:
+				ev.emit('bot.welcome-request', {
+					key: message.key,
+					chatId: chat.id,
+					timestamp: message.messageTimestamp
+				})
+				break
+			case index_js_1.proto.Message.ProtocolMessage.Type.BOT_MEMU_ONBOARDING_MESSAGE:
+				ev.emit('bot.memu-onboarding', {
+					key: message.key,
+					chatId: chat.id
+				})
+				break
+			case index_js_1.proto.Message.ProtocolMessage.Type.STATUS_MENTION_MESSAGE:
+				if (protocolMsg.statusMentionMessage) {
+					ev.emit('status.mention', {
+						key: message.key,
+						statusMention: protocolMsg.statusMentionMessage,
+						chatId: chat.id
+					})
+				}
+				break
+			case index_js_1.proto.Message.ProtocolMessage.Type.AI_PSI_METADATA:
+				if (protocolMsg.aiPsiMetadata) {
+					ev.emit('bot.psi-metadata', {
+						key: message.key,
+						psiMetadata: protocolMsg.aiPsiMetadata,
+						chatId: chat.id
+					})
+				}
+				break
+			case index_js_1.proto.Message.ProtocolMessage.Type.AI_QUERY_FANOUT:
+				if (protocolMsg.aiQueryFanout) {
+					ev.emit('bot.query-fanout', {
+						key: message.key,
+						queryFanout: protocolMsg.aiQueryFanout,
+						chatId: chat.id
+					})
+				}
+				break
+			case index_js_1.proto.Message.ProtocolMessage.Type.AI_MEDIA_COLLECTION_MESSAGE:
+				if (protocolMsg.aiMediaCollectionMessage) {
+					ev.emit('bot.media-collection', {
+						key: message.key,
+						collection: protocolMsg.aiMediaCollectionMessage,
+						chatId: chat.id
+					})
+				}
+				break
+			case index_js_1.proto.Message.ProtocolMessage.Type.REMINDER_MESSAGE:
+				ev.emit('reminder.update', {
+					key: message.key,
+					chatId: chat.id,
+					timestamp: message.messageTimestamp
+				})
+				break
+			case index_js_1.proto.Message.ProtocolMessage.Type.MESSAGE_UNSCHEDULE:
+				if (protocolMsg.key) {
+					ev.emit('messages.update', [
+						{
+							key: { ...message.key, id: protocolMsg.key.id },
+							update: { scheduledMessageMetadata: null }
+						}
+					])
+				}
+				break
 			case index_js_1.proto.Message.ProtocolMessage.Type.LID_MIGRATION_MAPPING_SYNC:
 				const encodedPayload = protocolMsg.lidMigrationMappingSyncMessage?.encodedMappingPayload
 				const { pnToLidMappings, chatDbMigrationTimestamp } =
@@ -402,6 +536,83 @@ const processMessage = async (
 				key: content.reactionMessage?.key
 			}
 		])
+	} else if (content?.keepInChatMessage) {
+		const kic = content.keepInChatMessage
+		if (kic.key) {
+			ev.emit('messages.update', [
+				{
+					key: kic.key,
+					update: { keepInChat: { keepType: kic.keepType, serverTimestamp: message.messageTimestamp, key: kic.key } }
+				}
+			])
+		}
+	} else if (content?.encReactionMessage) {
+		ev.emit('messages.update', [
+			{
+				key: content.encReactionMessage.targetMessageKey,
+				update: { encReactionMessage: content.encReactionMessage }
+			}
+		])
+	} else if (content?.commentMessage) {
+		if (content.commentMessage.targetMessageKey) {
+			ev.emit('message.comment', {
+				comment: content.commentMessage,
+				commentKey: message.key,
+				targetKey: content.commentMessage.targetMessageKey
+			})
+		}
+	} else if (content?.encCommentMessage) {
+		ev.emit('message.comment', {
+			comment: content.encCommentMessage,
+			commentKey: message.key,
+			targetKey: content.encCommentMessage.targetMessageKey,
+			encrypted: true
+		})
+	} else if (content?.bcallMessage) {
+		ev.emit('call', [
+			{
+				id: content.bcallMessage.sessionId || message.key.id,
+				from: message.key.participant || message.key.remoteJid,
+				chatId: chat.id,
+				isVideo: content.bcallMessage.mediaType === index_js_1.proto.Message.BCallMessage.MediaType.VIDEO,
+				isBroadcast: true,
+				caption: content.bcallMessage.caption
+			}
+		])
+	} else if (content?.pollAddOptionMessage) {
+		const pao = content.pollAddOptionMessage
+		if (pao.pollCreationMessageKey) {
+			ev.emit('poll.add-option', {
+				pollKey: pao.pollCreationMessageKey,
+				addedOption: pao.addOption,
+				addedBy: message.key.participant || message.key.remoteJid,
+				messageKey: message.key
+			})
+		}
+	} else if (content?.scheduledCallCreationMessage) {
+		ev.emit('call.scheduled', {
+			messageKey: message.key,
+			scheduledCall: content.scheduledCallCreationMessage,
+			chatId: chat.id
+		})
+	} else if (content?.scheduledCallEditMessage) {
+		ev.emit('call.schedule-cancelled', {
+			messageKey: message.key,
+			editedCallKey: content.scheduledCallEditMessage.key,
+			chatId: chat.id
+		})
+	} else if (content?.splitPaymentMessage) {
+		ev.emit('payment.split', {
+			messageKey: message.key,
+			splitPayment: content.splitPaymentMessage,
+			chatId: chat.id
+		})
+	} else if (content?.p2PPaymentReminderNotification) {
+		ev.emit('payment.reminder', {
+			messageKey: message.key,
+			reminder: content.p2PPaymentReminderNotification,
+			chatId: chat.id
+		})
 	} else if (content?.encEventResponseMessage) {
 		const encEventResponse = content.encEventResponseMessage
 		const creationMsgKey = encEventResponse.eventCreationMessageKey
@@ -554,6 +765,231 @@ const processMessage = async (
 				const action = message.messageStubParameters?.[1]
 				const method = message.messageStubParameters?.[2]
 				emitGroupRequestJoin(participant, action, method)
+				break
+			case Types_1.WAMessageStubType.GROUP_CREATE:
+				emitGroupUpdate({ subject: message.messageStubParameters?.[0] })
+				break
+			case Types_1.WAMessageStubType.GROUP_CHANGE_ICON:
+				emitGroupUpdate({ pictureId: message.messageStubParameters?.[0] })
+				break
+			case Types_1.WAMessageStubType.GROUP_DELETE:
+				emitGroupUpdate({ readOnly: true, deleted: true })
+				break
+			case Types_1.WAMessageStubType.GROUP_CREATING:
+				emitGroupUpdate({ subject: message.messageStubParameters?.[0], creating: true })
+				break
+			case Types_1.WAMessageStubType.GROUP_CREATE_FAILED:
+				emitGroupUpdate({ createFailed: true })
+				break
+			case Types_1.WAMessageStubType.GROUP_BOUNCED:
+				emitGroupUpdate({ bounced: true })
+				break
+			case Types_1.WAMessageStubType.CHANGE_EPHEMERAL_SETTING:
+				const ephValue = message.messageStubParameters?.[0]
+				emitGroupUpdate({ ephemeralDuration: ephValue ? +ephValue : 0 })
+				break
+			case Types_1.WAMessageStubType.DISAPPEARING_MODE:
+				const disappearingValue = message.messageStubParameters?.[0]
+				emitGroupUpdate({ ephemeralDuration: disappearingValue ? +disappearingValue : 0 })
+				break
+			case Types_1.WAMessageStubType.ADMIN_REVOKE:
+				emitGroupUpdate({ adminRevoked: true, revokedBy: message.messageStubParameters?.[0] })
+				break
+			case Types_1.WAMessageStubType.BLOCK_CONTACT:
+				ev.emit('contacts.update', [{ id: jid, isBlocked: true }])
+				break
+			case Types_1.WAMessageStubType.CHANGE_USERNAME:
+				ev.emit('contacts.update', [
+					{ id: message.key.participant || jid, username: message.messageStubParameters?.[0] }
+				])
+				break
+			case Types_1.WAMessageStubType.GROUP_PARTICIPANT_ACCEPT:
+				participants =
+					message.messageStubParameters?.map(a => {
+						try {
+							return JSON.parse(a)
+						} catch {
+							return a
+						}
+					}) || []
+				emitParticipantsUpdate('accept')
+				break
+			case Types_1.WAMessageStubType.GROUP_PARTICIPANT_LINKED_GROUP_JOIN:
+				participants =
+					message.messageStubParameters?.map(a => {
+						try {
+							return JSON.parse(a)
+						} catch {
+							return a
+						}
+					}) || []
+				emitParticipantsUpdate('linked-group-join')
+				break
+			case Types_1.WAMessageStubType.EPHEMERAL_KEEP_IN_CHAT:
+				ev.emit('messages.update', [{ key: message.key, update: { keepInChat: true } }])
+				break
+			case Types_1.WAMessageStubType.PINNED_MESSAGE_IN_CHAT:
+				ev.emit('messages.update', [
+					{
+						key: message.key,
+						update: {
+							pinInChat: {
+								pinned: true,
+								pinnedMessageKey: message.messageStubParameters?.[0]
+									? { id: message.messageStubParameters[0] }
+									: undefined,
+								senderTimestampMs: message.messageTimestamp
+									? (0, generics_1.toNumber)(message.messageTimestamp) * 1000
+									: undefined
+							}
+						}
+					}
+				])
+				break
+			case Types_1.WAMessageStubType.CHAT_PSA:
+				ev.emit('chats.update', [{ id: jid, psa: { urlParams: message.messageStubParameters } }])
+				break
+			case Types_1.WAMessageStubType.CHAT_POLL_CREATION_MESSAGE:
+				// poll was created, no special action needed beyond message processing
+				break
+			case Types_1.WAMessageStubType.BIZ_CHAT_ASSIGNMENT:
+				ev.emit('chats.update', [
+					{
+						id: jid,
+						bizAssignment: {
+							assigned: true,
+							assignee: message.messageStubParameters?.[0],
+							agent: message.messageStubParameters?.[1]
+						}
+					}
+				])
+				break
+			case Types_1.WAMessageStubType.BIZ_CHAT_ASSIGNMENT_UNASSIGN:
+				ev.emit('chats.update', [{ id: jid, bizAssignment: { assigned: false } }])
+				break
+			case Types_1.WAMessageStubType.SILENCED_UNKNOWN_CALLER_AUDIO:
+			case Types_1.WAMessageStubType.SILENCED_UNKNOWN_CALLER_VIDEO:
+				ev.emit('call', [
+					{
+						id: message.messageStubParameters?.[0] || message.key.id,
+						from: jid,
+						isVideo: message.messageStubType === Types_1.WAMessageStubType.SILENCED_UNKNOWN_CALLER_VIDEO,
+						status: 'silenced',
+						isUnknown: true,
+						timestamp: (0, generics_1.toNumber)(message.messageTimestamp)
+					}
+				])
+				break
+			case Types_1.WAMessageStubType.SCHEDULED_CALL_START_MESSAGE:
+				ev.emit('call', [
+					{
+						id: message.messageStubParameters?.[0] || message.key.id,
+						from: message.key.participant || jid,
+						status: 'scheduled-start',
+						timestamp: (0, generics_1.toNumber)(message.messageTimestamp)
+					}
+				])
+				break
+			case Types_1.WAMessageStubType.SCHEDULED_CALL_CANCEL:
+				ev.emit('call', [
+					{
+						id: message.messageStubParameters?.[0] || message.key.id,
+						from: message.key.participant || jid,
+						status: 'schedule-cancelled',
+						timestamp: (0, generics_1.toNumber)(message.messageTimestamp)
+					}
+				])
+				break
+			case Types_1.WAMessageStubType.COMMUNITY_CREATE:
+				emitGroupUpdate({ isCommunity: true, subject: message.messageStubParameters?.[0] })
+				break
+			case Types_1.WAMessageStubType.COMMUNITY_LINK_PARENT_GROUP:
+			case Types_1.WAMessageStubType.COMMUNITY_LINK_PARENT_GROUP_RICH:
+				emitGroupUpdate({ linkedParent: message.messageStubParameters?.[0] })
+				break
+			case Types_1.WAMessageStubType.COMMUNITY_LINK_SUB_GROUP:
+			case Types_1.WAMessageStubType.COMMUNITY_LINK_SIBLING_GROUP:
+				emitGroupUpdate({ linkedSubGroup: message.messageStubParameters?.[0] })
+				break
+			case Types_1.WAMessageStubType.COMMUNITY_UNLINK_PARENT_GROUP:
+				emitGroupUpdate({ linkedParent: undefined })
+				break
+			case Types_1.WAMessageStubType.COMMUNITY_UNLINK_SUB_GROUP:
+			case Types_1.WAMessageStubType.COMMUNITY_UNLINK_SIBLING_GROUP:
+				emitGroupUpdate({ unlinkedSubGroup: message.messageStubParameters?.[0] })
+				break
+			case Types_1.WAMessageStubType.COMMUNITY_PARTICIPANT_PROMOTE:
+				participants =
+					message.messageStubParameters?.map(a => {
+						try {
+							return JSON.parse(a)
+						} catch {
+							return a
+						}
+					}) || []
+				emitParticipantsUpdate('promote')
+				break
+			case Types_1.WAMessageStubType.COMMUNITY_PARTICIPANT_DEMOTE:
+				participants =
+					message.messageStubParameters?.map(a => {
+						try {
+							return JSON.parse(a)
+						} catch {
+							return a
+						}
+					}) || []
+				emitParticipantsUpdate('demote')
+				break
+			case Types_1.WAMessageStubType.COMMUNITY_PARENT_GROUP_DELETED:
+				emitGroupUpdate({ parentDeleted: true, readOnly: true })
+				break
+			case Types_1.WAMessageStubType.COMMUNITY_PARENT_GROUP_SUBJECT_CHANGED:
+				emitGroupUpdate({ parentSubject: message.messageStubParameters?.[0] })
+				break
+			case Types_1.WAMessageStubType.COMMUNITY_LINK_PARENT_GROUP_MEMBERSHIP_APPROVAL:
+				emitGroupUpdate({ linkedParentMembershipApproval: message.messageStubParameters?.[0] === 'true' })
+				break
+			case Types_1.WAMessageStubType.COMMUNITY_INVITE_RICH:
+			case Types_1.WAMessageStubType.COMMUNITY_INVITE_AUTO_ADD_RICH:
+				participants =
+					message.messageStubParameters?.map(a => {
+						try {
+							return JSON.parse(a)
+						} catch {
+							return a
+						}
+					}) || []
+				emitParticipantsUpdate('add')
+				break
+			case Types_1.WAMessageStubType.COMMUNITY_PARTICIPANT_ADD_RICH:
+				participants =
+					message.messageStubParameters?.map(a => {
+						try {
+							return JSON.parse(a)
+						} catch {
+							return a
+						}
+					}) || []
+				emitParticipantsUpdate('add')
+				break
+			case Types_1.WAMessageStubType.COMMUNITY_CHANGE_DESCRIPTION:
+				const communityDesc = message.messageStubParameters?.[0]
+				emitGroupUpdate({ desc: communityDesc })
+				break
+			case Types_1.WAMessageStubType.COMMUNITY_ALLOW_MEMBER_ADDED_GROUPS:
+				emitGroupUpdate({ communityMemberAddGroupMode: message.messageStubParameters?.[0] })
+				break
+			case Types_1.WAMessageStubType.EMPTY_SUBGROUP_CREATE:
+				emitGroupUpdate({ subject: message.messageStubParameters?.[0], isEmpty: true })
+				break
+			case Types_1.WAMessageStubType.COMMUNITY_DEACTIVATE_SIBLING_GROUP:
+				emitGroupUpdate({ deactivated: true, linkedSibling: message.messageStubParameters?.[0] })
+				break
+			case Types_1.WAMessageStubType.COMMUNITY_OWNER_UPDATED:
+				emitGroupUpdate({ owner: message.messageStubParameters?.[0] })
+				break
+			case Types_1.WAMessageStubType.COMMUNITY_SUB_GROUP_VISIBILITY_HIDDEN:
+				emitGroupUpdate({ hidden: true })
 				break
 		}
 	} /*  else if(content?.pollUpdateMessage) {

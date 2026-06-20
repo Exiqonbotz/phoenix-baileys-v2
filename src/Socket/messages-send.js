@@ -21,6 +21,7 @@ const WAUSync_1 = require('../WAUSync')
 const message_composer_1 = require('../Utils/message-composer.js')
 const interactive_handler_1 = require('./interactive-handler.js')
 const username_1 = require('./username')
+const { setBotMessageSecret } = require('../Utils/decode-wa-message')
 const makeMessagesSocket = config => {
 	const {
 		logger,
@@ -373,7 +374,6 @@ const makeMessagesSocket = config => {
 			]
 			const interopFetches = wireJids.filter(j => (0, WABinary_1.isInteropUser)(j))
 			if (interopFetches.length) {
-				console.log('[interop] fetching pre-key bundle:', interopFetches)
 				logger.info({ interopFetches }, '[interop] fetching pre-key bundle for interop device(s)')
 			}
 			logger.debug({ jidsRequiringFetch, wireJids }, 'fetching sessions')
@@ -401,12 +401,7 @@ const makeMessagesSocket = config => {
 				]
 			})
 			if (interopFetches.length) {
-				const { getBinaryNodeChild, getBinaryNodeChildren } = require('../WABinary')
-				const listNode = getBinaryNodeChild(result, 'list')
-				const userNodes = listNode ? getBinaryNodeChildren(listNode, 'user') : []
-				console.log('[interop] pre-key IQ response: userNodes =', userNodes.length,
-					userNodes.map(n => ({ jid: n.attrs?.jid, hasKey: !!getBinaryNodeChild(n, 'key'), hasError: !!getBinaryNodeChild(n, 'error'), errorAttrs: getBinaryNodeChild(n, 'error')?.attrs }))
-				)
+				logger.debug({ interopFetches }, '[interop] pre-key IQ response received')
 			}
 			await (0, Utils_1.parseAndInjectE2ESessions)(result, signalRepository)
 			didFetchNewSession = true
@@ -473,14 +468,8 @@ const makeMessagesSocket = config => {
 				}
 				const bytes = (0, Utils_1.encodeWAMessage)(msgToEncrypt)
 				const mutexKey = jid
-				if ((0, WABinary_1.isInteropUser)(jid)) {
-						console.log('[interop] calling encryptMessage for', jid)
-					}
-					const node = await encryptionMutex.mutex(mutexKey, async () => {
+				const node = await encryptionMutex.mutex(mutexKey, async () => {
 					const { type, ciphertext } = await signalRepository.encryptMessage({ jid, data: bytes })
-					if ((0, WABinary_1.isInteropUser)(jid)) {
-						console.log('[interop] encrypted for', jid, '→ type:', type, type === 'pkmsg' ? '(NEW SESSION)' : '(existing session)')
-					}
 					if (type === 'pkmsg') {
 						shouldIncludeDeviceIdentity = true
 					}
@@ -498,9 +487,6 @@ const makeMessagesSocket = config => {
 				})
 				return node
 			} catch (err) {
-				if ((0, WABinary_1.isInteropUser)(jid)) {
-					console.log('[interop] ENCRYPT FAILED for', jid, '→', err?.message, err?.stack?.split('\n')[1])
-				}
 				logger.error({ jid, err }, 'Failed to encrypt for recipient')
 				return null
 			}
@@ -849,7 +835,7 @@ const makeMessagesSocket = config => {
 						: patchedForReporting
 				}
 				if (!isRetryResend) {
-					const targetUserServer = isLid ? 'lid' : (isInterop ? 'interop' : 's.whatsapp.net')
+					const targetUserServer = isLid ? 'lid' : isInterop ? 'interop' : 's.whatsapp.net'
 					devices.push({
 						user,
 						device: 0,
@@ -1117,6 +1103,11 @@ const makeMessagesSocket = config => {
 			}
 			logger.debug({ msgId }, `sending message to ${participants.length} devices`)
 			await sendNode(stanza)
+			// Register messageSecret immediately at send time so msmsg replies can be
+			// decrypted even if they arrive before our own message echo comes back.
+			if (message.messageContextInfo?.messageSecret) {
+				setBotMessageSecret(msgId, message.messageContextInfo.messageSecret, destinationJid)
+			}
 			// Fire-and-forget: issue our token to the contact AFTER message send.
 			const isProtocolMsg = !!(0, Utils_1.normalizeMessageContent)(message)?.protocolMessage
 			const isBotOrPSA =
@@ -1662,7 +1653,7 @@ const makeMessagesSocket = config => {
 			return { message, messageId }
 		},
 		sendRichMessage: async (jid, submessages, quoted, options = {}) => {
-			const { message, messageId } = message_composer_1.generateRichMessageContent(submessages, quoted)
+			const { message, messageId } = message_composer_1.generateRichMessageContent(submessages, quoted, options)
 			await relayMessage(jid, message, { messageId })
 			return { message, messageId }
 		},

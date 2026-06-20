@@ -4,40 +4,27 @@ exports.makeNoiseHandler = void 0
 const boom_1 = require('@hapi/boom')
 const index_js_1 = require('../../WAProto/index.js')
 const Defaults_1 = require('../Defaults')
-const WABinary_1 = require('../WABinary')
-const crypto_1 = require('./crypto')
-const IV_LENGTH = 12
-const EMPTY_BUFFER = Buffer.alloc(0)
-const generateIV = counter => {
-	const iv = new ArrayBuffer(IV_LENGTH)
-	new DataView(iv).setUint32(8, counter)
-	return new Uint8Array(iv)
+const rb = require('whatsapp-rust-bridge')
+
+// rustNodeToJs mirrors the one in decode.js — converts InternalBinaryNode to plain JS object
+const rustNodeToJs = node => {
+	if (!node || typeof node !== 'object') return node
+	const result = { tag: node.tag, attrs: node.attrs || {} }
+	const content = node.content
+	if (content === undefined || content === null) {
+		// no content
+	} else if (content instanceof Uint8Array) {
+		result.content = Buffer.from(content)
+	} else if (typeof content === 'string') {
+		result.content = content
+	} else if (Array.isArray(content)) {
+		result.content = content.map(rustNodeToJs)
+	} else {
+		result.content = content
+	}
+	return result
 }
-class TransportState {
-	constructor(encKey, decKey) {
-		this.encKey = encKey
-		this.decKey = decKey
-		this.readCounter = 0
-		this.writeCounter = 0
-		this.iv = new Uint8Array(IV_LENGTH)
-	}
-	encrypt(plaintext) {
-		const c = this.writeCounter++
-		this.iv[8] = (c >>> 24) & 0xff
-		this.iv[9] = (c >>> 16) & 0xff
-		this.iv[10] = (c >>> 8) & 0xff
-		this.iv[11] = c & 0xff
-		return (0, crypto_1.aesEncryptGCM)(plaintext, this.encKey, this.iv, EMPTY_BUFFER)
-	}
-	decrypt(ciphertext) {
-		const c = this.readCounter++
-		this.iv[8] = (c >>> 24) & 0xff
-		this.iv[9] = (c >>> 16) & 0xff
-		this.iv[10] = (c >>> 8) & 0xff
-		this.iv[11] = c & 0xff
-		return (0, crypto_1.aesDecryptGCM)(ciphertext, this.decKey, this.iv, EMPTY_BUFFER)
-	}
-}
+
 const makeNoiseHandler = ({
 	keyPair: { private: privateKey, public: publicKey },
 	NOISE_HEADER,
@@ -45,99 +32,31 @@ const makeNoiseHandler = ({
 	routingInfo
 }) => {
 	logger = logger.child({ class: 'ns' })
-	const data = Buffer.from(Defaults_1.NOISE_MODE)
-	let hash = data.byteLength === 32 ? data : (0, crypto_1.sha256)(data)
-	let salt = hash
-	let encKey = hash
-	let decKey = hash
-	let counter = 0
-	let sentIntro = false
-	let inBytes = Buffer.alloc(0)
-	let transport = null
+
+	const session = new rb.NoiseSession(
+		publicKey instanceof Uint8Array ? publicKey : new Uint8Array(publicKey),
+		NOISE_HEADER instanceof Uint8Array ? NOISE_HEADER : new Uint8Array(NOISE_HEADER),
+		routingInfo ? (routingInfo instanceof Uint8Array ? routingInfo : new Uint8Array(routingInfo)) : undefined
+	)
+
 	let isWaitingForTransport = false
 	let pendingOnFrame = null
-	let introHeader
-	if (routingInfo) {
-		introHeader = Buffer.alloc(7 + routingInfo.byteLength + NOISE_HEADER.length)
-		introHeader.write('ED', 0, 'utf8')
-		introHeader.writeUint8(0, 2)
-		introHeader.writeUint8(1, 3)
-		introHeader.writeUint8(routingInfo.byteLength >> 16, 4)
-		introHeader.writeUint16BE(routingInfo.byteLength & 65535, 5)
-		introHeader.set(routingInfo, 7)
-		introHeader.set(NOISE_HEADER, 7 + routingInfo.byteLength)
-	} else {
-		introHeader = Buffer.from(NOISE_HEADER)
-	}
-	const authenticate = data => {
-		if (!transport) {
-			hash = (0, crypto_1.sha256)(Buffer.concat([hash, data]))
-		}
-	}
-	const encrypt = plaintext => {
-		if (transport) {
-			return transport.encrypt(plaintext)
-		}
-		const result = (0, crypto_1.aesEncryptGCM)(plaintext, encKey, generateIV(counter++), hash)
-		authenticate(result)
-		return result
-	}
-	const decrypt = ciphertext => {
-		if (transport) {
-			return transport.decrypt(ciphertext)
-		}
-		const result = (0, crypto_1.aesDecryptGCM)(ciphertext, decKey, generateIV(counter++), hash)
-		authenticate(ciphertext)
-		return result
-	}
-	const localHKDF = data => {
-		const key = (0, crypto_1.hkdf)(Buffer.from(data), 64, { salt, info: '' })
-		return [key.subarray(0, 32), key.subarray(32)]
-	}
-	const mixIntoKey = data => {
-		const [write, read] = localHKDF(data)
-		salt = write
-		encKey = read
-		decKey = read
-		counter = 0
-	}
-	const finishInit = async () => {
-		isWaitingForTransport = true
-		const [write, read] = localHKDF(new Uint8Array(0))
-		transport = new TransportState(write, read)
-		isWaitingForTransport = false
-		logger.trace('Noise handler transitioned to Transport state')
-		if (pendingOnFrame) {
-			logger.trace({ length: inBytes.length }, 'Flushing buffered frames after transport ready')
-			await processData(pendingOnFrame)
-			pendingOnFrame = null
-		}
-	}
-	let _frameCount = 0
-	const processData = async onFrame => {
-		let size
-		while (true) {
-			if (inBytes.length < 3) return
-			size = (inBytes[0] << 16) | (inBytes[1] << 8) | inBytes[2]
-			if (inBytes.length < size + 3) return
-			const rawFrame = inBytes.subarray(3, size + 3)
-			inBytes = inBytes.subarray(size + 3)
-			let frame = rawFrame
-			_frameCount++
-			if (transport) {
-				const result = transport.decrypt(rawFrame)
+	let pendingBytes = null
+
+	const processFrames = async onFrame => {
+		// decodeFrame returns an Array of InternalBinaryNode (post-handshake) or Uint8Array (handshake)
+		const frames = session.decodeFrame(new Uint8Array(0))
+		for (let i = 0; i < frames.length; i++) {
+			const item = frames[i]
+			let frame
+			if (item instanceof Uint8Array) {
+				frame = Buffer.from(item)
+			} else {
 				try {
-					frame = await (0, WABinary_1.decodeBinaryNode)(result)
+					frame = rustNodeToJs(item.toJSON())
 				} catch (decodeErr) {
-					console.log('[noise] decode error:', decodeErr?.message, 'frameSize:', size)
+					logger.debug({ err: decodeErr?.message }, '[noise] decode error')
 					continue
-				}
-			}
-			// Log every decoded frame tag + from/to so we can see if interop frames arrive
-			if (frame && frame.tag && frame.attrs) {
-				const from = frame.attrs.from || frame.attrs.to || ''
-				if (from.includes('interop')) {
-					console.log('[noise] INTEROP FRAME:', frame.tag, JSON.stringify(frame.attrs))
 				}
 			}
 			if (logger.level === 'trace') {
@@ -146,22 +65,62 @@ const makeNoiseHandler = ({
 			onFrame(frame)
 		}
 	}
-	authenticate(NOISE_HEADER)
-	authenticate(publicKey)
+
+	const finishInit = async () => {
+		isWaitingForTransport = true
+		session.finishInit()
+		isWaitingForTransport = false
+		logger.trace('Noise handler transitioned to Transport state (Rust)')
+		if (pendingOnFrame && pendingBytes) {
+			logger.trace({ length: pendingBytes.length }, 'Flushing buffered frames after transport ready')
+			const frames = session.decodeFrame(pendingBytes)
+			pendingBytes = null
+			const cb = pendingOnFrame
+			pendingOnFrame = null
+			for (let i = 0; i < frames.length; i++) {
+				const item = frames[i]
+				let frame
+				if (item instanceof Uint8Array) {
+					frame = Buffer.from(item)
+				} else {
+					try {
+						frame = rustNodeToJs(item.toJSON())
+					} catch (e) {
+						continue
+					}
+				}
+				cb(frame)
+			}
+		}
+	}
+
 	return {
-		encrypt,
-		decrypt,
-		authenticate,
-		mixIntoKey,
+		encrypt: plaintext => {
+			const u8 = plaintext instanceof Uint8Array ? plaintext : new Uint8Array(plaintext)
+			return Buffer.from(session.encrypt(u8))
+		},
+		decrypt: ciphertext => {
+			const u8 = ciphertext instanceof Uint8Array ? ciphertext : new Uint8Array(ciphertext)
+			return Buffer.from(session.decrypt(u8))
+		},
+		authenticate: data => {
+			session.authenticate(data instanceof Uint8Array ? data : new Uint8Array(data))
+		},
+		mixIntoKey: data => {
+			session.mixIntoKey(data instanceof Uint8Array ? data : new Uint8Array(data))
+		},
 		finishInit,
 		processHandshake: ({ serverHello }, noiseKey) => {
-			authenticate(serverHello.ephemeral)
-			mixIntoKey(crypto_1.Curve.sharedKey(privateKey, serverHello.ephemeral))
-			const decStaticContent = decrypt(serverHello.static)
-			mixIntoKey(crypto_1.Curve.sharedKey(privateKey, decStaticContent))
-			const certDecoded = decrypt(serverHello.payload)
-			const { intermediate: certIntermediate, leaf } = index_js_1.proto.CertChain.decode(certDecoded)
-			// leaf
+			// Rust handles the crypto: authenticate ephemeral, ECDH, decrypt static+payload
+			const certPayload = session.processHandshakeInit(
+				serverHello.ephemeral,
+				serverHello.static,
+				serverHello.payload,
+				privateKey instanceof Uint8Array ? privateKey : new Uint8Array(privateKey)
+			)
+
+			// Certificate validation stays in JS (uses protobuf + WA-specific constants)
+			const { intermediate: certIntermediate, leaf } = index_js_1.proto.CertChain.decode(certPayload)
 			if (!leaf?.details || !leaf?.signature) {
 				throw new boom_1.Boom('invalid noise leaf certificate', { statusCode: 400 })
 			}
@@ -170,54 +129,59 @@ const makeNoiseHandler = ({
 			}
 			const details = index_js_1.proto.CertChain.NoiseCertificate.Details.decode(certIntermediate.details)
 			const { issuerSerial } = details
-			const verify = crypto_1.Curve.verify(details.key, leaf.details, leaf.signature)
-			const verifyIntermediate = crypto_1.Curve.verify(
-				Defaults_1.WA_CERT_DETAILS.PUBLIC_KEY,
-				certIntermediate.details,
-				certIntermediate.signature
-			)
-			if (!verify) {
+			const { Curve } = require('./crypto')
+			if (!Curve.verify(details.key, leaf.details, leaf.signature)) {
 				throw new boom_1.Boom('noise certificate signature invalid', { statusCode: 400 })
 			}
-			if (!verifyIntermediate) {
+			if (!Curve.verify(Defaults_1.WA_CERT_DETAILS.PUBLIC_KEY, certIntermediate.details, certIntermediate.signature)) {
 				throw new boom_1.Boom('noise intermediate certificate signature invalid', { statusCode: 400 })
 			}
 			if (issuerSerial !== Defaults_1.WA_CERT_DETAILS.SERIAL) {
 				throw new boom_1.Boom('certification match failed', { statusCode: 400 })
 			}
-			const keyEnc = encrypt(noiseKey.public)
-			mixIntoKey(crypto_1.Curve.sharedKey(noiseKey.private, serverHello.ephemeral))
-			return keyEnc
+
+			// Encrypt our static key and do final ECDH
+			const keyEnc = session.processHandshakeFinish(
+				noiseKey.public instanceof Uint8Array ? noiseKey.public : new Uint8Array(noiseKey.public),
+				noiseKey.private instanceof Uint8Array ? noiseKey.private : new Uint8Array(noiseKey.private),
+				serverHello.ephemeral
+			)
+			return Buffer.from(keyEnc)
 		},
 		encodeFrame: data => {
-			if (transport) {
-				data = transport.encrypt(data)
-			}
-			const dataLen = data.byteLength
-			const introSize = sentIntro ? 0 : introHeader.length
-			const frame = Buffer.allocUnsafe(introSize + 3 + dataLen)
-			if (!sentIntro) {
-				frame.set(introHeader)
-				sentIntro = true
-			}
-			frame[introSize] = (dataLen >>> 16) & 0xff
-			frame[introSize + 1] = (dataLen >>> 8) & 0xff
-			frame[introSize + 2] = dataLen & 0xff
-			frame.set(data, introSize + 3)
-			return frame
+			const u8 = data instanceof Uint8Array ? data : new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+			return Buffer.from(session.encodeFrameRaw(u8))
 		},
 		decodeFrame: async (newData, onFrame) => {
 			if (isWaitingForTransport) {
-				inBytes = Buffer.concat([inBytes, newData])
+				pendingBytes = pendingBytes
+					? Buffer.concat([pendingBytes, Buffer.from(newData)])
+					: Buffer.from(newData)
 				pendingOnFrame = onFrame
 				return
 			}
-			if (inBytes.length === 0) {
-				inBytes = Buffer.from(newData)
-			} else {
-				inBytes = Buffer.concat([inBytes, newData])
+
+			const u8 = newData instanceof Uint8Array ? newData : new Uint8Array(newData.buffer, newData.byteOffset, newData.byteLength)
+			const frames = session.decodeFrame(u8)
+
+			for (let i = 0; i < frames.length; i++) {
+				const item = frames[i]
+				let frame
+				if (item instanceof Uint8Array) {
+					frame = Buffer.from(item)
+				} else {
+					try {
+						frame = rustNodeToJs(item.toJSON())
+					} catch (decodeErr) {
+						logger.debug({ err: decodeErr?.message }, '[noise] decode error')
+						continue
+					}
+				}
+				if (logger.level === 'trace') {
+					logger.trace({ msg: frame?.attrs?.id }, 'recv frame')
+				}
+				onFrame(frame)
 			}
-			await processData(onFrame)
 		}
 	}
 }

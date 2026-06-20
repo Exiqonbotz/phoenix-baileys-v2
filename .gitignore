@@ -5,5 +5,10 @@ test
 docs
 fixtures
 *.txt
-test\fixtures\meta-ai-msmsg-fixtures.js
-test\meta-ai-msmsg-test.js
+test\**
+.claude
+Haiket.proto
+/assets
+*.apk
+/WhatsApp_2.26.20.8
+.remember

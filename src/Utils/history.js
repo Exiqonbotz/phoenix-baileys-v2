@@ -47,6 +47,11 @@ const processHistoryMessage = (item, logger) => {
 	const contacts = []
 	const chats = []
 	const lidPnMappings = []
+	const callLogRecords = []
+	const pastParticipants = []
+	const recentStickers = []
+	let globalSettings = undefined
+	let statusV3Messages = undefined
 	logger?.trace({ progress: item.progress }, 'processing history of type ' + item.syncType?.toString())
 	// Extract LID-PN mappings for all sync types
 	for (const m of item.phoneNumberToLidMappings || []) {
@@ -54,11 +59,96 @@ const processHistoryMessage = (item, logger) => {
 			lidPnMappings.push({ lid: m.lidJid, pn: m.pnJid })
 		}
 	}
+	// Extract inline contacts (LID-PN mappings with names)
+	for (const c of item.inlineContacts || []) {
+		if (c.lidJid && c.pnJid) {
+			lidPnMappings.push({ lid: c.lidJid, pn: c.pnJid })
+		}
+		if (c.pnJid) {
+			contacts.push({
+				id: c.pnJid,
+				name: c.fullName || c.firstName || c.username || undefined,
+				notify: c.pushname || undefined,
+				username: c.username || undefined,
+				shortName: c.shortName || undefined,
+				verifiedName: c.verifiedBizName || undefined,
+				businessName: c.verifiedBizName || undefined,
+				lid: c.lidJid || undefined
+			})
+		}
+	}
+	// Extract call log records with richer metadata
+	for (const rec of item.callLogRecords || []) {
+		callLogRecords.push({
+			...rec,
+			callType: rec.callType,
+			duration: rec.duration ? (0, generics_1.toNumber)(rec.duration) : undefined,
+			isVideo: rec.isVideo,
+			callInitiator: rec.callInitiatorJid,
+			callEndReason: rec.callResult,
+			timestamp: rec.startTime ? (0, generics_1.toNumber)(rec.startTime) : undefined
+		})
+	}
+	// Extract recent stickers with metadata, deduped by key
+	const stickerKeys = new Set()
+	for (const s of item.recentStickers || []) {
+		const stickerKey = s.fileSha256 ? Buffer.from(s.fileSha256).toString('base64') : undefined
+		if (!stickerKey || !stickerKeys.has(stickerKey)) {
+			if (stickerKey) stickerKeys.add(stickerKey)
+			recentStickers.push(s)
+		}
+	}
 	switch (item.syncType) {
 		case index_js_1.proto.HistorySync.HistorySyncType.INITIAL_BOOTSTRAP:
 		case index_js_1.proto.HistorySync.HistorySyncType.RECENT:
 		case index_js_1.proto.HistorySync.HistorySyncType.FULL:
 		case index_js_1.proto.HistorySync.HistorySyncType.ON_DEMAND:
+			// Extract global client settings with full field parsing
+			if (item.globalSettings) {
+				const gs = item.globalSettings
+				globalSettings = {
+					...gs,
+					// Parsed convenience fields
+					autoDownloadSettings: {
+						photos: gs.autoDownloadPhotos,
+						audio: gs.autoDownloadAudio,
+						documents: gs.autoDownloadDocuments,
+						videos: gs.autoDownloadVideos
+					},
+					disappearingMode: gs.disappearingMode
+						? {
+								duration: gs.disappearingMode.duration
+									? (0, generics_1.toNumber)(gs.disappearingMode.duration)
+									: undefined,
+								isDefaultDisappearingMode: gs.disappearingMode.isDefaultDisappearingMode ?? false
+							}
+						: undefined,
+					archiveChats: gs.archiveChats,
+					wallpaper: gs.wallpaper,
+					mediaEncryptionBackupEnabled: gs.mediaEncryptionBackupEnabled,
+					lightWeightContactsEnabled: gs.lightWeightContactsEnabled,
+					privacySettings: gs.privacy
+						? {
+								readReceipts: gs.privacy.readreceipts,
+								lastSeen: gs.privacy.lastseen,
+								status: gs.privacy.status,
+								profile: gs.privacy.profile,
+								groupsAddPrivacy: gs.privacy.groupadd,
+								callPrivacy: gs.privacy.calladd
+							}
+						: undefined
+				}
+			}
+			// Extract status V3 messages with expiry tracking
+			if (item.statusV3Messages?.length) {
+				const now = Math.floor(Date.now() / 1000)
+				statusV3Messages = item.statusV3Messages.filter(s => {
+					const ts = s.message?.messageTimestamp
+					if (!ts) return true
+					const timestamp = (0, generics_1.toNumber)(ts)
+					return timestamp + 24 * 60 * 60 > now
+				})
+			}
 			for (const chat of item.conversations) {
 				contacts.push({
 					id: chat.id,
@@ -104,7 +194,15 @@ const processHistoryMessage = (item, logger) => {
 						})
 					}
 				}
+				// Extract past participants metadata
+				if (chat.id && (0, WABinary_1.isJidGroup)(chat.id)) {
+					// Chat-level past participants info is available via PastParticipants messages
+				}
 				chats.push({ ...chat })
+			}
+			// Extract past participants from dedicated field
+			for (const pp of item.pastParticipants || []) {
+				pastParticipants.push(pp)
 			}
 			break
 		case index_js_1.proto.HistorySync.HistorySyncType.PUSH_NAME:
@@ -119,7 +217,12 @@ const processHistoryMessage = (item, logger) => {
 		messages,
 		lidPnMappings,
 		syncType: item.syncType,
-		progress: item.progress
+		progress: item.progress,
+		globalSettings,
+		callLogRecords,
+		recentStickers,
+		pastParticipants,
+		statusV3Messages
 	}
 }
 exports.processHistoryMessage = processHistoryMessage

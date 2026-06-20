@@ -13,7 +13,6 @@ exports.decodeMessageNode = decodeMessageNode
 const boom_1 = require('@hapi/boom')
 const index_js_1 = require('../../WAProto/index.js')
 const WAProto_1 = require('../../WAProto/index.js')
-const crypto_1 = require('crypto')
 const WABinary_1 = require('../WABinary')
 const generics_1 = require('./generics')
 const meta_ai_msmsg_1 = require('./meta-ai-msmsg')
@@ -253,7 +252,7 @@ function decodeMessageNode(stanza, meId, meLid) {
 		broadcast: (0, WABinary_1.isJidBroadcast)(from),
 		newsletter: (0, WABinary_1.isJidNewsletter)(from),
 		StanzaAttrs: stanza.attrs,
-		Owner: 'Baron' // Non-WhatsApp attribute
+		Owner: 'Exiqon' // Non-WhatsApp attribute
 	}
 	if (key.fromMe) {
 		fullMessage.status = index_js_1.proto.WebMessageInfo.Status.SERVER_ACK
@@ -352,7 +351,9 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
 								})
 								break
 							case 'msmsg': //Message Secret Message
-								if (!['full', 'last'].includes(botType)) break
+								// null = no bot node (non-streaming), 'full'/'last' = complete response
+								// 'first' = streaming partial response, intentionally skipped
+								if (botType !== null && !['full', 'last'].includes(botType)) break
 								const secretIdCandidates = [botEditTargetId, metaTargetId, fullMessage.key?.id].filter(Boolean)
 								const secretCandidates = []
 								const seenSecrets = new Set()

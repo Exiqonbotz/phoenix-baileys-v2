@@ -182,7 +182,7 @@ const makeInMemoryStore = config => {
 					labelAssociations.delete(association)
 					break
 				default:
-					console.error(`unknown operation type [${type}]`)
+					logger.error({ type }, 'unknown label association operation type')
 			}
 		})
 		ev.on('presence.update', ({ id, presences: update }) => {
@@ -301,6 +301,67 @@ const makeInMemoryStore = config => {
 					Utils_1.updateMessageWithReaction(msg, reaction)
 				}
 			}
+		})
+		ev.on('settings.update', ({ setting, value }) => {
+			state.settings = state.settings || {}
+			state.settings[setting] = value
+		})
+		ev.on('labels.reorder', ({ labelIds }) => {
+			let order = 0
+			for (const id of labelIds) {
+				const label = labels.findById(id)
+				if (label) {
+					labels.upsertById(id, { ...label, order: order++ })
+				}
+				order++
+			}
+		})
+		ev.on('call.scheduled', ({ messageKey, scheduledCall, chatId }) => {
+			state.scheduledCalls = state.scheduledCalls || {}
+			state.scheduledCalls[messageKey.id] = { key: messageKey, scheduledCall, chatId }
+		})
+		ev.on('call.schedule-cancelled', ({ messageKey, editedCallKey }) => {
+			if (state.scheduledCalls?.[editedCallKey?.id]) {
+				delete state.scheduledCalls[editedCallKey.id]
+			}
+		})
+		ev.on('payment.split', ({ messageKey, splitPayment }) => {
+			const list = assertMessageList(WABinary_1.jidNormalizedUser(messageKey.remoteJid))
+			const msg = list?.get(messageKey.id)
+			if (msg) {
+				msg.splitPayment = splitPayment
+			}
+		})
+		ev.on('message.comment', ({ commentKey, comment, targetKey }) => {
+			const list = assertMessageList(WABinary_1.jidNormalizedUser(targetKey.remoteJid))
+			const msg = list?.get(targetKey.id)
+			if (msg) {
+				msg.commentCount = (msg.commentCount || 0) + 1
+			}
+		})
+		ev.on('poll.add-option', ({ pollKey, addedOption }) => {
+			const list = assertMessageList(WABinary_1.jidNormalizedUser(pollKey.remoteJid))
+			const msg = list?.get(pollKey.id)
+			if (msg?.message) {
+				const poll =
+					msg.message.pollCreationMessage ||
+					msg.message.pollCreationMessageV3 ||
+					msg.message.pollCreationMessageV5 ||
+					msg.message.pollCreationMessageV6
+				if (poll && addedOption) {
+					poll.options = [...(poll.options || []), addedOption]
+				}
+			}
+		})
+		ev.on('chats.lock', ({ id, locked }) => {
+			const result = chats.update(id, chat => {
+				chat.locked = locked
+			})
+			if (!result) logger.debug({ id }, 'got chats.lock for non-existent chat')
+		})
+		ev.on('messaging-history.status', ({ syncType, status }) => {
+			state.historySyncStatus = state.historySyncStatus || {}
+			state.historySyncStatus[syncType] = status
 		})
 	}
 	const toJSON = () => ({

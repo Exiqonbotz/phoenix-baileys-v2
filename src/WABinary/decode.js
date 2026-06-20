@@ -3,31 +3,31 @@ var __createBinding =
 	(this && this.__createBinding) ||
 	(Object.create
 		? function (o, m, k, k2) {
-			if (k2 === undefined) k2 = k
-			var desc = Object.getOwnPropertyDescriptor(m, k)
-			if (!desc || ('get' in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-				desc = {
-					enumerable: true,
-					get: function () {
-						return m[k]
+				if (k2 === undefined) k2 = k
+				var desc = Object.getOwnPropertyDescriptor(m, k)
+				if (!desc || ('get' in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+					desc = {
+						enumerable: true,
+						get: function () {
+							return m[k]
+						}
 					}
 				}
+				Object.defineProperty(o, k2, desc)
 			}
-			Object.defineProperty(o, k2, desc)
-		}
 		: function (o, m, k, k2) {
-			if (k2 === undefined) k2 = k
-			o[k2] = m[k]
-		})
+				if (k2 === undefined) k2 = k
+				o[k2] = m[k]
+			})
 var __setModuleDefault =
 	(this && this.__setModuleDefault) ||
 	(Object.create
 		? function (o, v) {
-			Object.defineProperty(o, 'default', { enumerable: true, value: v })
-		}
+				Object.defineProperty(o, 'default', { enumerable: true, value: v })
+			}
 		: function (o, v) {
-			o['default'] = v
-		})
+				o['default'] = v
+			})
 var __importStar =
 	(this && this.__importStar) ||
 	(function () {
@@ -56,6 +56,7 @@ const util_1 = require('util')
 const zlib_1 = require('zlib')
 const constants = __importStar(require('./constants'))
 const jid_utils_1 = require('./jid-utils')
+const rb = require('whatsapp-rust-bridge')
 const inflatePromise = (0, util_1.promisify)(zlib_1.inflate)
 const decompressingIfRequired = async buffer => {
 	if (2 & buffer.readUInt8()) {
@@ -67,6 +68,25 @@ const decompressingIfRequired = async buffer => {
 	return buffer
 }
 exports.decompressingIfRequired = decompressingIfRequired
+
+// Converts InternalBinaryNode.toJSON() output to a plain JS object with Buffer content
+const rustNodeToJs = node => {
+	if (!node || typeof node !== 'object') return node
+	const result = { tag: node.tag, attrs: node.attrs || {} }
+	const content = node.content
+	if (content === undefined || content === null) {
+		// no content
+	} else if (content instanceof Uint8Array) {
+		result.content = Buffer.from(content)
+	} else if (typeof content === 'string') {
+		result.content = content
+	} else if (Array.isArray(content)) {
+		result.content = content.map(rustNodeToJs)
+	} else {
+		result.content = content
+	}
+	return result
+}
 const decodeDecompressedBinaryNode = (buffer, opts, indexRef = { index: 0 }) => {
 	const { DOUBLE_BYTE_TOKENS, SINGLE_BYTE_TOKENS, TAGS } = opts
 	const checkEOS = length => {
@@ -197,11 +217,24 @@ const decodeDecompressedBinaryNode = (buffer, opts, indexRef = { index: 0 }) => 
 		const device = readInt(2)
 		const integrator = readInt(2)
 		let server = 'interop'
-		const beforeServer = indexRef.index
-		try {
-			server = readString(readByte())
-		} catch (err) {
-			indexRef.index = beforeServer
+		// Only attempt to read the optional server field if at least 1 byte remains
+		// and the next byte is a valid string tag (avoids corrupting the stream on
+		// unknown tags that readString would swallow silently after a catch).
+		if (indexRef.index < buffer.length) {
+			const serverTag = buffer[indexRef.index]
+			// BINARY_8 / BINARY_20 / BINARY_32 or a single-byte token (1–235) are
+			// valid string tags; LIST_EMPTY (0) means no server string follows.
+			const isValidStringTag =
+				(serverTag >= 1 && serverTag <= 235) ||
+				serverTag === TAGS.BINARY_8 ||
+				serverTag === TAGS.BINARY_20 ||
+				serverTag === TAGS.BINARY_32 ||
+				serverTag === TAGS.NIBBLE_8 ||
+				serverTag === TAGS.HEX_8
+			if (isValidStringTag) {
+				indexRef.index++ // consume the tag byte
+				server = readString(serverTag)
+			}
 		}
 		return `${integrator}-${user}:${device}@${server}`
 	}
@@ -249,7 +282,7 @@ const decodeDecompressedBinaryNode = (buffer, opts, indexRef = { index: 0 }) => 
 				return readPacked8(tag)
 			default:
 				// Unknown tag — token table may be outdated (new WA protocol version)
-				console.log(`[WABinary] unknown string tag 0x${tag.toString(16)} — token table outdated?`)
+				process.stderr.write(`[WABinary] unknown string tag 0x${tag.toString(16)} — token table outdated?\n`)
 				return ''
 		}
 	}
@@ -265,13 +298,13 @@ const decodeDecompressedBinaryNode = (buffer, opts, indexRef = { index: 0 }) => 
 		const dict = DOUBLE_BYTE_TOKENS[index1]
 		if (!dict) {
 			// Unknown dictionary — token table may be outdated (new WA protocol version)
-			console.log(`[WABinary] unknown double-byte token dict ${index1} — token table outdated?`)
+			process.stderr.write(`[WABinary] unknown double-byte token dict ${index1} — token table outdated?\n`)
 			return ''
 		}
 		const value = dict[index2]
 		if (typeof value === 'undefined') {
 			// Unknown token in known dictionary — token table may be outdated
-			console.log(`[WABinary] unknown double-byte token dict=${index1} idx=${index2} — token table outdated?`)
+			process.stderr.write(`[WABinary] unknown double-byte token dict=${index1} idx=${index2} — token table outdated?\n`)
 			return ''
 		}
 		return value
@@ -323,8 +356,9 @@ const decodeDecompressedBinaryNode = (buffer, opts, indexRef = { index: 0 }) => 
 	}
 }
 exports.decodeDecompressedBinaryNode = decodeDecompressedBinaryNode
-const decodeBinaryNode = async buff => {
-	const decompBuff = await (0, exports.decompressingIfRequired)(buff)
-	return (0, exports.decodeDecompressedBinaryNode)(decompBuff, constants)
+const decodeBinaryNode = buff => {
+	const u8 = buff instanceof Uint8Array ? buff : new Uint8Array(buff.buffer, buff.byteOffset, buff.byteLength)
+	const internal = rb.decodeNode(u8)
+	return rustNodeToJs(internal.toJSON())
 }
 exports.decodeBinaryNode = decodeBinaryNode
