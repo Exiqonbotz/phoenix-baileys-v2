@@ -56,7 +56,7 @@ const util_1 = require('util')
 const zlib_1 = require('zlib')
 const constants = __importStar(require('./constants'))
 const jid_utils_1 = require('./jid-utils')
-const rb = require('whatsapp-rust-bridge')
+const rb = require('whatsapp-rust-bridge-baron')
 const inflatePromise = (0, util_1.promisify)(zlib_1.inflate)
 const decompressingIfRequired = async buffer => {
 	if (2 & buffer.readUInt8()) {
@@ -110,7 +110,7 @@ const decodeDecompressedBinaryNode = (buffer, opts, indexRef = { index: 0 }) => 
 		return value
 	}
 	const readStringFromChars = length => {
-		return readBytes(length).toString('utf-8')
+		return readBytes(length).toString('utf8')
 	}
 	const readInt = (n, littleEndian = false) => {
 		checkEOS(n)
@@ -304,7 +304,9 @@ const decodeDecompressedBinaryNode = (buffer, opts, indexRef = { index: 0 }) => 
 		const value = dict[index2]
 		if (typeof value === 'undefined') {
 			// Unknown token in known dictionary — token table may be outdated
-			process.stderr.write(`[WABinary] unknown double-byte token dict=${index1} idx=${index2} — token table outdated?\n`)
+			process.stderr.write(
+				`[WABinary] unknown double-byte token dict=${index1} idx=${index2} — token table outdated?\n`
+			)
 			return ''
 		}
 		return value
@@ -356,9 +358,20 @@ const decodeDecompressedBinaryNode = (buffer, opts, indexRef = { index: 0 }) => 
 	}
 }
 exports.decodeDecompressedBinaryNode = decodeDecompressedBinaryNode
+const JS_DECODE_OPTS = {
+	TAGS: constants.TAGS,
+	SINGLE_BYTE_TOKENS: constants.SINGLE_BYTE_TOKENS,
+	DOUBLE_BYTE_TOKENS: constants.DOUBLE_BYTE_TOKENS,
+}
 const decodeBinaryNode = buff => {
 	const u8 = buff instanceof Uint8Array ? buff : new Uint8Array(buff.buffer, buff.byteOffset, buff.byteLength)
-	const internal = rb.decodeNode(u8)
-	return rustNodeToJs(internal.toJSON())
+	try {
+		const internal = rb.decodeNode(u8)
+		return rustNodeToJs(internal.toJSON())
+	} catch (_) {
+		// WASM token table is outdated (e.g. INTEROP_JID_TUPLE=244, INTEROP_JID=245).
+		// Fall back to the JS decoder which knows all current tags.
+		return (0, exports.decodeDecompressedBinaryNode)(buff, JS_DECODE_OPTS)
+	}
 }
 exports.decodeBinaryNode = decodeBinaryNode

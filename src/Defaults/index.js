@@ -42,7 +42,8 @@ const index_js_1 = require('../../WAProto/index.js')
 const libsignal_1 = require('../Signal/libsignal')
 const browser_utils_1 = require('../Utils/browser-utils')
 const logger_1 = __importDefault(require('../Utils/logger'))
-const version = [2, 3000, 1041467552]
+// [major, 3000, client_revision] — client_revision is fetched from web.whatsapp.com/sw.js
+const version = [2, 3000, 1042261537]
 exports.VERSION = version
 exports.UNAUTHORIZED_CODES = [401, 403, 419]
 exports.DEFAULT_ORIGIN = 'https://web.whatsapp.com'
@@ -102,6 +103,12 @@ exports.DEFAULT_CONNECTION_CONFIG = {
 		return syncType !== index_js_1.proto.HistorySync.HistorySyncType.FULL
 	},
 	shouldIgnoreJid: () => false,
+	// NOT IMPLEMENTED: receiving interop messages (BirdyChat/Haiket) is not yet supported.
+	// The interop bridge only establishes a Signal session with device 0 (the primary phone).
+	// Companion devices (any device != 0) never receive interop messages directly — no fan-out.
+	// masqueradeAsPrimary: true only works when Baileys is registered as the primary (no phone).
+	// With an existing phone account the server rejects it (401) because the noise key is bound
+	// to a companion slot and cannot be re-mapped to device 0 after registration.
 	masqueradeAsPrimary: false,
 	linkPreviewImageThumbnailWidth: 192,
 	transactionOpts: { maxCommitRetries: 10, delayBetweenTriesMs: 3000 },

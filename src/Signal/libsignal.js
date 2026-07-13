@@ -52,7 +52,7 @@ var __importStar =
 	})()
 Object.defineProperty(exports, '__esModule', { value: true })
 exports.makeLibSignalRepository = makeLibSignalRepository
-const rb = require('whatsapp-rust-bridge')
+const rb = require('whatsapp-rust-bridge-baron')
 const lru_cache_1 = require('lru-cache')
 const Utils_1 = require('../Utils')
 const WABinary_1 = require('../WABinary')
@@ -257,7 +257,7 @@ function makeLibSignalRepository(auth, logger, pnToLIDFunc) {
 					// Session exists in storage
 					const deviceStr = sessionKey.split('.')[1]
 					if (!deviceStr) continue
-					const deviceNum = parseInt(deviceStr)
+					const deviceNum = parseInt(deviceStr, 10)
 					let jid = deviceNum === 0 ? `${user}@s.whatsapp.net` : `${user}:${deviceNum}@s.whatsapp.net`
 					if (deviceNum === 99) {
 						jid = `${user}:99@hosted`
@@ -358,7 +358,7 @@ function signalStorage({ creds, keys }, lidMapping) {
 		if (id.includes('.')) {
 			const [deviceId, device] = id.split('.')
 			const [user, domainType_] = deviceId.split('_')
-			const domainType = parseInt(domainType_ || '0')
+			const domainType = parseInt(domainType_ || '0', 10)
 			if (
 				domainType === WABinary_1.WAJIDDomains.LID ||
 				domainType === WABinary_1.WAJIDDomains.HOSTED_LID ||
@@ -388,7 +388,7 @@ function signalStorage({ creds, keys }, lidMapping) {
 				}
 				// Return raw bytes — Rust storage adapter expects Uint8Array, not SessionRecord object
 				return Buffer.isBuffer(sess) ? sess : Buffer.from(sess)
-			} catch (e) {
+			} catch {
 				return null
 			}
 		},
@@ -441,7 +441,8 @@ function signalStorage({ creds, keys }, lidMapping) {
 			const key = creds.signedPreKey
 			return {
 				privKey: Buffer.from(key.keyPair.private),
-				pubKey: Buffer.from(key.keyPair.public)
+				pubKey: Buffer.from(key.keyPair.public),
+				signature: key.signature ? Buffer.from(key.signature) : undefined
 			}
 		},
 		loadSenderKey: async senderKeyName => {

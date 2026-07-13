@@ -5,14 +5,19 @@ exports.makeInteropSocket = void 0
 const { getBinaryNodeChild, getBinaryNodeChildren, S_WHATSAPP_NET } = require('../WABinary')
 const { executeWMexQuery } = require('./mex')
 
+/**
+ * w:mex query IDs for interop group and privacy operations.
+ *
+ * Source: whatsapp-android-mex_client_persist_ids.json (WA 2.26.26.4 APK assets)
+ */
 const INTEROP_MEX_QUERY_IDS = {
-	CREATE_GROUP: '25726817620301612', // GroupsCreateInteropGroup
-	LEAVE_GROUP: '25346167795013270', // LeaveInteropGroup
-	ADD_PARTICIPANTS: '25732168276369452', // AddParticipantsToInteropGroup
-	QUERY_GROUP_INFO: '32734144032867936', // QueryInteropGroupInfo
-	PRIVACY_SETTINGS_QUERY: '24849123668112656', // InteropPrivacySettingsQuery
-	PRIVACY_SETTINGS_UPDATE: '25421856497452764', // InteropPrivacySettingsUpdate
-	PRIVACY_SETTINGS_WITH_CONTACT_LIST: '24913399124998600' // InteropPrivacySettingWithContactListUpdate
+	CREATE_GROUP: '25726817620301611', // GroupsCreateInteropGroup
+	LEAVE_GROUP: '25346167795013271', // LeaveInteropGroup
+	ADD_PARTICIPANTS: '25732168276369451', // AddParticipantsToInteropGroup
+	QUERY_GROUP_INFO: '32734144032867938', // QueryInteropGroupInfo
+	PRIVACY_SETTINGS_QUERY: '24849123668112654', // InteropPrivacySettingsQuery
+	PRIVACY_SETTINGS_UPDATE: '25421856497452763', // InteropPrivacySettingsUpdate
+	PRIVACY_SETTINGS_WITH_CONTACT_LIST: '24913399124998598' // InteropPrivacySettingWithContactListUpdate
 }
 
 /**
@@ -35,7 +40,7 @@ const TOS_RESULT_ACCEPTED = '160'
 const INTEROP_BATCH_MAX = 256
 
 const makeInteropSocket = sock => {
-	const { query, generateMessageTag, logger, signalRepository } = sock
+	const { query, generateMessageTag, logger, signalRepository, masqueradeAsPrimary } = sock
 
 	const mexQuery = (variables, queryId, dataPath) =>
 		executeWMexQuery(variables, queryId, dataPath, query, generateMessageTag)
@@ -62,7 +67,7 @@ const makeInteropSocket = sock => {
 		return getBinaryNodeChildren(listNode, 'integrator').map(node => {
 			const featuresNode = getBinaryNodeChild(node, 'features')
 			return {
-				id: parseInt(node.attrs.id),
+				id: parseInt(node.attrs.id, 10),
 				name: node.attrs.name,
 				// "active" | "onboarding" | "removed"
 				status: node.attrs.status,
@@ -192,9 +197,9 @@ const makeInteropSocket = sock => {
 			if (errorNode) {
 				return {
 					externalId: userNode.attrs.external_id,
-					integratorId: parseInt(userNode.attrs.integrator_id),
+					integratorId: parseInt(userNode.attrs.integrator_id, 10),
 					error: {
-						code: parseInt(errorNode.attrs.code),
+						code: parseInt(errorNode.attrs.code, 10),
 						text: errorNode.attrs.text
 					}
 				}
@@ -203,7 +208,7 @@ const makeInteropSocket = sock => {
 				jid: userNode.attrs.jid,
 				externalId: userNode.attrs.external_id,
 				normalizedExternalId: userNode.attrs.normalized_external_id,
-				integratorId: parseInt(userNode.attrs.integrator_id)
+				integratorId: parseInt(userNode.attrs.integrator_id, 10)
 			}
 		})
 	}
@@ -234,7 +239,7 @@ const makeInteropSocket = sock => {
 			enabled: settingsNode.attrs?.enabled,
 			users: getBinaryNodeChildren(settingsNode, 'user').map(n => ({
 				externalId: n.attrs.external_id,
-				integratorId: parseInt(n.attrs.integrator_id),
+				integratorId: parseInt(n.attrs.integrator_id, 10),
 				jid: n.attrs.jid
 			}))
 		}
@@ -346,7 +351,13 @@ const makeInteropSocket = sock => {
 		} catch (err) {
 			logger.warn({ err }, 'interop: failed to opt-in integrators')
 		}
-		logger.info({ integrators: toOptIn.map(i => i.name) }, 'interop: initialized')
+		logger.info({ integrators: toOptIn.map(i => i.name) }, 'interop: opted in')
+		logger.warn(
+			{ integrators: toOptIn.map(i => i.name) },
+			'interop: receiving messages from interop contacts (BirdyChat/Haiket) is NOT YET SUPPORTED. ' +
+			'The interop bridge only delivers to device 0 (primary phone) via a single Signal session — ' +
+			'no fan-out to companion devices. Opt-in and sending may work, but inbound messages will not arrive.'
+		)
 		return integrators
 	}
 
@@ -428,11 +439,7 @@ const makeInteropSocket = sock => {
 	 */
 	const queryInteropGroupInfo = async groupJid => {
 		const gid = groupJid.split('@')[0]
-		return mexQuery(
-			{ group_input: { gid } },
-			INTEROP_MEX_QUERY_IDS.QUERY_GROUP_INFO,
-			'xwa2_interop_group_query_by_id'
-		)
+		return mexQuery({ group_input: { gid } }, INTEROP_MEX_QUERY_IDS.QUERY_GROUP_INFO, 'xwa2_interop_group_query_by_id')
 	}
 
 	/**
@@ -482,6 +489,15 @@ const makeInteropSocket = sock => {
 			'xwa2_interop_privacy_setting_with_contact_list_update'
 		)
 	}
+
+	/**
+	 * Query all interop privacy settings via MEX.
+	 * Uses InteropPrivacySettingsQuery (doc_id: 24849123668112654).
+	 * Returns the current value for each privacy feature (e.g. GROUPADD).
+	 * dataPath: xwa2_interop_privacy_settings
+	 */
+	const queryInteropPrivacySettings = () =>
+		mexQuery({}, INTEROP_MEX_QUERY_IDS.PRIVACY_SETTINGS_QUERY, 'xwa2_interop_privacy_settings')
 
 	/**
 	 * Check whether an interop user allows being added to groups (GROUPADD privacy).
@@ -537,6 +553,7 @@ const makeInteropSocket = sock => {
 		leaveInteropGroup,
 		addParticipantsToInteropGroup,
 		queryInteropGroupInfo,
+		queryInteropPrivacySettings,
 		updateInteropPrivacySetting,
 		updateInteropPrivacySettingWithContactList,
 		getInteropGroupAddPrivacy,

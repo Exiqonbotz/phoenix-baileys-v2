@@ -11,7 +11,6 @@ exports.decryptMessageNode =
 		void 0
 exports.decodeMessageNode = decodeMessageNode
 const boom_1 = require('@hapi/boom')
-const index_js_1 = require('../../WAProto/index.js')
 const WAProto_1 = require('../../WAProto/index.js')
 const WABinary_1 = require('../WABinary')
 const generics_1 = require('./generics')
@@ -252,10 +251,10 @@ function decodeMessageNode(stanza, meId, meLid) {
 		broadcast: (0, WABinary_1.isJidBroadcast)(from),
 		newsletter: (0, WABinary_1.isJidNewsletter)(from),
 		StanzaAttrs: stanza.attrs,
-		Owner: 'Exiqon' // Non-WhatsApp attribute
+		Owner: 'Baron' // Non-WhatsApp attribute
 	}
 	if (key.fromMe) {
-		fullMessage.status = index_js_1.proto.WebMessageInfo.Status.SERVER_ACK
+		fullMessage.status = WAProto_1.proto.WebMessageInfo.Status.SERVER_ACK
 	}
 	if (msgType === 'newsletter') {
 		fullMessage.newsletter_server_id = +stanza.attrs?.server_id
@@ -306,11 +305,23 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
 					}
 				}
 
-				for (const { tag, attrs, content } of stanza.content) {
+				// Process unicast enc nodes (pkmsg/msg) before group enc nodes (skmsg/frskmsg)
+				// so that any SenderKeyDistributionMessage carried in a unicast is installed
+				// before GroupCipher.decrypt() runs for frskmsg in the same stanza.
+				const _isGroupEnc = n => n.tag === 'enc' && (n.attrs?.type === 'skmsg' || n.attrs?.type === 'frskmsg')
+				const _stanzaContent = [
+					...stanza.content.filter(n => !_isGroupEnc(n)),
+					...stanza.content.filter(n => _isGroupEnc(n))
+				]
+				for (const { tag, attrs, content } of _stanzaContent) {
 					if (tag === 'verified_name' && content instanceof Uint8Array) {
-						const cert = index_js_1.proto.VerifiedNameCertificate.decode(content)
-						const details = index_js_1.proto.VerifiedNameCertificate.Details.decode(cert.details)
+						const cert = WAProto_1.proto.VerifiedNameCertificate.decode(content)
+						const details = WAProto_1.proto.VerifiedNameCertificate.Details.decode(cert.details)
 						fullMessage.verifiedBizName = details.verifiedName
+						// Extract verified level from node attrs (LOW / HIGH / UNKNOWN)
+						if (attrs?.verified_level) {
+							fullMessage.verifiedNameLevel = attrs.verified_level
+						}
 					}
 					if (tag === 'unavailable' && attrs.type === 'view_once') {
 						fullMessage.key.isViewOnce = true // TODO: remove from here and add a STUB TYPE
@@ -328,12 +339,15 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
 					let msgBuffer
 					const decryptionJid = await (0, exports.getDecryptionJid)(author, repository)
 					if (tag !== 'plaintext') {
-						// TODO: Handle hosted devices
+						if ((0, WABinary_1.isHostedPnUser)(decryptionJid) || (0, WABinary_1.isHostedLidUser)(decryptionJid)) {
+							fullMessage.isHostedDevice = true
+						}
 						await storeMappingFromEnvelope(stanza, author, repository, decryptionJid, logger)
 					}
 					try {
 						const e2eType = tag === 'plaintext' ? 'plaintext' : attrs.type
 						switch (e2eType) {
+							case 'frskmsg':
 							case 'skmsg':
 								msgBuffer = await repository.decryptGroupMessage({
 									group: sender,
@@ -342,14 +356,36 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
 								})
 								break
 
+							case 'story_reply':
+							case 'feed_reshare':
+							case 'native_flow_response':
+							case 'companion_enc_static':
+							case 'avatar_sticker':
+							case 'genai_sticker':
+							case 'account_authentication_request':
+							case 'motion_video':
+							case 'motion_photo':
 							case 'pkmsg':
-							case 'msg':
+							case 'msg': {
+								const _unicastType =
+									e2eType === 'story_reply' ||
+									e2eType === 'feed_reshare' ||
+									e2eType === 'native_flow_response' ||
+									e2eType === 'companion_enc_static' ||
+									e2eType === 'avatar_sticker' ||
+									e2eType === 'genai_sticker' ||
+									e2eType === 'account_authentication_request' ||
+									e2eType === 'motion_video' ||
+									e2eType === 'motion_photo'
+										? 'msg'
+										: e2eType
 								msgBuffer = await repository.decryptMessage({
 									jid: decryptionJid,
-									type: e2eType,
+									type: _unicastType,
 									ciphertext: content
 								})
 								break
+							}
 							case 'msmsg': //Message Secret Message
 								// null = no bot node (non-streaming), 'full'/'last' = complete response
 								// 'first' = streaming partial response, intentionally skipped
@@ -388,17 +424,11 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
 										participant: author,
 										meId: metaTargetSenderJid || `${meLid.split(`:`)[0]}@lid`,
 										meLid,
-										conversationJid: sender,
-										senderJid: metaTargetSenderJid,
-										botType,
 										botEditTargetId,
 										metaTargetId,
-										stanzaId: stanza.attrs?.id,
-										targetId: botEditTargetId || metaTargetId || stanza.attrs?.id,
-										targetIdCandidates: secretIdCandidates
+										stanzaId: stanza.attrs?.id
 									}
 									let decryptErr
-									const candidateAttemptSummaries = []
 									for (const candidate of secretCandidates) {
 										try {
 											msgBuffer = await (0, meta_ai_msmsg_1.decryptMsmsgBotMessage)(candidate.secret, helperKey, msMsg)
@@ -406,24 +436,16 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
 											break
 										} catch (e) {
 											decryptErr = e
-											if (Array.isArray(e?.attemptedStrategies) && e.attemptedStrategies.length) {
-												candidateAttemptSummaries.push({
-													secretSource: candidate.source,
-													attemptedStrategies: e.attemptedStrategies
-												})
-											}
 										}
 									}
-									if (!msgBuffer && candidateAttemptSummaries.length) {
+									if (!msgBuffer && decryptErr) {
 										logger.warn(
 											{
 												secretCandidateSources: secretCandidates.map(candidate => candidate.source),
-												attemptsBySecret: candidateAttemptSummaries
+												cause: decryptErr?.message
 											},
 											'msmsg: helper decryption failed for all candidate secrets'
 										)
-									}
-									if (!msgBuffer && decryptErr) {
 										throw decryptErr
 									}
 								}
@@ -446,9 +468,7 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
 						let msg =
 							e2eType === 'msmsg'
 								? (0, meta_ai_msmsg_1.decodeDecryptedMsmsgMessage)(msgBuffer)
-								: index_js_1.proto.Message.decode(msgToDecode)
-						if (false) {
-						}
+								: WAProto_1.proto.Message.decode(msgToDecode)
 						const outerMessageContextInfo = msg.messageContextInfo
 						msg = msg.deviceSentMessage?.message || msg
 						// deviceSentMessage.message may not carry messageContextInfo (e.g. messageSecret for @bot)
@@ -467,10 +487,198 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
 								logger.error({ key: fullMessage.key, err }, 'failed to process sender key distribution message')
 							}
 						}
+						if (msg.fastRatchetKeySenderKeyDistributionMessage) {
+							//eslint-disable-next-line max-depth
+							try {
+								await repository.processSenderKeyDistributionMessage({
+									authorJid: author,
+									item: msg.fastRatchetKeySenderKeyDistributionMessage
+								})
+							} catch (err) {
+								logger.error(
+									{ key: fullMessage.key, err },
+									'failed to process fast ratchet sender key distribution message'
+								)
+							}
+						}
 						if (fullMessage.message) {
 							Object.assign(fullMessage.message, msg)
 						} else {
 							fullMessage.message = msg
+						}
+						// --- story_reply metadata ---
+						if (e2eType === 'story_reply') {
+							fullMessage.storyReply = true
+							// Secondary check: quoted status JID in the decoded message
+							const quotedJid = msg.extendedTextMessage?.contextInfo?.remoteJid
+							if (quotedJid && (0, WABinary_1.isJidStatusBroadcast)(quotedJid)) {
+								fullMessage.storyReply = true
+							}
+						}
+						// --- feed_reshare metadata ---
+						if (e2eType === 'feed_reshare') {
+							fullMessage.feedReshare = true
+						}
+						// --- view_once type from enc attributes ---
+						if (attrs.view_once === 'read' || attrs.view_once === 'write') {
+							fullMessage.viewOnceType = attrs.view_once
+						}
+						// --- XMA message ---
+						if (msg.xmaMessage) {
+							fullMessage.xma = msg.xmaMessage
+							fullMessage.messageType = 'xma'
+						}
+						// --- native_flow_response ---
+						if (e2eType === 'native_flow_response' || msg.nativeFlowResponseMessage) {
+							fullMessage.messageType = 'native_flow_response'
+							if (msg.nativeFlowResponseMessage) {
+								fullMessage.nativeFlowResponse = msg.nativeFlowResponseMessage
+								// SMB quick reply is a business-specific native flow variant
+								if (msg.nativeFlowResponseMessage.name === 'md_smb_quick_reply') {
+									fullMessage.smbQuickReply = true
+								}
+							}
+						}
+						// --- call_permission_request ---
+						if (msg.callPermissionRequestMessage) {
+							fullMessage.messageType = 'call_permission_request'
+							fullMessage.callPermissionRequest = msg.callPermissionRequestMessage
+						}
+						// --- Product / Order / Catalog types ---
+						if (msg.productMessage) {
+							fullMessage.messageType = 'product'
+						} else if (msg.orderMessage) {
+							fullMessage.messageType = 'order'
+						} else if (msg.catalogMessage || msg.listMessage?.catalogType) {
+							fullMessage.messageType = 'catalog'
+						}
+						// --- Payment types ---
+						if (msg.paymentMessage) {
+							fullMessage.messageType = 'payment'
+							const pm = msg.paymentMessage
+							fullMessage.paymentInfo = {
+								amount: pm.amount1000 ? pm.amount1000 / 1000 : null,
+								currency: pm.currencyCodeIso4217 || null,
+								status: pm.status || null,
+								transactionTimestamp: pm.transactionTimestamp
+									? pm.transactionTimestamp.toNumber?.() || pm.transactionTimestamp
+									: null,
+								type: pm.type || null,
+								method: pm.paymentMethod || null,
+								futureProofed: pm.futureProofed || false
+							}
+						}
+						if (msg.requestPaymentMessage) {
+							fullMessage.messageType = 'request_payment'
+							fullMessage.paymentRequest = {
+								amount: msg.requestPaymentMessage.amount || null,
+								currency: msg.requestPaymentMessage.currencyCodeIso4217 || null,
+								expiry: msg.requestPaymentMessage.expiryTimestamp || null
+							}
+						}
+						if (msg.sendPaymentMessage) {
+							fullMessage.messageType = 'send_payment'
+						}
+						if (msg.cancelPaymentRequestMessage) {
+							fullMessage.messageType = 'cancel_payment'
+						}
+						// --- Sticker flags ---
+						if (msg.stickerMessage) {
+							if (msg.stickerMessage.isAvatar) {
+								fullMessage.isAvatarSticker = true
+							}
+							if (msg.stickerMessage.isAiSticker || msg.stickerMessage.isGenAI) {
+								fullMessage.isAiSticker = true
+							}
+						}
+						// --- StickerPackMessage ---
+						if (msg.stickerPackMessage) {
+							fullMessage.messageType = 'sticker_pack'
+							const sp = msg.stickerPackMessage
+							fullMessage.stickerPack = {
+								id: sp.stickerPackId,
+								name: sp.name,
+								// 0 = FIRST_PARTY, 1 = THIRD_PARTY
+								origin: sp.stickerPackOrigin,
+								size: sp.stickerPackSize,
+								stickers: sp.stickers || []
+							}
+						}
+						// --- AI media collection metadata from bot context ---
+						if (msg.messageContextInfo?.botMetadata?.aiMediaCollectionMetadata) {
+							fullMessage.aiMediaCollectionMetadata = {
+								collectionId: msg.messageContextInfo.botMetadata.aiMediaCollectionMetadata.collectionId,
+								uploadOrderIndex: msg.messageContextInfo.botMetadata.aiMediaCollectionMetadata.uploadOrderIndex
+							}
+						}
+						// --- ProtocolMessage: AI media collection coordination ---
+						if (msg.protocolMessage?.aiMediaCollectionMessage) {
+							fullMessage.messageType = 'ai_media_collection'
+							const amc = msg.protocolMessage.aiMediaCollectionMessage
+							fullMessage.aiMediaCollection = {
+								collectionId: amc.collectionId,
+								expectedMediaCount: amc.expectedMediaCount
+							}
+						}
+						// --- SplitPaymentMessage ---
+						if (msg.splitPaymentMessage) {
+							fullMessage.messageType = 'split_payment'
+							const sp = msg.splitPaymentMessage
+							fullMessage.splitPayment = {
+								splitId: sp.splitId,
+								totalAmount: sp.totalAmount,
+								description: sp.description,
+								requesterJid: sp.requesterJid,
+								participants: (sp.participants || []).map(p => ({
+									jid: p.jid,
+									amount: p.amount,
+									// 0 = PENDING, 1 = PAID
+									status: p.status
+								})),
+								createdAtMs: sp.createdAtMs ? sp.createdAtMs.toNumber?.() || sp.createdAtMs : null
+							}
+						}
+						// --- PaymentInviteMessage (FBPAY / UPI / NOVI) ---
+						if (msg.paymentInviteMessage) {
+							fullMessage.messageType = 'payment_invite'
+							const SERVICE_TYPE = { 0: 'UNKNOWN', 1: 'FBPAY', 2: 'NOVI', 3: 'UPI' }
+							fullMessage.paymentInvite = {
+								serviceType: SERVICE_TYPE[msg.paymentInviteMessage.serviceType] || 'UNKNOWN',
+								expiry: msg.paymentInviteMessage.expiryTimestamp
+									? msg.paymentInviteMessage.expiryTimestamp.toNumber?.() || msg.paymentInviteMessage.expiryTimestamp
+									: null,
+								incentiveEligible: msg.paymentInviteMessage.incentiveEligible || false
+							}
+						}
+						// --- PaymentReminderMessage ---
+						if (msg.paymentReminderMessage) {
+							fullMessage.messageType = 'payment_reminder'
+						}
+						// --- companion_enc_static ---
+						if (e2eType === 'companion_enc_static') {
+							fullMessage.companionEncStatic = true
+						}
+						// --- avatar_sticker / genai_sticker enc type ---
+						if (e2eType === 'avatar_sticker' || e2eType === 'genai_sticker') {
+							fullMessage.stickerType = e2eType
+						}
+						// --- account_authentication_request ---
+						if (e2eType === 'account_authentication_request' || msg.accountAuthRequestMessage) {
+							fullMessage.messageType = 'account_auth_request'
+						}
+						// --- motion_video ---
+						if (e2eType === 'motion_video' || (msg.videoMessage && msg.videoMessage.motionVideo)) {
+							fullMessage.messageType = 'motion_video'
+							fullMessage.motionVideo = true
+						}
+						// --- motion_photo ---
+						if (e2eType === 'motion_photo' || (msg.imageMessage && msg.imageMessage.motionPhoto)) {
+							fullMessage.messageType = 'motion_photo'
+							fullMessage.motionPhoto = true
+						}
+						// --- non-E2EE plaintext (newsletter / system channel messages) ---
+						if (e2eType === 'plaintext') {
+							fullMessage.isNonE2EE = true
 						}
 						// Auto-decode richResponseMessage text so m.msg.text is populated
 						{
@@ -505,14 +713,14 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
 							isSessionRecordError: isSessionRecordError(err)
 						}
 						logger.error(errorContext, 'failed to decrypt message')
-						fullMessage.messageStubType = index_js_1.proto.WebMessageInfo.StubType.CIPHERTEXT
+						fullMessage.messageStubType = WAProto_1.proto.WebMessageInfo.StubType.CIPHERTEXT
 						fullMessage.messageStubParameters = [err.message.toString()]
 					}
 				}
 			}
 			// if nothing was found to decrypt
 			if (!decryptables && !fullMessage.key?.isViewOnce) {
-				fullMessage.messageStubType = index_js_1.proto.WebMessageInfo.StubType.CIPHERTEXT
+				fullMessage.messageStubType = WAProto_1.proto.WebMessageInfo.StubType.CIPHERTEXT
 				fullMessage.messageStubParameters = [exports.NO_MESSAGE_FOUND_ERROR_TEXT]
 			}
 		}
@@ -547,7 +755,7 @@ function decodeRichResponseMessage(richMsg) {
 			}
 		}
 		return texts.join('\n')
-	} catch (e) {
+	} catch {
 		return ''
 	}
 }

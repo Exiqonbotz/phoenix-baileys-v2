@@ -46,7 +46,9 @@ const makeMessagesRecvSocket = config => {
 		uploadPreKeys,
 		sendPeerDataOperationMessage,
 		messageRetryManager,
-		issuePrivacyTokens
+		issuePrivacyTokens,
+		getUSyncDevices,
+		createParticipantNodes
 	} = sock
 	const getLIDForPN = signalRepository.lidMapping.getLIDForPN.bind(signalRepository.lidMapping)
 	// Track when the socket fully opens so pending pre-connect messages are treated as history
@@ -144,13 +146,14 @@ const makeMessagesRecvSocket = config => {
 	 *
 	 * @param {string} [registrationTraceId] - Optional trace ID for this registration attempt.
 	 */
-	const requestCompanionCanonicalNonce = async (registrationTraceId) => {
+	const requestCompanionCanonicalNonce = async registrationTraceId => {
 		if (!authState.creds.me?.id) {
 			throw new boom_1.Boom('Not authenticated')
 		}
 		return sendPeerDataOperationMessage({
 			companionCanonicalUserNonceFetchRequest: registrationTraceId ? { registrationTraceId } : {},
-			peerDataOperationRequestType: index_js_1.proto.Message.PeerDataOperationRequestType.COMPANION_CANONICAL_USER_NONCE_FETCH
+			peerDataOperationRequestType:
+				index_js_1.proto.Message.PeerDataOperationRequestType.COMPANION_CANONICAL_USER_NONCE_FETCH
 		})
 	}
 	/**
@@ -166,54 +169,135 @@ const makeMessagesRecvSocket = config => {
 			peerDataOperationRequestType: index_js_1.proto.Message.PeerDataOperationRequestType.COMPANION_META_NONCE_FETCH
 		})
 	}
-	// Handles mex newsletter notifications
-	const handleMexNewsletterNotification = async node => {
-		const mexNode = (0, WABinary_1.getBinaryNodeChild)(node, 'mex')
-		if (!mexNode?.content) {
-			logger.warn({ node }, 'Invalid mex newsletter notification')
+	// Handles mex notifications (newsletter and group XWA2 property updates).
+	// Wire format: notification[type=mex] → <update op_name="..."> → JSON payload in content bytes.
+	const handleMexNotification = async node => {
+		const updateNodes = (0, WABinary_1.getBinaryNodeChildren)(node, 'update')
+		if (!updateNodes.length) {
+			logger.debug({ node }, 'mex notification with no update children')
 			return
 		}
-		let data
-		try {
-			data = JSON.parse(mexNode.content.toString())
-		} catch (error) {
-			logger.error({ err: error, node }, 'Failed to parse mex newsletter notification')
-			return
-		}
-		const operation = data?.operation
-		const updates = data?.updates
-		if (!updates || !operation) {
-			logger.warn({ data }, 'Invalid mex newsletter notification content')
-			return
-		}
-		logger.info({ operation, updates }, 'got mex newsletter notification')
-		switch (operation) {
-			case 'NotificationNewsletterUpdate':
-				for (const update of updates) {
-					if (update.jid && update.settings && Object.keys(update.settings).length > 0) {
+		for (const updateNode of updateNodes) {
+			const opName = updateNode.attrs?.op_name
+			if (!opName) continue
+			let payload
+			try {
+				const raw = updateNode.content?.text ?? updateNode.content?.toString?.()
+				payload = raw ? JSON.parse(raw) : null
+			} catch (e) {
+				logger.error({ err: e, opName }, 'failed to parse mex update payload')
+				continue
+			}
+			if (!payload?.data) {
+				logger.debug({ opName }, 'mex update with no data field')
+				continue
+			}
+			const d = payload.data
+			switch (opName) {
+				case 'NotificationNewsletterUpdate': {
+					// d.xwa2_notify_newsletter_on_metadata_update: { id, thread_metadata: { settings } }
+					const upd = d.xwa2_notify_newsletter_on_metadata_update
+					if (upd?.id) {
 						ev.emit('newsletter-settings.update', {
-							id: update.jid,
-							update: update.settings
+							id: upd.id,
+							update: upd.thread_metadata?.settings ?? {}
 						})
 					}
+					break
 				}
-				break
-			case 'NotificationNewsletterAdminPromote':
-				for (const update of updates) {
-					if (update.jid && update.user) {
+				case 'NotificationNewsletterJoin': {
+					// d.xwa2_notify_newsletter_on_join: full newsletter metadata on subscribe
+					const upd = d.xwa2_notify_newsletter_on_join
+					if (upd?.id) {
 						ev.emit('newsletter-participants.update', {
-							id: update.jid,
+							id: upd.id,
 							author: node.attrs.from,
-							user: update.user,
+							user: (0, WABinary_1.jidNormalizedUser)(node.attrs.from),
+							new_role: upd.viewer_metadata?.role ?? 'SUBSCRIBER',
+							action: 'join',
+							metadata: upd.thread_metadata
+						})
+					}
+					break
+				}
+				case 'NotificationNewsletterMuteChange': {
+					// d.xwa2_notify_newsletter_on_mute_change: { id, mute: "ON"|"OFF" }
+					const upd = d.xwa2_notify_newsletter_on_mute_change
+					if (upd?.id) {
+						ev.emit('newsletter-settings.update', {
+							id: upd.id,
+							update: { mute: upd.mute }
+						})
+					}
+					break
+				}
+				case 'NotificationNewsletterUserSettingChange': {
+					// d.xwa2_notify_newsletter_on_user_setting_change: { id, setting: { type, value } }
+					const upd = d.xwa2_notify_newsletter_on_user_setting_change
+					if (upd?.id && upd.setting) {
+						ev.emit('newsletter-settings.update', {
+							id: upd.id,
+							update: { userSetting: upd.setting }
+						})
+					}
+					break
+				}
+				case 'NotificationNewsletterAdminPromote': {
+					// legacy format kept for compat
+					const upd = d.xwa2_notify_newsletter_on_admin_promote
+					if (upd?.id) {
+						ev.emit('newsletter-participants.update', {
+							id: upd.id,
+							author: node.attrs.from,
+							user: upd.user,
 							new_role: 'ADMIN',
 							action: 'promote'
 						})
 					}
+					break
 				}
-				break
-			default:
-				logger.info({ operation, data }, 'Unhandled mex newsletter notification')
-				break
+				case 'NotificationGroupMemberLinkPropertyUpdate': {
+					// d.xwa2_notify_group_on_prop_change: { id, properties: { member_link_mode } }
+					const upd = d.xwa2_notify_group_on_prop_change
+					if (upd?.id && upd.properties?.member_link_mode !== undefined) {
+						ev.emit('groups.update', [
+							{
+								id: upd.id,
+								memberAddMode: upd.properties.member_link_mode
+							}
+						])
+					}
+					break
+				}
+				case 'NotificationGroupLimitSharingPropertyUpdate': {
+					// d.xwa2_notify_group_on_prop_change: { id, properties: { limit_sharing } }
+					const upd = d.xwa2_notify_group_on_prop_change
+					if (upd?.id && upd.properties?.limit_sharing !== undefined) {
+						ev.emit('groups.update', [
+							{
+								id: upd.id,
+								limitSharing: upd.properties.limit_sharing
+							}
+						])
+					}
+					break
+				}
+				case 'NotificationGroupMemberShareGroupHistoryModePropertyUpdate': {
+					// d.xwa2_notify_group_on_prop_change: { id, properties: { member_share_group_history_mode } }
+					const upd = d.xwa2_notify_group_on_prop_change
+					if (upd?.id && upd.properties?.member_share_group_history_mode !== undefined) {
+						ev.emit('groups.update', [
+							{
+								id: upd.id,
+								memberShareHistoryMode: upd.properties.member_share_group_history_mode
+							}
+						])
+					}
+					break
+				}
+				default:
+					logger.debug({ opName, from: node.attrs.from }, 'unhandled mex op')
+			}
 		}
 	}
 	// Handles newsletter notifications
@@ -266,7 +350,9 @@ const makeMessagesRecvSocket = config => {
 					})
 				}
 				break
-			case 'message':
+			case 'message': {
+				const viewCount = child.attrs.view_count !== undefined ? +child.attrs.view_count : undefined
+				const impressionCount = child.attrs.impression_count !== undefined ? +child.attrs.impression_count : undefined
 				const plaintextNode = (0, WABinary_1.getBinaryNodeChild)(child, 'plaintext')
 				if (plaintextNode?.content) {
 					try {
@@ -284,6 +370,9 @@ const makeMessagesRecvSocket = config => {
 							message: messageProto,
 							messageTimestamp: +child.attrs.t
 						}).toJSON()
+						// Attach insight counters when the server includes them
+						if (viewCount !== undefined) fullMessage.views = viewCount
+						if (impressionCount !== undefined) fullMessage.impressions = impressionCount
 						await upsertMessage(fullMessage, 'append')
 						logger.info('Processed plaintext newsletter message')
 					} catch (error) {
@@ -291,23 +380,44 @@ const makeMessagesRecvSocket = config => {
 					}
 				}
 				break
-			case 'live_updates':
-				// Live view count / engagement update
-				const liveCount = parseInt(child.attrs.count || child.content?.toString() || '0', 10)
-				ev.emit('newsletter.live-update', {
-					id: from,
-					server_id: child.attrs.message_id || child.attrs.server_id,
-					liveViewers: liveCount,
-					timestamp: child.attrs.t ? +child.attrs.t : undefined
-				})
+			}
+			case 'live_updates': {
+				// Live engagement updates: reactions + forwards per message.
+				// Wire: <live_updates> → <messages t="..."> → <message server_id="...">
+				//         → <forwards_count count="N">, <reactions> → <reaction code="X" count="N">
+				const messagesNode = (0, WABinary_1.getBinaryNodeChild)(child, 'messages')
+				const msgTs = messagesNode?.attrs?.t ? +messagesNode.attrs.t : undefined
+				for (const msgNode of (0, WABinary_1.getBinaryNodeChildren)(messagesNode ?? child, 'message')) {
+					const serverId = msgNode.attrs.server_id
+					const fwdNode = (0, WABinary_1.getBinaryNodeChild)(msgNode, 'forwards_count')
+					const forwardsCount = fwdNode?.attrs?.count !== undefined ? +fwdNode.attrs.count : undefined
+					const reactionsNode = (0, WABinary_1.getBinaryNodeChild)(msgNode, 'reactions')
+					const reactions = (0, WABinary_1.getBinaryNodeChildren)(reactionsNode ?? msgNode, 'reaction').map(r => ({
+						code: r.attrs.code,
+						count: +r.attrs.count
+					}))
+					ev.emit('newsletter.live-update', {
+						id: from,
+						server_id: serverId,
+						timestamp: msgTs,
+						forwardsCount,
+						reactions
+					})
+				}
 				break
-			case 'pin':
+			}
+			case 'pin': {
+				const pinnedServerId = child.attrs.message_id || child.attrs.server_id
+				const isPinned = child.attrs.action !== 'unpin'
 				ev.emit('newsletter.pin', {
 					id: from,
-					server_id: child.attrs.message_id || child.attrs.server_id,
-					pinned: child.attrs.action !== 'unpin'
+					server_id: pinnedServerId,
+					pinned: isPinned
 				})
+				// Sync the pinnedMessage field on the newsletter metadata object
+				ev.emit('newsletters.update', [{ id: from, pinnedMessage: isPinned ? pinnedServerId : null }])
 				break
+			}
 			case 'category':
 				ev.emit('newsletter-settings.update', {
 					id: from,
@@ -326,6 +436,80 @@ const makeMessagesRecvSocket = config => {
 				logger.warn({ node }, 'Unknown newsletter notification')
 				break
 		}
+	}
+	// Handles incoming <status> stanzas pushed by the server for newsletter posts.
+	// These arrive on the CB:status channel (AB-gated by status_e2ee_recv_over_status_stanza).
+	const handleNewsletterStatus = async node => {
+		const { id, from, server_id, t, is_sender, offline, type, edit } = node.attrs
+		const serverId = server_id ? +server_id : undefined
+		const timestamp = t ? +t : undefined
+		const isSender = is_sender === 'true'
+		const offlineIndex = offline !== undefined ? +offline : undefined
+
+		// Parse optional <meta> child: edit timestamps, interaction type, admin profile
+		const metaNode = (0, WABinary_1.getBinaryNodeChild)(node, 'meta')
+		const meta = metaNode ? {
+			...(metaNode.attrs.msg_edit_t ? { editedAt: +metaNode.attrs.msg_edit_t } : {}),
+			...(metaNode.attrs.original_msg_t ? { originalTimestamp: +metaNode.attrs.original_msg_t } : {}),
+			...(metaNode.attrs.interaction_type ? { interactionType: metaNode.attrs.interaction_type } : {}),
+			...(metaNode.attrs.parent_server_id ? { parentServerId: +metaNode.attrs.parent_server_id } : {}),
+			...(metaNode.attrs.response_server_id ? { responseServerId: +metaNode.attrs.response_server_id } : {}),
+		} : undefined
+
+		// Parse engagement counters
+		const viewsNode = (0, WABinary_1.getBinaryNodeChild)(node, 'views_count')
+		const viewsCount = viewsNode?.attrs?.count !== undefined ? +viewsNode.attrs.count : undefined
+		const responsesNode = (0, WABinary_1.getBinaryNodeChild)(node, 'responses_count')
+		const responsesCount = responsesNode?.attrs?.count !== undefined ? +responsesNode.attrs.count : undefined
+		const reactionsNode = (0, WABinary_1.getBinaryNodeChild)(node, 'reactions')
+		const reactionCounts = (0, WABinary_1.getBinaryNodeChildren)(reactionsNode ?? { content: [] }, 'reaction')
+			.map(r => ({ code: r.attrs.code, count: +r.attrs.count }))
+
+		let content = null
+		let mediaType = undefined
+
+		if (type === 'reaction') {
+			const reactionNode = (0, WABinary_1.getBinaryNodeChild)(node, 'reaction')
+			content = { type: 'reaction', code: reactionNode?.attrs?.code }
+		} else if (type === 'text' || type === 'media') {
+			const plaintextNode = (0, WABinary_1.getBinaryNodeChild)(node, 'plaintext')
+			if (type === 'media') mediaType = plaintextNode?.attrs?.mediatype
+			if (edit === '7' || edit === '8') {
+				content = { type: 'revoke', edit }
+			} else if (plaintextNode?.content) {
+				try {
+					const buf = Buffer.isBuffer(plaintextNode.content)
+						? plaintextNode.content
+						: Buffer.from(plaintextNode.content)
+					const message = index_js_1.proto.Message.decode(buf).toJSON()
+					content = { type, message, ...(mediaType ? { mediaType } : {}) }
+				} catch (err) {
+					logger.error({ err }, 'Failed to decode newsletter status plaintext')
+					content = { type, raw: true, ...(mediaType ? { mediaType } : {}) }
+				}
+			}
+		}
+
+		// Send ACK back to server
+		const ackType = type === 'reaction' ? 'reaction' : (edit ? 'revoke' : type)
+		await sendNode({
+			tag: 'ack',
+			attrs: { id, to: from, class: 'status', type: ackType || 'text' },
+			content: undefined
+		})
+
+		ev.emit('newsletter.status', {
+			id: from,
+			serverId,
+			timestamp,
+			isSender,
+			...(offlineIndex !== undefined ? { offlineIndex } : {}),
+			...(meta ? { meta } : {}),
+			...(viewsCount !== undefined ? { viewsCount } : {}),
+			...(responsesCount !== undefined ? { responsesCount } : {}),
+			...(reactionCounts.length ? { reactionCounts } : {}),
+			content
+		})
 	}
 	const sendMessageAck = async (node, errorCode) => {
 		const stanza = (0, stanza_ack_1.buildAckStanza)(node, errorCode, authState.creds.me.id)
@@ -725,7 +909,7 @@ const makeMessagesRecvSocket = config => {
 			const tcJid = await (0, tc_token_utils_1.resolveTcTokenJid)(normalizedJid, getLIDForPN)
 			const tcTokenData = await authState.keys.get('tctoken', [tcJid])
 			const senderTs = tcTokenData?.[tcJid]?.senderTimestamp
-			if (senderTs === null || senderTs === undefined || (0, tc_token_utils_1.isTcTokenExpired)(senderTs)) {
+			if (senderTs == null || (0, tc_token_utils_1.isTcTokenExpired)(senderTs)) {
 				return
 			}
 			logger.debug({ jid: normalizedJid, senderTimestamp: senderTs }, 'identity changed, re-issuing tctoken')
@@ -835,7 +1019,8 @@ const makeMessagesRecvSocket = config => {
 								: undefined,
 						lid: (0, WABinary_1.isPnUser)(attrs.jid) && (0, WABinary_1.isLidUser)(attrs.lid) ? attrs.lid : undefined,
 						username: attrs.participant_username || attrs.username || undefined,
-						admin: attrs.type || null
+						admin: attrs.type || null,
+						uuid: attrs.uuid || attrs.participant_uuid || undefined
 					}
 				})
 				if (
@@ -904,6 +1089,42 @@ const makeMessagesRecvSocket = config => {
 					isDenied ? 'revoked' : 'rejected'
 				]
 				break
+			case 'sibling_link': {
+				const linkedGroupJid = (0, WABinary_1.getBinaryNodeChild)(child, 'group')?.attrs?.jid || child.attrs?.jid
+				ev.emit('groups.update', [
+					{
+						id: fullNode.attrs.from,
+						siblingGroupLinked: linkedGroupJid || true,
+						author: actingParticipantLid,
+						authorPn: actingParticipantPn
+					}
+				])
+				break
+			}
+			case 'sibling_unlink': {
+				const unlinkedGroupJid = (0, WABinary_1.getBinaryNodeChild)(child, 'group')?.attrs?.jid || child.attrs?.jid
+				ev.emit('groups.update', [
+					{
+						id: fullNode.attrs.from,
+						siblingGroupUnlinked: unlinkedGroupJid || true,
+						author: actingParticipantLid,
+						authorPn: actingParticipantPn
+					}
+				])
+				break
+			}
+			case 'clear_history': {
+				const historyClearTimestamp = child.attrs?.t ? +child.attrs.t : (0, Date)()
+				ev.emit('groups.update', [
+					{
+						id: fullNode.attrs.from,
+						historyClearTimestamp,
+						author: actingParticipantLid,
+						authorPn: actingParticipantPn
+					}
+				])
+				break
+			}
 		}
 	}
 	const normalizeNotificationParticipant = async (jid, groupData) => {
@@ -1077,15 +1298,17 @@ const makeMessagesRecvSocket = config => {
 		if (childTag === 'peer_device_presence') {
 			const jid = attrs.jid || (0, WABinary_1.jidNormalizedUser)(node.attrs.from)
 			const presence = attrs.type === 'unavailable' ? 'unavailable' : 'available'
-			logger.debug({ jid, presence }, '[interop] peer_device_presence')
-			ev.emit('presence.update', { id: jid, presences: { [jid]: { lastKnownPresence: presence } } })
+			const isIosInterop = !!authState.creds.interopIosEnabled
+			logger.debug({ jid, presence, isIosInterop }, '[interop] peer_device_presence')
+			ev.emit('presence.update', { id: jid, presences: { [jid]: { lastKnownPresence: presence } }, isIosInterop })
 			return
 		}
 
 		// fbid:thread / fbid:devices — Meta thread or device list association
 		if (childTag === 'fbid_thread' || childTag === 'fbid_devices') {
-			logger.debug({ childTag, attrs, from: node.attrs.from }, '[interop] fbid association update')
-			ev.emit('interop.fbid-update', { type: childTag, jid: node.attrs.from, attrs })
+			const isIosInterop = !!authState.creds.interopIosEnabled
+			logger.debug({ childTag, attrs, from: node.attrs.from, isIosInterop }, '[interop] fbid association update')
+			ev.emit('interop.fbid-update', { type: childTag, jid: node.attrs.from, attrs, isIosInterop })
 			return
 		}
 
@@ -1112,7 +1335,7 @@ const makeMessagesRecvSocket = config => {
 				await handleNewsletterNotification(node)
 				break
 			case 'mex':
-				await handleMexNewsletterNotification(node)
+				await handleMexNotification(node)
 				break
 			case 'w:gp2':
 				// TODO: HANDLE PARTICIPANT_PN
@@ -1128,26 +1351,33 @@ const makeMessagesRecvSocket = config => {
 			case 'encrypt':
 				await handleEncryptNotification(node)
 				break
-			case 'devices':
-				const devices = (0, WABinary_1.getBinaryNodeChildren)(child, 'device')
-				const deviceOwnerJid = child.attrs.jid || child.attrs.lid
+			case 'devices': {
+				// child = <add> or <remove> — neither carries jid/lid, owner is node.attrs.from
+				const addNode = (0, WABinary_1.getBinaryNodeChild)(node, 'add')
+				const removeNode = (0, WABinary_1.getBinaryNodeChild)(node, 'remove')
+				const changedNode = addNode || removeNode
+				const isAdded = !!addNode
+				const devices = (0, WABinary_1.getBinaryNodeChildren)(changedNode, 'device')
+				const deviceOwnerJid = from
 				const deviceData = devices.map(d => ({
 					id: d.attrs.jid,
 					lid: d.attrs.lid,
-					keyIndex: d.attrs.key_index ? +d.attrs.key_index : undefined,
+					// wire attr is "key-index" (hyphen), not "key_index"
+					keyIndex: d.attrs['key-index'] ? +d.attrs['key-index'] : undefined,
 					platform: d.attrs.platform || undefined,
 					isCompanion: d.attrs.companion === 'true' || undefined
 				}))
-				if (
-					(0, WABinary_1.areJidsSameUser)(child.attrs.jid, authState.creds.me.id) ||
-					(0, WABinary_1.areJidsSameUser)(child.attrs.lid, authState.creds.me.lid)
-				) {
-					logger.info({ deviceData }, 'my own devices changed')
-					ev.emit('devices.update', { id: deviceOwnerJid, devices: deviceData, isSelf: true })
-				} else if (deviceOwnerJid) {
-					ev.emit('devices.update', { id: deviceOwnerJid, devices: deviceData, isSelf: false })
+				const isSelf =
+					(0, WABinary_1.areJidsSameUser)(from, authState.creds.me?.id) ||
+					(0, WABinary_1.areJidsSameUser)(from, authState.creds.me?.lid)
+				if (isSelf) {
+					logger.info({ deviceData, isAdded }, 'my own devices changed')
+				}
+				if (deviceOwnerJid) {
+					ev.emit('devices.update', { id: deviceOwnerJid, devices: deviceData, isSelf, added: isAdded })
 				}
 				break
+			}
 			case 'server_sync':
 				const update = (0, WABinary_1.getBinaryNodeChild)(node, 'collection')
 				if (update) {
@@ -1199,12 +1429,28 @@ const makeMessagesRecvSocket = config => {
 						const type = attrs.action === 'block' ? 'add' : 'remove'
 						ev.emit('blocklist.update', { blocklist, type })
 					}
+				} else if (child.tag === 'devices') {
+					// Full device-list sync: all linked devices + signed key-index-list.
+					// Sent when a device is added, removed, or key index changes.
+					const dhash = child.attrs.dhash
+					const deviceNodes = (0, WABinary_1.getBinaryNodeChildren)(child, 'device')
+					const keyIndexListNode = (0, WABinary_1.getBinaryNodeChild)(child, 'key-index-list')
+					const devices = deviceNodes.map(d => ({
+						jid: d.attrs.jid ? String(d.attrs.jid) : undefined,
+						keyIndex: d.attrs['key-index'] ? +d.attrs['key-index'] : undefined
+					}))
+					logger.info({ dhash, deviceCount: devices.length }, 'account devices list synced')
+					ev.emit('account.devices-synced', {
+						dhash,
+						devices,
+						keyIndexListTimestamp: keyIndexListNode?.attrs?.ts ? +keyIndexListNode.attrs.ts : undefined,
+						keyIndexList: keyIndexListNode?.content ? Buffer.from(keyIndexListNode.content) : undefined
+					})
 				}
 				break
 			case 'business':
-				// SMB privacy / data-sharing settings sync push
-				// (WhatsApp Web: WASmaxInBizSettingsSyncPrivacySettingRequest)
 				if (child?.tag === 'privacy') {
+					// SMB privacy / data-sharing settings sync push
 					ev.emit('business.privacy-settings-sync', {
 						jid: from,
 						categories: (0, WABinary_1.getBinaryNodeChildren)(child, 'category').map(c => ({
@@ -1213,6 +1459,26 @@ const makeMessagesRecvSocket = config => {
 						})),
 						attrs: child.attrs
 					})
+				} else if (child?.tag === 'profile') {
+					// Business profile updated for a contact (tag = profile version hash)
+					ev.emit('contacts.update', [
+						{
+							id: (0, WABinary_1.jidNormalizedUser)(child.attrs.jid || from),
+							businessProfileTag: child.attrs.tag
+						}
+					])
+				} else if (child?.tag === 'verified_name') {
+					// Verified business name changed — content is a proto payload
+					ev.emit('contacts.update', [
+						{
+							id: (0, WABinary_1.jidNormalizedUser)(child.attrs.jid || from),
+							verifiedName: {
+								verifiedLevel: child.attrs.verified_level,
+								serial: child.attrs.serial,
+								version: child.attrs.v
+							}
+						}
+					])
 				}
 				break
 			case 'hosted':
@@ -1587,6 +1853,51 @@ const makeMessagesRecvSocket = config => {
 		if (Array.isArray(content)) {
 			const items = (0, WABinary_1.getBinaryNodeChildren)(content[0], 'item')
 			ids.push(...items.map(i => i.attrs.id))
+		}
+		// E. Media Retry Notification Receipt
+		// Server tells us a specific message's media should be re-fetched
+		if (attrs.type === 'media-retry') {
+			const mediaRetryNode =
+				(0, WABinary_1.getBinaryNodeChild)(node, 'media-retry') ||
+				(0, WABinary_1.getBinaryNodeChild)(node, 'media_retry')
+			ev.emit('messages.media-retry', {
+				ids,
+				from: attrs.from,
+				participant: attrs.participant,
+				t: attrs.t,
+				retryAttrs: mediaRetryNode?.attrs
+			})
+			await sendMessageAck(node).catch(ackErr => logger.error({ ackErr }, 'failed to ack media-retry receipt'))
+			return
+		}
+		// F. Server Error Receipt
+		// Server signals a delivery error for one or more messages
+		if (attrs.type === 'server-error') {
+			const errorNode = (0, WABinary_1.getBinaryNodeChild)(node, 'error')
+			ev.emit('messages.server-error', {
+				ids,
+				from: attrs.from,
+				participant: attrs.participant,
+				t: attrs.t,
+				errorCode: errorNode?.attrs?.code || attrs.error_code,
+				errorText: errorNode?.attrs?.text || errorNode?.content?.toString?.()
+			})
+			await sendMessageAck(node).catch(ackErr => logger.error({ ackErr }, 'failed to ack server-error receipt'))
+			return
+		}
+		// D. Receipt aggregation
+		// Server sent a batched-receipt (receipt_agg attr) — emit dedicated event AND fall through
+		// to the normal status-update pipeline so all IDs in the batch get their status updated.
+		if (attrs.receipt_agg) {
+			ev.emit('receipt.batched', {
+				ids,
+				from: attrs.from,
+				participant: attrs.participant,
+				type: attrs.type,
+				t: attrs.t,
+				receiptAgg: attrs.receipt_agg
+			})
+			// Do not return — let all IDs be processed by the normal receipt path below.
 		}
 		try {
 			await Promise.all([
@@ -2049,10 +2360,33 @@ const makeMessagesRecvSocket = config => {
 				}
 			}
 			if (status === 'offer') {
-				call.isVideo = !!(0, WABinary_1.getBinaryNodeChild)(infoChild, 'video')
+				const videoNode = (0, WABinary_1.getBinaryNodeChild)(infoChild, 'video')
+				const audioNode = (0, WABinary_1.getBinaryNodeChild)(infoChild, 'audio')
+				call.isVideo = !!videoNode
 				call.isGroup = infoChild.attrs.type === 'group' || !!infoChild.attrs['group-jid']
 				call.groupJid = infoChild.attrs['group-jid']
+				// Extract negotiated codecs from offer child nodes
+				if (audioNode?.attrs?.codec) call.audioCodec = audioNode.attrs.codec
+				if (videoNode?.attrs?.codec) call.videoCodec = videoNode.attrs.codec
+				// Decrypt Signal-encrypted callKey from <enc> child
+				const encNode = (0, WABinary_1.getBinaryNodeChild)(infoChild, 'enc')
+				if (encNode?.content) {
+					try {
+						const encType = encNode.attrs.type || 'msg'
+						const ciphertext = Buffer.isBuffer(encNode.content) ? encNode.content : Buffer.from(encNode.content)
+						const decrypted = await signalRepository.decryptMessage({ jid: attrs.from, type: encType, ciphertext })
+						const unpadded = (0, Utils_1.unpadRandomMax16)(decrypted)
+						const callMsg = index_js_1.proto.Message.decode(unpadded)
+						if (callMsg?.call?.callKey?.length) {
+							call.callKey = Buffer.from(callMsg.call.callKey)
+						}
+					} catch (e) {
+						logger.debug({ e }, 'failed to decrypt call enc')
+					}
+				}
 				await callOfferCache.set(call.id, call)
+			} else if (status === 'waiting_room_request') {
+				call.peerJid = infoChild.attrs.from || infoChild.attrs['peer-jid'] || infoChild.attrs['user-jid']
 			}
 			const existingCall = await callOfferCache.get(call.id)
 			// use existing call info to populate this event
@@ -2061,8 +2395,34 @@ const makeMessagesRecvSocket = config => {
 				call.isGroup = existingCall.isGroup
 				call.callerPn = call.callerPn || existingCall.callerPn
 			}
+			// Enrich event payload for signalling-only statuses
+			if (status === 'peer_state') {
+				const stateChild = (0, WABinary_1.getBinaryNodeChild)(infoChild, 'peer_state')
+				call.state = stateChild?.attrs?.state || infoChild.attrs?.state
+			} else if (status === 'group_info') {
+				call.payload = infoChild.attrs
+			} else if (status === 'video_state') {
+				const vsChild = (0, WABinary_1.getBinaryNodeChild)(infoChild, 'video_state')
+				const enabledRaw = vsChild?.attrs?.enabled ?? infoChild.attrs?.enabled
+				call.enabled = enabledRaw === 'true' || enabledRaw === '1'
+			} else if (status === 'enc_rekey') {
+				const rekeyChild =
+					(0, WABinary_1.getBinaryNodeChild)(infoChild, 'enc-rekey') ||
+					(0, WABinary_1.getBinaryNodeChild)(infoChild, 'enc_rekey')
+				if (rekeyChild?.content && Buffer.isBuffer(rekeyChild.content)) {
+					try {
+						call.rekeyPayload = (0, Utils_1.decodeE2eRekeyPayload)(rekeyChild.content)
+					} catch (e) {
+						logger.debug({ e }, 'failed to decode enc-rekey payload in handleCall')
+					}
+				}
+			}
 			// delete data once call has ended
-			if (status === 'reject' || status === 'accept' || status === 'timeout' || status === 'terminate') {
+			if (
+				status === 'reject' || status === 'accept' || status === 'timeout' || status === 'terminate' ||
+				status === 'reject_do_not_disturb' || status === 'mic_permission_denied' ||
+				status === 'camera_permission_denied' || status === 'remote_busy' || status === 'remote_offline'
+			) {
 				await callOfferCache.del(call.id)
 			}
 			await normalizeCallEventJids(call, infoChild)
@@ -2077,7 +2437,11 @@ const makeMessagesRecvSocket = config => {
 	// <mute_v2>, <transport>, … each with a call-id) instead of wrapped in <call>.
 	// This additively handles those: emit a 'call' event for state stanzas and ack ALL
 	// of them (otherwise WhatsApp keeps redelivering). The <call> path above is untouched.
-	const CALL_STATE_TAGS = new Set(['offer', 'offer_notice', 'terminate', 'accept', 'reject', 'preaccept'])
+	const CALL_STATE_TAGS = new Set([
+		'offer', 'offer_notice', 'terminate', 'accept', 'reject', 'preaccept', 'accept_ack',
+		'enc-rekey', 'enc_rekey', 'peer_state', 'group_info', 'video_state', 'video_state_ack', 'flow_control',
+		'mute_v2', 'waiting_room_request'
+	])
 	const handleStandaloneCallStanza = async node => {
 		try {
 			if (!CALL_STATE_TAGS.has(node.tag)) {
@@ -2097,9 +2461,14 @@ const makeMessagesRecvSocket = config => {
 				status
 			}
 			if (status === 'offer') {
-				call.isVideo = !!(0, WABinary_1.getBinaryNodeChild)(node, 'video')
+				const videoNode = (0, WABinary_1.getBinaryNodeChild)(node, 'video')
+				const audioNode = (0, WABinary_1.getBinaryNodeChild)(node, 'audio')
+				call.isVideo = !!videoNode
 				call.isGroup = attrs.type === 'group' || !!attrs['group-jid']
 				call.groupJid = attrs['group-jid']
+				// Extract negotiated codecs from offer child nodes
+				if (audioNode?.attrs?.codec) call.audioCodec = audioNode.attrs.codec
+				if (videoNode?.attrs?.codec) call.videoCodec = videoNode.attrs.codec
 				if (callId) {
 					await callOfferCache.set(callId, call)
 				}
@@ -2110,7 +2479,45 @@ const makeMessagesRecvSocket = config => {
 				call.isGroup = existingCall.isGroup
 				call.callerPn = call.callerPn || existingCall.callerPn
 			}
-			if (callId && (status === 'reject' || status === 'accept' || status === 'timeout' || status === 'terminate')) {
+			// Enrich event payload for signalling-only statuses
+			if (status === 'peer_state') {
+				const stateChild = (0, WABinary_1.getBinaryNodeChild)(node, 'peer_state')
+				call.state = stateChild?.attrs?.state || attrs?.state
+			} else if (status === 'group_info') {
+				call.payload = attrs
+			} else if (status === 'video_state') {
+				const vsChild = (0, WABinary_1.getBinaryNodeChild)(node, 'video_state')
+				const enabledRaw = vsChild?.attrs?.enabled ?? attrs?.enabled
+				call.enabled = enabledRaw === 'true' || enabledRaw === '1'
+			} else if (status === 'enc_rekey') {
+				const rekeyChild =
+					(0, WABinary_1.getBinaryNodeChild)(node, 'enc-rekey') ||
+					(0, WABinary_1.getBinaryNodeChild)(node, 'enc_rekey')
+				if (rekeyChild?.content && Buffer.isBuffer(rekeyChild.content)) {
+					try {
+						call.rekeyPayload = (0, Utils_1.decodeE2eRekeyPayload)(rekeyChild.content)
+					} catch (e) {
+						logger.debug({ e }, 'failed to decode enc-rekey payload in standalone call stanza')
+					}
+				}
+			} else if (status === 'mute') {
+				const muteChild = (0, WABinary_1.getBinaryNodeChild)(node, 'mute_v2')
+				const muteAttrs = muteChild?.attrs || node.attrs
+				const rawMuted = muteAttrs?.muted ?? muteAttrs?.audio_muted
+				call.muted = rawMuted === 'true' || rawMuted === '1' || rawMuted === true
+				const audioChild = muteChild
+					? (0, WABinary_1.getBinaryNodeChild)(muteChild, 'audio')
+					: (0, WABinary_1.getBinaryNodeChild)(node, 'audio')
+				if (audioChild?.attrs?.muted !== undefined) {
+					const am = audioChild.attrs.muted
+					call.muted = am === 'true' || am === '1' || am === true
+				}
+			}
+			if (callId && (
+				status === 'reject' || status === 'accept' || status === 'timeout' || status === 'terminate' ||
+				status === 'reject_do_not_disturb' || status === 'mic_permission_denied' ||
+				status === 'camera_permission_denied' || status === 'remote_busy' || status === 'remote_offline'
+			)) {
 				await callOfferCache.del(callId)
 			}
 			await normalizeCallEventJids(call, node)
@@ -2230,8 +2637,29 @@ const makeMessagesRecvSocket = config => {
 	})
 	// additive: top-level call-signalling stanzas (some accounts send these instead of <call>)
 	for (const callTag of [
-		'offer', 'offer_notice', 'terminate', 'accept', 'reject', 'preaccept',
-		'transport', 'video', 'duration', 'mute_v2', 'lobby', 'heartbeat', 'relaylatency', 'link_query'
+		'offer',
+		'offer_notice',
+		'terminate',
+		'accept',
+		'reject',
+		'preaccept',
+		'accept_ack',
+		'enc-rekey',
+		'enc_rekey',
+		'peer_state',
+		'group_info',
+		'video_state',
+		'video_state_ack',
+		'flow_control',
+		'transport',
+		'video',
+		'duration',
+		'mute_v2',
+		'lobby',
+		'heartbeat',
+		'relaylatency',
+		'link_query',
+		'waiting_room_request'
 	]) {
 		ws.on('CB:' + callTag, node => {
 			nodelogger(node)
@@ -2245,6 +2673,10 @@ const makeMessagesRecvSocket = config => {
 	ws.on('CB:notification', async node => {
 		nodelogger(node)
 		await processNode('notification', node, 'handling notification', handleNotification)
+	})
+	ws.on('CB:status', async node => {
+		nodelogger(node)
+		await handleNewsletterStatus(node).catch(error => onUnexpectedError(error, 'handling newsletter status'))
 	})
 	ws.on('CB:ack,class:message', node => {
 		nodelogger(node)

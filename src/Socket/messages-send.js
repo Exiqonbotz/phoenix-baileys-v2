@@ -48,6 +48,28 @@ const makeMessagesSocket = config => {
 		trustInteropContact
 	} = sock
 	const getLIDForPN = signalRepository.lidMapping.getLIDForPN.bind(signalRepository.lidMapping)
+	// Resolve all participant JIDs across the given group JIDs for status targeting.
+	// includeMe = false skips the bot's own JID (avoids self-send loops).
+	const resolveStatusAudience = async (groupJids, includeMe = false) => {
+		const myJid = authState.creds.me?.id
+		const seen = new Set()
+		const allUsers = []
+		for (const gjid of groupJids) {
+			let meta
+			try {
+				meta = cachedGroupMetadata ? await cachedGroupMetadata(gjid) : null
+				if (!meta) meta = await groupMetadata(gjid)
+			} catch { continue }
+			for (const p of meta?.participants || []) {
+				const id = p.id
+				if (!id || seen.has(id)) continue
+				if (!includeMe && id === myJid) continue
+				seen.add(id)
+				allUsers.push(id)
+			}
+		}
+		return { allUsers }
+	}
 	/**
 	 * Set of tctoken storage JIDs with a fire-and-forget issuePrivacyTokens IQ in flight.
 	 * Prevents duplicate IQs from rapid back-to-back sends before senderTimestamp persists.
@@ -508,6 +530,7 @@ const makeMessagesSocket = config => {
 			useUserDevicesCache,
 			useCachedGroupMetadata,
 			statusJidList,
+			statusPrivacy,
 			AI = false
 		}
 	) => {
@@ -994,6 +1017,14 @@ const makeMessagesSocket = config => {
 				stanza.content.push({
 					tag: 'multicast',
 					attrs: {}
+				})
+			}
+
+			// Status audience privacy: add <meta status_setting="..."> for all non-revoke sends
+			if (isStatus && statusPrivacy && !additionalAttributes?.edit) {
+				stanza.content.push({
+					tag: 'meta',
+					attrs: { status_setting: statusPrivacy, session_scope: 'status' }
 				})
 			}
 
@@ -1564,6 +1595,7 @@ const makeMessagesSocket = config => {
 								mediaHandle = up.handle
 								return up
 							},
+							mediaAbProps: authState.creds.mediaAbProps,
 							...options
 						}
 					)
@@ -1585,6 +1617,7 @@ const makeMessagesSocket = config => {
 								mediaHandle = up.handle
 								return up
 							},
+							mediaAbProps: authState.creds.mediaAbProps,
 							...options
 						}
 					)
@@ -1801,7 +1834,7 @@ const makeMessagesSocket = config => {
 								title: product.title || '',
 								description: product.description || '',
 								currencyCode: product.currencyCode || 'USD',
-								priceAmount1000: parseInt(product.priceAmount1000) || 0,
+								priceAmount1000: parseInt(product.priceAmount1000, 10) || 0,
 								retailerId: product.retailerId || '',
 								url: product.url || '',
 								productImageCount: product.productImageCount || 1
@@ -1946,6 +1979,8 @@ const makeMessagesSocket = config => {
 					mediaCache: config.mediaCache,
 					options: config.options,
 					messageId: (0, Utils_1.generateMessageIDV2)(sock.user?.id),
+					// Pass persisted media AB props so feature-flagged upload/download paths work.
+					mediaAbProps: authState.creds.mediaAbProps,
 					...options
 				})
 				if (!mediaHandle) {
@@ -2011,6 +2046,7 @@ const makeMessagesSocket = config => {
 					useCachedGroupMetadata: options.useCachedGroupMetadata,
 					additionalAttributes,
 					statusJidList: options.statusJidList,
+					statusPrivacy: options.statusPrivacy,
 					additionalNodes,
 					AI: options.ai || false
 				})

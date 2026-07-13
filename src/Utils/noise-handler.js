@@ -4,7 +4,7 @@ exports.makeNoiseHandler = void 0
 const boom_1 = require('@hapi/boom')
 const index_js_1 = require('../../WAProto/index.js')
 const Defaults_1 = require('../Defaults')
-const rb = require('whatsapp-rust-bridge')
+const rb = require('whatsapp-rust-bridge-baron')
 
 // rustNodeToJs mirrors the one in decode.js — converts InternalBinaryNode to plain JS object
 const rustNodeToJs = node => {
@@ -85,7 +85,7 @@ const makeNoiseHandler = ({
 				} else {
 					try {
 						frame = rustNodeToJs(item.toJSON())
-					} catch (e) {
+					} catch {
 						continue
 					}
 				}
@@ -140,13 +140,20 @@ const makeNoiseHandler = ({
 				throw new boom_1.Boom('certification match failed', { statusCode: 400 })
 			}
 
+			// Extract server static key from leaf cert — used to cache for NoiseIkSession (fast reconnect)
+			let serverStaticPub
+			try {
+				const leafDetails = index_js_1.proto.CertChain.NoiseCertificate.Details.decode(leaf.details)
+				if (leafDetails.key?.length === 32) serverStaticPub = Buffer.from(leafDetails.key)
+			} catch {}
+
 			// Encrypt our static key and do final ECDH
 			const keyEnc = session.processHandshakeFinish(
 				noiseKey.public instanceof Uint8Array ? noiseKey.public : new Uint8Array(noiseKey.public),
 				noiseKey.private instanceof Uint8Array ? noiseKey.private : new Uint8Array(noiseKey.private),
 				serverHello.ephemeral
 			)
-			return Buffer.from(keyEnc)
+			return { keyEnc: Buffer.from(keyEnc), serverStaticPub }
 		},
 		encodeFrame: data => {
 			const u8 = data instanceof Uint8Array ? data : new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
@@ -154,14 +161,13 @@ const makeNoiseHandler = ({
 		},
 		decodeFrame: async (newData, onFrame) => {
 			if (isWaitingForTransport) {
-				pendingBytes = pendingBytes
-					? Buffer.concat([pendingBytes, Buffer.from(newData)])
-					: Buffer.from(newData)
+				pendingBytes = pendingBytes ? Buffer.concat([pendingBytes, Buffer.from(newData)]) : Buffer.from(newData)
 				pendingOnFrame = onFrame
 				return
 			}
 
-			const u8 = newData instanceof Uint8Array ? newData : new Uint8Array(newData.buffer, newData.byteOffset, newData.byteLength)
+			const u8 =
+				newData instanceof Uint8Array ? newData : new Uint8Array(newData.buffer, newData.byteOffset, newData.byteLength)
 			const frames = session.decodeFrame(u8)
 
 			for (let i = 0; i < frames.length; i++) {

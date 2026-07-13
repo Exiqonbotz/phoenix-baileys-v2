@@ -66482,6 +66482,1251 @@ $root.proto = (function() {
         return Conversation;
     })();
 
+    proto.CreateBackupInput = (function() {
+
+        /**
+         * Properties of a CreateBackupInput.
+         * @memberof proto
+         * @interface ICreateBackupInput
+         * @property {string|null} [recoveryCode] CreateBackupInput recoveryCode
+         * @property {number|Long|null} [userId] CreateBackupInput userId
+         */
+
+        /**
+         * Constructs a new CreateBackupInput.
+         * @memberof proto
+         * @classdesc Represents a CreateBackupInput.
+         * @implements ICreateBackupInput
+         * @constructor
+         * @param {proto.ICreateBackupInput=} [properties] Properties to set
+         */
+        function CreateBackupInput(properties) {
+            if (properties)
+                for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * CreateBackupInput recoveryCode.
+         * @member {string|null|undefined} recoveryCode
+         * @memberof proto.CreateBackupInput
+         * @instance
+         */
+        CreateBackupInput.prototype.recoveryCode = null;
+
+        /**
+         * CreateBackupInput userId.
+         * @member {number|Long|null|undefined} userId
+         * @memberof proto.CreateBackupInput
+         * @instance
+         */
+        CreateBackupInput.prototype.userId = null;
+
+        // OneOf field names bound to virtual getters and setters
+        var $oneOfFields;
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(CreateBackupInput.prototype, "_recoveryCode", {
+            get: $util.oneOfGetter($oneOfFields = ["recoveryCode"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(CreateBackupInput.prototype, "_userId", {
+            get: $util.oneOfGetter($oneOfFields = ["userId"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        /**
+         * Creates a new CreateBackupInput instance using the specified properties.
+         * @function create
+         * @memberof proto.CreateBackupInput
+         * @static
+         * @param {proto.ICreateBackupInput=} [properties] Properties to set
+         * @returns {proto.CreateBackupInput} CreateBackupInput instance
+         */
+        CreateBackupInput.create = function create(properties) {
+            return new CreateBackupInput(properties);
+        };
+
+        /**
+         * Encodes the specified CreateBackupInput message. Does not implicitly {@link proto.CreateBackupInput.verify|verify} messages.
+         * @function encode
+         * @memberof proto.CreateBackupInput
+         * @static
+         * @param {proto.ICreateBackupInput} message CreateBackupInput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        CreateBackupInput.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.recoveryCode != null && Object.hasOwnProperty.call(message, "recoveryCode"))
+                writer.uint32(/* id 1, wireType 2 =*/10).string(message.recoveryCode);
+            if (message.userId != null && Object.hasOwnProperty.call(message, "userId"))
+                writer.uint32(/* id 2, wireType 0 =*/16).uint64(message.userId);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified CreateBackupInput message, length delimited. Does not implicitly {@link proto.CreateBackupInput.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.CreateBackupInput
+         * @static
+         * @param {proto.ICreateBackupInput} message CreateBackupInput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        CreateBackupInput.encodeDelimited = function encodeDelimited(message, writer) {
+            return this.encode(message, writer).ldelim();
+        };
+
+        /**
+         * Decodes a CreateBackupInput message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.CreateBackupInput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.CreateBackupInput} CreateBackupInput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        CreateBackupInput.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.CreateBackupInput();
+            while (reader.pos < end) {
+                var tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.recoveryCode = reader.string();
+                        break;
+                    }
+                case 2: {
+                        message.userId = reader.uint64();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Decodes a CreateBackupInput message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.CreateBackupInput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.CreateBackupInput} CreateBackupInput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        CreateBackupInput.decodeDelimited = function decodeDelimited(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a CreateBackupInput message.
+         * @function verify
+         * @memberof proto.CreateBackupInput
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        CreateBackupInput.verify = function verify(message) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            var properties = {};
+            if (message.recoveryCode != null && message.hasOwnProperty("recoveryCode")) {
+                properties._recoveryCode = 1;
+                if (!$util.isString(message.recoveryCode))
+                    return "recoveryCode: string expected";
+            }
+            if (message.userId != null && message.hasOwnProperty("userId")) {
+                properties._userId = 1;
+                if (!$util.isInteger(message.userId) && !(message.userId && $util.isInteger(message.userId.low) && $util.isInteger(message.userId.high)))
+                    return "userId: integer|Long expected";
+            }
+            return null;
+        };
+
+        /**
+         * Creates a CreateBackupInput message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.CreateBackupInput
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.CreateBackupInput} CreateBackupInput
+         */
+        CreateBackupInput.fromObject = function fromObject(object) {
+            if (object instanceof $root.proto.CreateBackupInput)
+                return object;
+            var message = new $root.proto.CreateBackupInput();
+            if (object.recoveryCode != null)
+                message.recoveryCode = String(object.recoveryCode);
+            if (object.userId != null)
+                if ($util.Long)
+                    (message.userId = $util.Long.fromValue(object.userId)).unsigned = true;
+                else if (typeof object.userId === "string")
+                    message.userId = parseInt(object.userId, 10);
+                else if (typeof object.userId === "number")
+                    message.userId = object.userId;
+                else if (typeof object.userId === "object")
+                    message.userId = new $util.LongBits(object.userId.low >>> 0, object.userId.high >>> 0).toNumber(true);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a CreateBackupInput message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.CreateBackupInput
+         * @static
+         * @param {proto.CreateBackupInput} message CreateBackupInput
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        CreateBackupInput.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            var object = {};
+            if (message.recoveryCode != null && message.hasOwnProperty("recoveryCode")) {
+                object.recoveryCode = message.recoveryCode;
+                if (options.oneofs)
+                    object._recoveryCode = "recoveryCode";
+            }
+            if (message.userId != null && message.hasOwnProperty("userId")) {
+                if (typeof message.userId === "number")
+                    object.userId = options.longs === String ? String(message.userId) : message.userId;
+                else
+                    object.userId = options.longs === String ? $util.Long.prototype.toString.call(message.userId) : options.longs === Number ? new $util.LongBits(message.userId.low >>> 0, message.userId.high >>> 0).toNumber(true) : message.userId;
+                if (options.oneofs)
+                    object._userId = "userId";
+            }
+            return object;
+        };
+
+        /**
+         * Converts this CreateBackupInput to JSON.
+         * @function toJSON
+         * @memberof proto.CreateBackupInput
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        CreateBackupInput.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for CreateBackupInput
+         * @function getTypeUrl
+         * @memberof proto.CreateBackupInput
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        CreateBackupInput.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/proto.CreateBackupInput";
+        };
+
+        return CreateBackupInput;
+    })();
+
+    proto.CreateBackupOutput = (function() {
+
+        /**
+         * Properties of a CreateBackupOutput.
+         * @memberof proto
+         * @interface ICreateBackupOutput
+         * @property {proto.IDeviceOutput|null} [device] CreateBackupOutput device
+         * @property {proto.IVirtualDeviceOutput|null} [virtualDevice] CreateBackupOutput virtualDevice
+         * @property {proto.IEpoch0Output|null} [epoch0] CreateBackupOutput epoch0
+         * @property {Uint8Array|null} [mailboxRootKey] CreateBackupOutput mailboxRootKey
+         * @property {string|null} [error] CreateBackupOutput error
+         */
+
+        /**
+         * Constructs a new CreateBackupOutput.
+         * @memberof proto
+         * @classdesc Represents a CreateBackupOutput.
+         * @implements ICreateBackupOutput
+         * @constructor
+         * @param {proto.ICreateBackupOutput=} [properties] Properties to set
+         */
+        function CreateBackupOutput(properties) {
+            if (properties)
+                for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * CreateBackupOutput device.
+         * @member {proto.IDeviceOutput|null|undefined} device
+         * @memberof proto.CreateBackupOutput
+         * @instance
+         */
+        CreateBackupOutput.prototype.device = null;
+
+        /**
+         * CreateBackupOutput virtualDevice.
+         * @member {proto.IVirtualDeviceOutput|null|undefined} virtualDevice
+         * @memberof proto.CreateBackupOutput
+         * @instance
+         */
+        CreateBackupOutput.prototype.virtualDevice = null;
+
+        /**
+         * CreateBackupOutput epoch0.
+         * @member {proto.IEpoch0Output|null|undefined} epoch0
+         * @memberof proto.CreateBackupOutput
+         * @instance
+         */
+        CreateBackupOutput.prototype.epoch0 = null;
+
+        /**
+         * CreateBackupOutput mailboxRootKey.
+         * @member {Uint8Array|null|undefined} mailboxRootKey
+         * @memberof proto.CreateBackupOutput
+         * @instance
+         */
+        CreateBackupOutput.prototype.mailboxRootKey = null;
+
+        /**
+         * CreateBackupOutput error.
+         * @member {string|null|undefined} error
+         * @memberof proto.CreateBackupOutput
+         * @instance
+         */
+        CreateBackupOutput.prototype.error = null;
+
+        // OneOf field names bound to virtual getters and setters
+        var $oneOfFields;
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(CreateBackupOutput.prototype, "_device", {
+            get: $util.oneOfGetter($oneOfFields = ["device"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(CreateBackupOutput.prototype, "_virtualDevice", {
+            get: $util.oneOfGetter($oneOfFields = ["virtualDevice"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(CreateBackupOutput.prototype, "_epoch0", {
+            get: $util.oneOfGetter($oneOfFields = ["epoch0"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(CreateBackupOutput.prototype, "_mailboxRootKey", {
+            get: $util.oneOfGetter($oneOfFields = ["mailboxRootKey"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(CreateBackupOutput.prototype, "_error", {
+            get: $util.oneOfGetter($oneOfFields = ["error"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        /**
+         * Creates a new CreateBackupOutput instance using the specified properties.
+         * @function create
+         * @memberof proto.CreateBackupOutput
+         * @static
+         * @param {proto.ICreateBackupOutput=} [properties] Properties to set
+         * @returns {proto.CreateBackupOutput} CreateBackupOutput instance
+         */
+        CreateBackupOutput.create = function create(properties) {
+            return new CreateBackupOutput(properties);
+        };
+
+        /**
+         * Encodes the specified CreateBackupOutput message. Does not implicitly {@link proto.CreateBackupOutput.verify|verify} messages.
+         * @function encode
+         * @memberof proto.CreateBackupOutput
+         * @static
+         * @param {proto.ICreateBackupOutput} message CreateBackupOutput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        CreateBackupOutput.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.device != null && Object.hasOwnProperty.call(message, "device"))
+                $root.proto.DeviceOutput.encode(message.device, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+            if (message.virtualDevice != null && Object.hasOwnProperty.call(message, "virtualDevice"))
+                $root.proto.VirtualDeviceOutput.encode(message.virtualDevice, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
+            if (message.epoch0 != null && Object.hasOwnProperty.call(message, "epoch0"))
+                $root.proto.Epoch0Output.encode(message.epoch0, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+            if (message.mailboxRootKey != null && Object.hasOwnProperty.call(message, "mailboxRootKey"))
+                writer.uint32(/* id 4, wireType 2 =*/34).bytes(message.mailboxRootKey);
+            if (message.error != null && Object.hasOwnProperty.call(message, "error"))
+                writer.uint32(/* id 5, wireType 2 =*/42).string(message.error);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified CreateBackupOutput message, length delimited. Does not implicitly {@link proto.CreateBackupOutput.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.CreateBackupOutput
+         * @static
+         * @param {proto.ICreateBackupOutput} message CreateBackupOutput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        CreateBackupOutput.encodeDelimited = function encodeDelimited(message, writer) {
+            return this.encode(message, writer).ldelim();
+        };
+
+        /**
+         * Decodes a CreateBackupOutput message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.CreateBackupOutput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.CreateBackupOutput} CreateBackupOutput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        CreateBackupOutput.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.CreateBackupOutput();
+            while (reader.pos < end) {
+                var tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.device = $root.proto.DeviceOutput.decode(reader, reader.uint32());
+                        break;
+                    }
+                case 2: {
+                        message.virtualDevice = $root.proto.VirtualDeviceOutput.decode(reader, reader.uint32());
+                        break;
+                    }
+                case 3: {
+                        message.epoch0 = $root.proto.Epoch0Output.decode(reader, reader.uint32());
+                        break;
+                    }
+                case 4: {
+                        message.mailboxRootKey = reader.bytes();
+                        break;
+                    }
+                case 5: {
+                        message.error = reader.string();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Decodes a CreateBackupOutput message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.CreateBackupOutput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.CreateBackupOutput} CreateBackupOutput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        CreateBackupOutput.decodeDelimited = function decodeDelimited(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a CreateBackupOutput message.
+         * @function verify
+         * @memberof proto.CreateBackupOutput
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        CreateBackupOutput.verify = function verify(message) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            var properties = {};
+            if (message.device != null && message.hasOwnProperty("device")) {
+                properties._device = 1;
+                {
+                    var error = $root.proto.DeviceOutput.verify(message.device);
+                    if (error)
+                        return "device." + error;
+                }
+            }
+            if (message.virtualDevice != null && message.hasOwnProperty("virtualDevice")) {
+                properties._virtualDevice = 1;
+                {
+                    var error = $root.proto.VirtualDeviceOutput.verify(message.virtualDevice);
+                    if (error)
+                        return "virtualDevice." + error;
+                }
+            }
+            if (message.epoch0 != null && message.hasOwnProperty("epoch0")) {
+                properties._epoch0 = 1;
+                {
+                    var error = $root.proto.Epoch0Output.verify(message.epoch0);
+                    if (error)
+                        return "epoch0." + error;
+                }
+            }
+            if (message.mailboxRootKey != null && message.hasOwnProperty("mailboxRootKey")) {
+                properties._mailboxRootKey = 1;
+                if (!(message.mailboxRootKey && typeof message.mailboxRootKey.length === "number" || $util.isString(message.mailboxRootKey)))
+                    return "mailboxRootKey: buffer expected";
+            }
+            if (message.error != null && message.hasOwnProperty("error")) {
+                properties._error = 1;
+                if (!$util.isString(message.error))
+                    return "error: string expected";
+            }
+            return null;
+        };
+
+        /**
+         * Creates a CreateBackupOutput message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.CreateBackupOutput
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.CreateBackupOutput} CreateBackupOutput
+         */
+        CreateBackupOutput.fromObject = function fromObject(object) {
+            if (object instanceof $root.proto.CreateBackupOutput)
+                return object;
+            var message = new $root.proto.CreateBackupOutput();
+            if (object.device != null) {
+                if (typeof object.device !== "object")
+                    throw TypeError(".proto.CreateBackupOutput.device: object expected");
+                message.device = $root.proto.DeviceOutput.fromObject(object.device);
+            }
+            if (object.virtualDevice != null) {
+                if (typeof object.virtualDevice !== "object")
+                    throw TypeError(".proto.CreateBackupOutput.virtualDevice: object expected");
+                message.virtualDevice = $root.proto.VirtualDeviceOutput.fromObject(object.virtualDevice);
+            }
+            if (object.epoch0 != null) {
+                if (typeof object.epoch0 !== "object")
+                    throw TypeError(".proto.CreateBackupOutput.epoch0: object expected");
+                message.epoch0 = $root.proto.Epoch0Output.fromObject(object.epoch0);
+            }
+            if (object.mailboxRootKey != null)
+                if (typeof object.mailboxRootKey === "string")
+                    $util.base64.decode(object.mailboxRootKey, message.mailboxRootKey = $util.newBuffer($util.base64.length(object.mailboxRootKey)), 0);
+                else if (object.mailboxRootKey.length >= 0)
+                    message.mailboxRootKey = object.mailboxRootKey;
+            if (object.error != null)
+                message.error = String(object.error);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a CreateBackupOutput message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.CreateBackupOutput
+         * @static
+         * @param {proto.CreateBackupOutput} message CreateBackupOutput
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        CreateBackupOutput.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            var object = {};
+            if (message.device != null && message.hasOwnProperty("device")) {
+                object.device = $root.proto.DeviceOutput.toObject(message.device, options);
+                if (options.oneofs)
+                    object._device = "device";
+            }
+            if (message.virtualDevice != null && message.hasOwnProperty("virtualDevice")) {
+                object.virtualDevice = $root.proto.VirtualDeviceOutput.toObject(message.virtualDevice, options);
+                if (options.oneofs)
+                    object._virtualDevice = "virtualDevice";
+            }
+            if (message.epoch0 != null && message.hasOwnProperty("epoch0")) {
+                object.epoch0 = $root.proto.Epoch0Output.toObject(message.epoch0, options);
+                if (options.oneofs)
+                    object._epoch0 = "epoch0";
+            }
+            if (message.mailboxRootKey != null && message.hasOwnProperty("mailboxRootKey")) {
+                object.mailboxRootKey = options.bytes === String ? $util.base64.encode(message.mailboxRootKey, 0, message.mailboxRootKey.length) : options.bytes === Array ? Array.prototype.slice.call(message.mailboxRootKey) : message.mailboxRootKey;
+                if (options.oneofs)
+                    object._mailboxRootKey = "mailboxRootKey";
+            }
+            if (message.error != null && message.hasOwnProperty("error")) {
+                object.error = message.error;
+                if (options.oneofs)
+                    object._error = "error";
+            }
+            return object;
+        };
+
+        /**
+         * Converts this CreateBackupOutput to JSON.
+         * @function toJSON
+         * @memberof proto.CreateBackupOutput
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        CreateBackupOutput.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for CreateBackupOutput
+         * @function getTypeUrl
+         * @memberof proto.CreateBackupOutput
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        CreateBackupOutput.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/proto.CreateBackupOutput";
+        };
+
+        return CreateBackupOutput;
+    })();
+
+    proto.DecryptMessageInput = (function() {
+
+        /**
+         * Properties of a DecryptMessageInput.
+         * @memberof proto
+         * @interface IDecryptMessageInput
+         * @property {Uint8Array|null} [epochRootKey] DecryptMessageInput epochRootKey
+         * @property {Uint8Array|null} [epochAnonId] DecryptMessageInput epochAnonId
+         * @property {string|null} [threadId] DecryptMessageInput threadId
+         * @property {number|null} [encryptionVersion] DecryptMessageInput encryptionVersion
+         * @property {Uint8Array|null} [ciphertext] DecryptMessageInput ciphertext
+         */
+
+        /**
+         * Constructs a new DecryptMessageInput.
+         * @memberof proto
+         * @classdesc Represents a DecryptMessageInput.
+         * @implements IDecryptMessageInput
+         * @constructor
+         * @param {proto.IDecryptMessageInput=} [properties] Properties to set
+         */
+        function DecryptMessageInput(properties) {
+            if (properties)
+                for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * DecryptMessageInput epochRootKey.
+         * @member {Uint8Array|null|undefined} epochRootKey
+         * @memberof proto.DecryptMessageInput
+         * @instance
+         */
+        DecryptMessageInput.prototype.epochRootKey = null;
+
+        /**
+         * DecryptMessageInput epochAnonId.
+         * @member {Uint8Array|null|undefined} epochAnonId
+         * @memberof proto.DecryptMessageInput
+         * @instance
+         */
+        DecryptMessageInput.prototype.epochAnonId = null;
+
+        /**
+         * DecryptMessageInput threadId.
+         * @member {string|null|undefined} threadId
+         * @memberof proto.DecryptMessageInput
+         * @instance
+         */
+        DecryptMessageInput.prototype.threadId = null;
+
+        /**
+         * DecryptMessageInput encryptionVersion.
+         * @member {number|null|undefined} encryptionVersion
+         * @memberof proto.DecryptMessageInput
+         * @instance
+         */
+        DecryptMessageInput.prototype.encryptionVersion = null;
+
+        /**
+         * DecryptMessageInput ciphertext.
+         * @member {Uint8Array|null|undefined} ciphertext
+         * @memberof proto.DecryptMessageInput
+         * @instance
+         */
+        DecryptMessageInput.prototype.ciphertext = null;
+
+        // OneOf field names bound to virtual getters and setters
+        var $oneOfFields;
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(DecryptMessageInput.prototype, "_epochRootKey", {
+            get: $util.oneOfGetter($oneOfFields = ["epochRootKey"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(DecryptMessageInput.prototype, "_epochAnonId", {
+            get: $util.oneOfGetter($oneOfFields = ["epochAnonId"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(DecryptMessageInput.prototype, "_threadId", {
+            get: $util.oneOfGetter($oneOfFields = ["threadId"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(DecryptMessageInput.prototype, "_encryptionVersion", {
+            get: $util.oneOfGetter($oneOfFields = ["encryptionVersion"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(DecryptMessageInput.prototype, "_ciphertext", {
+            get: $util.oneOfGetter($oneOfFields = ["ciphertext"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        /**
+         * Creates a new DecryptMessageInput instance using the specified properties.
+         * @function create
+         * @memberof proto.DecryptMessageInput
+         * @static
+         * @param {proto.IDecryptMessageInput=} [properties] Properties to set
+         * @returns {proto.DecryptMessageInput} DecryptMessageInput instance
+         */
+        DecryptMessageInput.create = function create(properties) {
+            return new DecryptMessageInput(properties);
+        };
+
+        /**
+         * Encodes the specified DecryptMessageInput message. Does not implicitly {@link proto.DecryptMessageInput.verify|verify} messages.
+         * @function encode
+         * @memberof proto.DecryptMessageInput
+         * @static
+         * @param {proto.IDecryptMessageInput} message DecryptMessageInput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        DecryptMessageInput.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.epochRootKey != null && Object.hasOwnProperty.call(message, "epochRootKey"))
+                writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.epochRootKey);
+            if (message.epochAnonId != null && Object.hasOwnProperty.call(message, "epochAnonId"))
+                writer.uint32(/* id 2, wireType 2 =*/18).bytes(message.epochAnonId);
+            if (message.threadId != null && Object.hasOwnProperty.call(message, "threadId"))
+                writer.uint32(/* id 3, wireType 2 =*/26).string(message.threadId);
+            if (message.encryptionVersion != null && Object.hasOwnProperty.call(message, "encryptionVersion"))
+                writer.uint32(/* id 4, wireType 0 =*/32).int32(message.encryptionVersion);
+            if (message.ciphertext != null && Object.hasOwnProperty.call(message, "ciphertext"))
+                writer.uint32(/* id 5, wireType 2 =*/42).bytes(message.ciphertext);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified DecryptMessageInput message, length delimited. Does not implicitly {@link proto.DecryptMessageInput.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.DecryptMessageInput
+         * @static
+         * @param {proto.IDecryptMessageInput} message DecryptMessageInput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        DecryptMessageInput.encodeDelimited = function encodeDelimited(message, writer) {
+            return this.encode(message, writer).ldelim();
+        };
+
+        /**
+         * Decodes a DecryptMessageInput message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.DecryptMessageInput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.DecryptMessageInput} DecryptMessageInput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        DecryptMessageInput.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.DecryptMessageInput();
+            while (reader.pos < end) {
+                var tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.epochRootKey = reader.bytes();
+                        break;
+                    }
+                case 2: {
+                        message.epochAnonId = reader.bytes();
+                        break;
+                    }
+                case 3: {
+                        message.threadId = reader.string();
+                        break;
+                    }
+                case 4: {
+                        message.encryptionVersion = reader.int32();
+                        break;
+                    }
+                case 5: {
+                        message.ciphertext = reader.bytes();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Decodes a DecryptMessageInput message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.DecryptMessageInput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.DecryptMessageInput} DecryptMessageInput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        DecryptMessageInput.decodeDelimited = function decodeDelimited(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a DecryptMessageInput message.
+         * @function verify
+         * @memberof proto.DecryptMessageInput
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        DecryptMessageInput.verify = function verify(message) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            var properties = {};
+            if (message.epochRootKey != null && message.hasOwnProperty("epochRootKey")) {
+                properties._epochRootKey = 1;
+                if (!(message.epochRootKey && typeof message.epochRootKey.length === "number" || $util.isString(message.epochRootKey)))
+                    return "epochRootKey: buffer expected";
+            }
+            if (message.epochAnonId != null && message.hasOwnProperty("epochAnonId")) {
+                properties._epochAnonId = 1;
+                if (!(message.epochAnonId && typeof message.epochAnonId.length === "number" || $util.isString(message.epochAnonId)))
+                    return "epochAnonId: buffer expected";
+            }
+            if (message.threadId != null && message.hasOwnProperty("threadId")) {
+                properties._threadId = 1;
+                if (!$util.isString(message.threadId))
+                    return "threadId: string expected";
+            }
+            if (message.encryptionVersion != null && message.hasOwnProperty("encryptionVersion")) {
+                properties._encryptionVersion = 1;
+                if (!$util.isInteger(message.encryptionVersion))
+                    return "encryptionVersion: integer expected";
+            }
+            if (message.ciphertext != null && message.hasOwnProperty("ciphertext")) {
+                properties._ciphertext = 1;
+                if (!(message.ciphertext && typeof message.ciphertext.length === "number" || $util.isString(message.ciphertext)))
+                    return "ciphertext: buffer expected";
+            }
+            return null;
+        };
+
+        /**
+         * Creates a DecryptMessageInput message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.DecryptMessageInput
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.DecryptMessageInput} DecryptMessageInput
+         */
+        DecryptMessageInput.fromObject = function fromObject(object) {
+            if (object instanceof $root.proto.DecryptMessageInput)
+                return object;
+            var message = new $root.proto.DecryptMessageInput();
+            if (object.epochRootKey != null)
+                if (typeof object.epochRootKey === "string")
+                    $util.base64.decode(object.epochRootKey, message.epochRootKey = $util.newBuffer($util.base64.length(object.epochRootKey)), 0);
+                else if (object.epochRootKey.length >= 0)
+                    message.epochRootKey = object.epochRootKey;
+            if (object.epochAnonId != null)
+                if (typeof object.epochAnonId === "string")
+                    $util.base64.decode(object.epochAnonId, message.epochAnonId = $util.newBuffer($util.base64.length(object.epochAnonId)), 0);
+                else if (object.epochAnonId.length >= 0)
+                    message.epochAnonId = object.epochAnonId;
+            if (object.threadId != null)
+                message.threadId = String(object.threadId);
+            if (object.encryptionVersion != null)
+                message.encryptionVersion = object.encryptionVersion | 0;
+            if (object.ciphertext != null)
+                if (typeof object.ciphertext === "string")
+                    $util.base64.decode(object.ciphertext, message.ciphertext = $util.newBuffer($util.base64.length(object.ciphertext)), 0);
+                else if (object.ciphertext.length >= 0)
+                    message.ciphertext = object.ciphertext;
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a DecryptMessageInput message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.DecryptMessageInput
+         * @static
+         * @param {proto.DecryptMessageInput} message DecryptMessageInput
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        DecryptMessageInput.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            var object = {};
+            if (message.epochRootKey != null && message.hasOwnProperty("epochRootKey")) {
+                object.epochRootKey = options.bytes === String ? $util.base64.encode(message.epochRootKey, 0, message.epochRootKey.length) : options.bytes === Array ? Array.prototype.slice.call(message.epochRootKey) : message.epochRootKey;
+                if (options.oneofs)
+                    object._epochRootKey = "epochRootKey";
+            }
+            if (message.epochAnonId != null && message.hasOwnProperty("epochAnonId")) {
+                object.epochAnonId = options.bytes === String ? $util.base64.encode(message.epochAnonId, 0, message.epochAnonId.length) : options.bytes === Array ? Array.prototype.slice.call(message.epochAnonId) : message.epochAnonId;
+                if (options.oneofs)
+                    object._epochAnonId = "epochAnonId";
+            }
+            if (message.threadId != null && message.hasOwnProperty("threadId")) {
+                object.threadId = message.threadId;
+                if (options.oneofs)
+                    object._threadId = "threadId";
+            }
+            if (message.encryptionVersion != null && message.hasOwnProperty("encryptionVersion")) {
+                object.encryptionVersion = message.encryptionVersion;
+                if (options.oneofs)
+                    object._encryptionVersion = "encryptionVersion";
+            }
+            if (message.ciphertext != null && message.hasOwnProperty("ciphertext")) {
+                object.ciphertext = options.bytes === String ? $util.base64.encode(message.ciphertext, 0, message.ciphertext.length) : options.bytes === Array ? Array.prototype.slice.call(message.ciphertext) : message.ciphertext;
+                if (options.oneofs)
+                    object._ciphertext = "ciphertext";
+            }
+            return object;
+        };
+
+        /**
+         * Converts this DecryptMessageInput to JSON.
+         * @function toJSON
+         * @memberof proto.DecryptMessageInput
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        DecryptMessageInput.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for DecryptMessageInput
+         * @function getTypeUrl
+         * @memberof proto.DecryptMessageInput
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        DecryptMessageInput.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/proto.DecryptMessageInput";
+        };
+
+        return DecryptMessageInput;
+    })();
+
+    proto.DecryptMessageOutput = (function() {
+
+        /**
+         * Properties of a DecryptMessageOutput.
+         * @memberof proto
+         * @interface IDecryptMessageOutput
+         * @property {Uint8Array|null} [plaintextPayload] DecryptMessageOutput plaintextPayload
+         * @property {string|null} [error] DecryptMessageOutput error
+         */
+
+        /**
+         * Constructs a new DecryptMessageOutput.
+         * @memberof proto
+         * @classdesc Represents a DecryptMessageOutput.
+         * @implements IDecryptMessageOutput
+         * @constructor
+         * @param {proto.IDecryptMessageOutput=} [properties] Properties to set
+         */
+        function DecryptMessageOutput(properties) {
+            if (properties)
+                for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * DecryptMessageOutput plaintextPayload.
+         * @member {Uint8Array|null|undefined} plaintextPayload
+         * @memberof proto.DecryptMessageOutput
+         * @instance
+         */
+        DecryptMessageOutput.prototype.plaintextPayload = null;
+
+        /**
+         * DecryptMessageOutput error.
+         * @member {string|null|undefined} error
+         * @memberof proto.DecryptMessageOutput
+         * @instance
+         */
+        DecryptMessageOutput.prototype.error = null;
+
+        // OneOf field names bound to virtual getters and setters
+        var $oneOfFields;
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(DecryptMessageOutput.prototype, "_plaintextPayload", {
+            get: $util.oneOfGetter($oneOfFields = ["plaintextPayload"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(DecryptMessageOutput.prototype, "_error", {
+            get: $util.oneOfGetter($oneOfFields = ["error"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        /**
+         * Creates a new DecryptMessageOutput instance using the specified properties.
+         * @function create
+         * @memberof proto.DecryptMessageOutput
+         * @static
+         * @param {proto.IDecryptMessageOutput=} [properties] Properties to set
+         * @returns {proto.DecryptMessageOutput} DecryptMessageOutput instance
+         */
+        DecryptMessageOutput.create = function create(properties) {
+            return new DecryptMessageOutput(properties);
+        };
+
+        /**
+         * Encodes the specified DecryptMessageOutput message. Does not implicitly {@link proto.DecryptMessageOutput.verify|verify} messages.
+         * @function encode
+         * @memberof proto.DecryptMessageOutput
+         * @static
+         * @param {proto.IDecryptMessageOutput} message DecryptMessageOutput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        DecryptMessageOutput.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.plaintextPayload != null && Object.hasOwnProperty.call(message, "plaintextPayload"))
+                writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.plaintextPayload);
+            if (message.error != null && Object.hasOwnProperty.call(message, "error"))
+                writer.uint32(/* id 2, wireType 2 =*/18).string(message.error);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified DecryptMessageOutput message, length delimited. Does not implicitly {@link proto.DecryptMessageOutput.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.DecryptMessageOutput
+         * @static
+         * @param {proto.IDecryptMessageOutput} message DecryptMessageOutput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        DecryptMessageOutput.encodeDelimited = function encodeDelimited(message, writer) {
+            return this.encode(message, writer).ldelim();
+        };
+
+        /**
+         * Decodes a DecryptMessageOutput message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.DecryptMessageOutput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.DecryptMessageOutput} DecryptMessageOutput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        DecryptMessageOutput.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.DecryptMessageOutput();
+            while (reader.pos < end) {
+                var tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.plaintextPayload = reader.bytes();
+                        break;
+                    }
+                case 2: {
+                        message.error = reader.string();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Decodes a DecryptMessageOutput message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.DecryptMessageOutput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.DecryptMessageOutput} DecryptMessageOutput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        DecryptMessageOutput.decodeDelimited = function decodeDelimited(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a DecryptMessageOutput message.
+         * @function verify
+         * @memberof proto.DecryptMessageOutput
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        DecryptMessageOutput.verify = function verify(message) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            var properties = {};
+            if (message.plaintextPayload != null && message.hasOwnProperty("plaintextPayload")) {
+                properties._plaintextPayload = 1;
+                if (!(message.plaintextPayload && typeof message.plaintextPayload.length === "number" || $util.isString(message.plaintextPayload)))
+                    return "plaintextPayload: buffer expected";
+            }
+            if (message.error != null && message.hasOwnProperty("error")) {
+                properties._error = 1;
+                if (!$util.isString(message.error))
+                    return "error: string expected";
+            }
+            return null;
+        };
+
+        /**
+         * Creates a DecryptMessageOutput message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.DecryptMessageOutput
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.DecryptMessageOutput} DecryptMessageOutput
+         */
+        DecryptMessageOutput.fromObject = function fromObject(object) {
+            if (object instanceof $root.proto.DecryptMessageOutput)
+                return object;
+            var message = new $root.proto.DecryptMessageOutput();
+            if (object.plaintextPayload != null)
+                if (typeof object.plaintextPayload === "string")
+                    $util.base64.decode(object.plaintextPayload, message.plaintextPayload = $util.newBuffer($util.base64.length(object.plaintextPayload)), 0);
+                else if (object.plaintextPayload.length >= 0)
+                    message.plaintextPayload = object.plaintextPayload;
+            if (object.error != null)
+                message.error = String(object.error);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a DecryptMessageOutput message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.DecryptMessageOutput
+         * @static
+         * @param {proto.DecryptMessageOutput} message DecryptMessageOutput
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        DecryptMessageOutput.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            var object = {};
+            if (message.plaintextPayload != null && message.hasOwnProperty("plaintextPayload")) {
+                object.plaintextPayload = options.bytes === String ? $util.base64.encode(message.plaintextPayload, 0, message.plaintextPayload.length) : options.bytes === Array ? Array.prototype.slice.call(message.plaintextPayload) : message.plaintextPayload;
+                if (options.oneofs)
+                    object._plaintextPayload = "plaintextPayload";
+            }
+            if (message.error != null && message.hasOwnProperty("error")) {
+                object.error = message.error;
+                if (options.oneofs)
+                    object._error = "error";
+            }
+            return object;
+        };
+
+        /**
+         * Converts this DecryptMessageOutput to JSON.
+         * @function toJSON
+         * @memberof proto.DecryptMessageOutput
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        DecryptMessageOutput.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for DecryptMessageOutput
+         * @function getTypeUrl
+         * @memberof proto.DecryptMessageOutput
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        DecryptMessageOutput.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/proto.DecryptMessageOutput";
+        };
+
+        return DecryptMessageOutput;
+    })();
+
     proto.DeviceCapabilities = (function() {
 
         /**
@@ -68828,6 +70073,524 @@ $root.proto = (function() {
         };
 
         return DeviceListMetadata;
+    })();
+
+    proto.DeviceOutput = (function() {
+
+        /**
+         * Properties of a DeviceOutput.
+         * @memberof proto
+         * @interface IDeviceOutput
+         * @property {Uint8Array|null} [publicKey] DeviceOutput publicKey
+         * @property {Uint8Array|null} [epochAuthPublicKey] DeviceOutput epochAuthPublicKey
+         * @property {Uint8Array|null} [epochAuthPublicKeySig] DeviceOutput epochAuthPublicKeySig
+         * @property {Uint8Array|null} [epochStoragePublicKey] DeviceOutput epochStoragePublicKey
+         * @property {Uint8Array|null} [epochStoragePublicKeySig] DeviceOutput epochStoragePublicKeySig
+         * @property {Array.<number>|null} [supportedEncryptionVersions] DeviceOutput supportedEncryptionVersions
+         * @property {Uint8Array|null} [encryptionVersionSignature] DeviceOutput encryptionVersionSignature
+         * @property {number|null} [clientVersion] DeviceOutput clientVersion
+         * @property {Uint8Array|null} [ocmfClientState] DeviceOutput ocmfClientState
+         */
+
+        /**
+         * Constructs a new DeviceOutput.
+         * @memberof proto
+         * @classdesc Represents a DeviceOutput.
+         * @implements IDeviceOutput
+         * @constructor
+         * @param {proto.IDeviceOutput=} [properties] Properties to set
+         */
+        function DeviceOutput(properties) {
+            this.supportedEncryptionVersions = [];
+            if (properties)
+                for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * DeviceOutput publicKey.
+         * @member {Uint8Array|null|undefined} publicKey
+         * @memberof proto.DeviceOutput
+         * @instance
+         */
+        DeviceOutput.prototype.publicKey = null;
+
+        /**
+         * DeviceOutput epochAuthPublicKey.
+         * @member {Uint8Array|null|undefined} epochAuthPublicKey
+         * @memberof proto.DeviceOutput
+         * @instance
+         */
+        DeviceOutput.prototype.epochAuthPublicKey = null;
+
+        /**
+         * DeviceOutput epochAuthPublicKeySig.
+         * @member {Uint8Array|null|undefined} epochAuthPublicKeySig
+         * @memberof proto.DeviceOutput
+         * @instance
+         */
+        DeviceOutput.prototype.epochAuthPublicKeySig = null;
+
+        /**
+         * DeviceOutput epochStoragePublicKey.
+         * @member {Uint8Array|null|undefined} epochStoragePublicKey
+         * @memberof proto.DeviceOutput
+         * @instance
+         */
+        DeviceOutput.prototype.epochStoragePublicKey = null;
+
+        /**
+         * DeviceOutput epochStoragePublicKeySig.
+         * @member {Uint8Array|null|undefined} epochStoragePublicKeySig
+         * @memberof proto.DeviceOutput
+         * @instance
+         */
+        DeviceOutput.prototype.epochStoragePublicKeySig = null;
+
+        /**
+         * DeviceOutput supportedEncryptionVersions.
+         * @member {Array.<number>} supportedEncryptionVersions
+         * @memberof proto.DeviceOutput
+         * @instance
+         */
+        DeviceOutput.prototype.supportedEncryptionVersions = $util.emptyArray;
+
+        /**
+         * DeviceOutput encryptionVersionSignature.
+         * @member {Uint8Array|null|undefined} encryptionVersionSignature
+         * @memberof proto.DeviceOutput
+         * @instance
+         */
+        DeviceOutput.prototype.encryptionVersionSignature = null;
+
+        /**
+         * DeviceOutput clientVersion.
+         * @member {number|null|undefined} clientVersion
+         * @memberof proto.DeviceOutput
+         * @instance
+         */
+        DeviceOutput.prototype.clientVersion = null;
+
+        /**
+         * DeviceOutput ocmfClientState.
+         * @member {Uint8Array|null|undefined} ocmfClientState
+         * @memberof proto.DeviceOutput
+         * @instance
+         */
+        DeviceOutput.prototype.ocmfClientState = null;
+
+        // OneOf field names bound to virtual getters and setters
+        var $oneOfFields;
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(DeviceOutput.prototype, "_publicKey", {
+            get: $util.oneOfGetter($oneOfFields = ["publicKey"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(DeviceOutput.prototype, "_epochAuthPublicKey", {
+            get: $util.oneOfGetter($oneOfFields = ["epochAuthPublicKey"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(DeviceOutput.prototype, "_epochAuthPublicKeySig", {
+            get: $util.oneOfGetter($oneOfFields = ["epochAuthPublicKeySig"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(DeviceOutput.prototype, "_epochStoragePublicKey", {
+            get: $util.oneOfGetter($oneOfFields = ["epochStoragePublicKey"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(DeviceOutput.prototype, "_epochStoragePublicKeySig", {
+            get: $util.oneOfGetter($oneOfFields = ["epochStoragePublicKeySig"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(DeviceOutput.prototype, "_encryptionVersionSignature", {
+            get: $util.oneOfGetter($oneOfFields = ["encryptionVersionSignature"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(DeviceOutput.prototype, "_clientVersion", {
+            get: $util.oneOfGetter($oneOfFields = ["clientVersion"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(DeviceOutput.prototype, "_ocmfClientState", {
+            get: $util.oneOfGetter($oneOfFields = ["ocmfClientState"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        /**
+         * Creates a new DeviceOutput instance using the specified properties.
+         * @function create
+         * @memberof proto.DeviceOutput
+         * @static
+         * @param {proto.IDeviceOutput=} [properties] Properties to set
+         * @returns {proto.DeviceOutput} DeviceOutput instance
+         */
+        DeviceOutput.create = function create(properties) {
+            return new DeviceOutput(properties);
+        };
+
+        /**
+         * Encodes the specified DeviceOutput message. Does not implicitly {@link proto.DeviceOutput.verify|verify} messages.
+         * @function encode
+         * @memberof proto.DeviceOutput
+         * @static
+         * @param {proto.IDeviceOutput} message DeviceOutput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        DeviceOutput.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.publicKey != null && Object.hasOwnProperty.call(message, "publicKey"))
+                writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.publicKey);
+            if (message.epochAuthPublicKey != null && Object.hasOwnProperty.call(message, "epochAuthPublicKey"))
+                writer.uint32(/* id 2, wireType 2 =*/18).bytes(message.epochAuthPublicKey);
+            if (message.epochAuthPublicKeySig != null && Object.hasOwnProperty.call(message, "epochAuthPublicKeySig"))
+                writer.uint32(/* id 3, wireType 2 =*/26).bytes(message.epochAuthPublicKeySig);
+            if (message.epochStoragePublicKey != null && Object.hasOwnProperty.call(message, "epochStoragePublicKey"))
+                writer.uint32(/* id 4, wireType 2 =*/34).bytes(message.epochStoragePublicKey);
+            if (message.epochStoragePublicKeySig != null && Object.hasOwnProperty.call(message, "epochStoragePublicKeySig"))
+                writer.uint32(/* id 5, wireType 2 =*/42).bytes(message.epochStoragePublicKeySig);
+            if (message.supportedEncryptionVersions != null && message.supportedEncryptionVersions.length) {
+                writer.uint32(/* id 6, wireType 2 =*/50).fork();
+                for (var i = 0; i < message.supportedEncryptionVersions.length; ++i)
+                    writer.int32(message.supportedEncryptionVersions[i]);
+                writer.ldelim();
+            }
+            if (message.encryptionVersionSignature != null && Object.hasOwnProperty.call(message, "encryptionVersionSignature"))
+                writer.uint32(/* id 7, wireType 2 =*/58).bytes(message.encryptionVersionSignature);
+            if (message.clientVersion != null && Object.hasOwnProperty.call(message, "clientVersion"))
+                writer.uint32(/* id 8, wireType 0 =*/64).int32(message.clientVersion);
+            if (message.ocmfClientState != null && Object.hasOwnProperty.call(message, "ocmfClientState"))
+                writer.uint32(/* id 9, wireType 2 =*/74).bytes(message.ocmfClientState);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified DeviceOutput message, length delimited. Does not implicitly {@link proto.DeviceOutput.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.DeviceOutput
+         * @static
+         * @param {proto.IDeviceOutput} message DeviceOutput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        DeviceOutput.encodeDelimited = function encodeDelimited(message, writer) {
+            return this.encode(message, writer).ldelim();
+        };
+
+        /**
+         * Decodes a DeviceOutput message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.DeviceOutput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.DeviceOutput} DeviceOutput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        DeviceOutput.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.DeviceOutput();
+            while (reader.pos < end) {
+                var tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.publicKey = reader.bytes();
+                        break;
+                    }
+                case 2: {
+                        message.epochAuthPublicKey = reader.bytes();
+                        break;
+                    }
+                case 3: {
+                        message.epochAuthPublicKeySig = reader.bytes();
+                        break;
+                    }
+                case 4: {
+                        message.epochStoragePublicKey = reader.bytes();
+                        break;
+                    }
+                case 5: {
+                        message.epochStoragePublicKeySig = reader.bytes();
+                        break;
+                    }
+                case 6: {
+                        if (!(message.supportedEncryptionVersions && message.supportedEncryptionVersions.length))
+                            message.supportedEncryptionVersions = [];
+                        if ((tag & 7) === 2) {
+                            var end2 = reader.uint32() + reader.pos;
+                            while (reader.pos < end2)
+                                message.supportedEncryptionVersions.push(reader.int32());
+                        } else
+                            message.supportedEncryptionVersions.push(reader.int32());
+                        break;
+                    }
+                case 7: {
+                        message.encryptionVersionSignature = reader.bytes();
+                        break;
+                    }
+                case 8: {
+                        message.clientVersion = reader.int32();
+                        break;
+                    }
+                case 9: {
+                        message.ocmfClientState = reader.bytes();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Decodes a DeviceOutput message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.DeviceOutput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.DeviceOutput} DeviceOutput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        DeviceOutput.decodeDelimited = function decodeDelimited(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a DeviceOutput message.
+         * @function verify
+         * @memberof proto.DeviceOutput
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        DeviceOutput.verify = function verify(message) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            var properties = {};
+            if (message.publicKey != null && message.hasOwnProperty("publicKey")) {
+                properties._publicKey = 1;
+                if (!(message.publicKey && typeof message.publicKey.length === "number" || $util.isString(message.publicKey)))
+                    return "publicKey: buffer expected";
+            }
+            if (message.epochAuthPublicKey != null && message.hasOwnProperty("epochAuthPublicKey")) {
+                properties._epochAuthPublicKey = 1;
+                if (!(message.epochAuthPublicKey && typeof message.epochAuthPublicKey.length === "number" || $util.isString(message.epochAuthPublicKey)))
+                    return "epochAuthPublicKey: buffer expected";
+            }
+            if (message.epochAuthPublicKeySig != null && message.hasOwnProperty("epochAuthPublicKeySig")) {
+                properties._epochAuthPublicKeySig = 1;
+                if (!(message.epochAuthPublicKeySig && typeof message.epochAuthPublicKeySig.length === "number" || $util.isString(message.epochAuthPublicKeySig)))
+                    return "epochAuthPublicKeySig: buffer expected";
+            }
+            if (message.epochStoragePublicKey != null && message.hasOwnProperty("epochStoragePublicKey")) {
+                properties._epochStoragePublicKey = 1;
+                if (!(message.epochStoragePublicKey && typeof message.epochStoragePublicKey.length === "number" || $util.isString(message.epochStoragePublicKey)))
+                    return "epochStoragePublicKey: buffer expected";
+            }
+            if (message.epochStoragePublicKeySig != null && message.hasOwnProperty("epochStoragePublicKeySig")) {
+                properties._epochStoragePublicKeySig = 1;
+                if (!(message.epochStoragePublicKeySig && typeof message.epochStoragePublicKeySig.length === "number" || $util.isString(message.epochStoragePublicKeySig)))
+                    return "epochStoragePublicKeySig: buffer expected";
+            }
+            if (message.supportedEncryptionVersions != null && message.hasOwnProperty("supportedEncryptionVersions")) {
+                if (!Array.isArray(message.supportedEncryptionVersions))
+                    return "supportedEncryptionVersions: array expected";
+                for (var i = 0; i < message.supportedEncryptionVersions.length; ++i)
+                    if (!$util.isInteger(message.supportedEncryptionVersions[i]))
+                        return "supportedEncryptionVersions: integer[] expected";
+            }
+            if (message.encryptionVersionSignature != null && message.hasOwnProperty("encryptionVersionSignature")) {
+                properties._encryptionVersionSignature = 1;
+                if (!(message.encryptionVersionSignature && typeof message.encryptionVersionSignature.length === "number" || $util.isString(message.encryptionVersionSignature)))
+                    return "encryptionVersionSignature: buffer expected";
+            }
+            if (message.clientVersion != null && message.hasOwnProperty("clientVersion")) {
+                properties._clientVersion = 1;
+                if (!$util.isInteger(message.clientVersion))
+                    return "clientVersion: integer expected";
+            }
+            if (message.ocmfClientState != null && message.hasOwnProperty("ocmfClientState")) {
+                properties._ocmfClientState = 1;
+                if (!(message.ocmfClientState && typeof message.ocmfClientState.length === "number" || $util.isString(message.ocmfClientState)))
+                    return "ocmfClientState: buffer expected";
+            }
+            return null;
+        };
+
+        /**
+         * Creates a DeviceOutput message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.DeviceOutput
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.DeviceOutput} DeviceOutput
+         */
+        DeviceOutput.fromObject = function fromObject(object) {
+            if (object instanceof $root.proto.DeviceOutput)
+                return object;
+            var message = new $root.proto.DeviceOutput();
+            if (object.publicKey != null)
+                if (typeof object.publicKey === "string")
+                    $util.base64.decode(object.publicKey, message.publicKey = $util.newBuffer($util.base64.length(object.publicKey)), 0);
+                else if (object.publicKey.length >= 0)
+                    message.publicKey = object.publicKey;
+            if (object.epochAuthPublicKey != null)
+                if (typeof object.epochAuthPublicKey === "string")
+                    $util.base64.decode(object.epochAuthPublicKey, message.epochAuthPublicKey = $util.newBuffer($util.base64.length(object.epochAuthPublicKey)), 0);
+                else if (object.epochAuthPublicKey.length >= 0)
+                    message.epochAuthPublicKey = object.epochAuthPublicKey;
+            if (object.epochAuthPublicKeySig != null)
+                if (typeof object.epochAuthPublicKeySig === "string")
+                    $util.base64.decode(object.epochAuthPublicKeySig, message.epochAuthPublicKeySig = $util.newBuffer($util.base64.length(object.epochAuthPublicKeySig)), 0);
+                else if (object.epochAuthPublicKeySig.length >= 0)
+                    message.epochAuthPublicKeySig = object.epochAuthPublicKeySig;
+            if (object.epochStoragePublicKey != null)
+                if (typeof object.epochStoragePublicKey === "string")
+                    $util.base64.decode(object.epochStoragePublicKey, message.epochStoragePublicKey = $util.newBuffer($util.base64.length(object.epochStoragePublicKey)), 0);
+                else if (object.epochStoragePublicKey.length >= 0)
+                    message.epochStoragePublicKey = object.epochStoragePublicKey;
+            if (object.epochStoragePublicKeySig != null)
+                if (typeof object.epochStoragePublicKeySig === "string")
+                    $util.base64.decode(object.epochStoragePublicKeySig, message.epochStoragePublicKeySig = $util.newBuffer($util.base64.length(object.epochStoragePublicKeySig)), 0);
+                else if (object.epochStoragePublicKeySig.length >= 0)
+                    message.epochStoragePublicKeySig = object.epochStoragePublicKeySig;
+            if (object.supportedEncryptionVersions) {
+                if (!Array.isArray(object.supportedEncryptionVersions))
+                    throw TypeError(".proto.DeviceOutput.supportedEncryptionVersions: array expected");
+                message.supportedEncryptionVersions = [];
+                for (var i = 0; i < object.supportedEncryptionVersions.length; ++i)
+                    message.supportedEncryptionVersions[i] = object.supportedEncryptionVersions[i] | 0;
+            }
+            if (object.encryptionVersionSignature != null)
+                if (typeof object.encryptionVersionSignature === "string")
+                    $util.base64.decode(object.encryptionVersionSignature, message.encryptionVersionSignature = $util.newBuffer($util.base64.length(object.encryptionVersionSignature)), 0);
+                else if (object.encryptionVersionSignature.length >= 0)
+                    message.encryptionVersionSignature = object.encryptionVersionSignature;
+            if (object.clientVersion != null)
+                message.clientVersion = object.clientVersion | 0;
+            if (object.ocmfClientState != null)
+                if (typeof object.ocmfClientState === "string")
+                    $util.base64.decode(object.ocmfClientState, message.ocmfClientState = $util.newBuffer($util.base64.length(object.ocmfClientState)), 0);
+                else if (object.ocmfClientState.length >= 0)
+                    message.ocmfClientState = object.ocmfClientState;
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a DeviceOutput message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.DeviceOutput
+         * @static
+         * @param {proto.DeviceOutput} message DeviceOutput
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        DeviceOutput.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            var object = {};
+            if (options.arrays || options.defaults)
+                object.supportedEncryptionVersions = [];
+            if (message.publicKey != null && message.hasOwnProperty("publicKey")) {
+                object.publicKey = options.bytes === String ? $util.base64.encode(message.publicKey, 0, message.publicKey.length) : options.bytes === Array ? Array.prototype.slice.call(message.publicKey) : message.publicKey;
+                if (options.oneofs)
+                    object._publicKey = "publicKey";
+            }
+            if (message.epochAuthPublicKey != null && message.hasOwnProperty("epochAuthPublicKey")) {
+                object.epochAuthPublicKey = options.bytes === String ? $util.base64.encode(message.epochAuthPublicKey, 0, message.epochAuthPublicKey.length) : options.bytes === Array ? Array.prototype.slice.call(message.epochAuthPublicKey) : message.epochAuthPublicKey;
+                if (options.oneofs)
+                    object._epochAuthPublicKey = "epochAuthPublicKey";
+            }
+            if (message.epochAuthPublicKeySig != null && message.hasOwnProperty("epochAuthPublicKeySig")) {
+                object.epochAuthPublicKeySig = options.bytes === String ? $util.base64.encode(message.epochAuthPublicKeySig, 0, message.epochAuthPublicKeySig.length) : options.bytes === Array ? Array.prototype.slice.call(message.epochAuthPublicKeySig) : message.epochAuthPublicKeySig;
+                if (options.oneofs)
+                    object._epochAuthPublicKeySig = "epochAuthPublicKeySig";
+            }
+            if (message.epochStoragePublicKey != null && message.hasOwnProperty("epochStoragePublicKey")) {
+                object.epochStoragePublicKey = options.bytes === String ? $util.base64.encode(message.epochStoragePublicKey, 0, message.epochStoragePublicKey.length) : options.bytes === Array ? Array.prototype.slice.call(message.epochStoragePublicKey) : message.epochStoragePublicKey;
+                if (options.oneofs)
+                    object._epochStoragePublicKey = "epochStoragePublicKey";
+            }
+            if (message.epochStoragePublicKeySig != null && message.hasOwnProperty("epochStoragePublicKeySig")) {
+                object.epochStoragePublicKeySig = options.bytes === String ? $util.base64.encode(message.epochStoragePublicKeySig, 0, message.epochStoragePublicKeySig.length) : options.bytes === Array ? Array.prototype.slice.call(message.epochStoragePublicKeySig) : message.epochStoragePublicKeySig;
+                if (options.oneofs)
+                    object._epochStoragePublicKeySig = "epochStoragePublicKeySig";
+            }
+            if (message.supportedEncryptionVersions && message.supportedEncryptionVersions.length) {
+                object.supportedEncryptionVersions = [];
+                for (var j = 0; j < message.supportedEncryptionVersions.length; ++j)
+                    object.supportedEncryptionVersions[j] = message.supportedEncryptionVersions[j];
+            }
+            if (message.encryptionVersionSignature != null && message.hasOwnProperty("encryptionVersionSignature")) {
+                object.encryptionVersionSignature = options.bytes === String ? $util.base64.encode(message.encryptionVersionSignature, 0, message.encryptionVersionSignature.length) : options.bytes === Array ? Array.prototype.slice.call(message.encryptionVersionSignature) : message.encryptionVersionSignature;
+                if (options.oneofs)
+                    object._encryptionVersionSignature = "encryptionVersionSignature";
+            }
+            if (message.clientVersion != null && message.hasOwnProperty("clientVersion")) {
+                object.clientVersion = message.clientVersion;
+                if (options.oneofs)
+                    object._clientVersion = "clientVersion";
+            }
+            if (message.ocmfClientState != null && message.hasOwnProperty("ocmfClientState")) {
+                object.ocmfClientState = options.bytes === String ? $util.base64.encode(message.ocmfClientState, 0, message.ocmfClientState.length) : options.bytes === Array ? Array.prototype.slice.call(message.ocmfClientState) : message.ocmfClientState;
+                if (options.oneofs)
+                    object._ocmfClientState = "ocmfClientState";
+            }
+            return object;
+        };
+
+        /**
+         * Converts this DeviceOutput to JSON.
+         * @function toJSON
+         * @memberof proto.DeviceOutput
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        DeviceOutput.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for DeviceOutput
+         * @function getTypeUrl
+         * @memberof proto.DeviceOutput
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        DeviceOutput.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/proto.DeviceOutput";
+        };
+
+        return DeviceOutput;
     })();
 
     proto.DeviceProps = (function() {
@@ -72355,6 +74118,1054 @@ $root.proto = (function() {
         return EmbeddedMusic;
     })();
 
+    proto.EncryptMessageInput = (function() {
+
+        /**
+         * Properties of an EncryptMessageInput.
+         * @memberof proto
+         * @interface IEncryptMessageInput
+         * @property {Uint8Array|null} [epochRootKey] EncryptMessageInput epochRootKey
+         * @property {Uint8Array|null} [mailboxRootKey] EncryptMessageInput mailboxRootKey
+         * @property {Uint8Array|null} [orfClientState] EncryptMessageInput orfClientState
+         * @property {Uint8Array|null} [epochAnonId] EncryptMessageInput epochAnonId
+         * @property {number|Long|null} [epochId] EncryptMessageInput epochId
+         * @property {string|null} [threadId] EncryptMessageInput threadId
+         * @property {number|Long|null} [waCanonicalUserFbid] EncryptMessageInput waCanonicalUserFbid
+         * @property {number|Long|null} [timestampMs] EncryptMessageInput timestampMs
+         * @property {number|Long|null} [backupId] EncryptMessageInput backupId
+         * @property {Uint8Array|null} [plaintextPayload] EncryptMessageInput plaintextPayload
+         * @property {string|null} [stanzaId] EncryptMessageInput stanzaId
+         */
+
+        /**
+         * Constructs a new EncryptMessageInput.
+         * @memberof proto
+         * @classdesc Represents an EncryptMessageInput.
+         * @implements IEncryptMessageInput
+         * @constructor
+         * @param {proto.IEncryptMessageInput=} [properties] Properties to set
+         */
+        function EncryptMessageInput(properties) {
+            if (properties)
+                for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * EncryptMessageInput epochRootKey.
+         * @member {Uint8Array|null|undefined} epochRootKey
+         * @memberof proto.EncryptMessageInput
+         * @instance
+         */
+        EncryptMessageInput.prototype.epochRootKey = null;
+
+        /**
+         * EncryptMessageInput mailboxRootKey.
+         * @member {Uint8Array|null|undefined} mailboxRootKey
+         * @memberof proto.EncryptMessageInput
+         * @instance
+         */
+        EncryptMessageInput.prototype.mailboxRootKey = null;
+
+        /**
+         * EncryptMessageInput orfClientState.
+         * @member {Uint8Array|null|undefined} orfClientState
+         * @memberof proto.EncryptMessageInput
+         * @instance
+         */
+        EncryptMessageInput.prototype.orfClientState = null;
+
+        /**
+         * EncryptMessageInput epochAnonId.
+         * @member {Uint8Array|null|undefined} epochAnonId
+         * @memberof proto.EncryptMessageInput
+         * @instance
+         */
+        EncryptMessageInput.prototype.epochAnonId = null;
+
+        /**
+         * EncryptMessageInput epochId.
+         * @member {number|Long|null|undefined} epochId
+         * @memberof proto.EncryptMessageInput
+         * @instance
+         */
+        EncryptMessageInput.prototype.epochId = null;
+
+        /**
+         * EncryptMessageInput threadId.
+         * @member {string|null|undefined} threadId
+         * @memberof proto.EncryptMessageInput
+         * @instance
+         */
+        EncryptMessageInput.prototype.threadId = null;
+
+        /**
+         * EncryptMessageInput waCanonicalUserFbid.
+         * @member {number|Long|null|undefined} waCanonicalUserFbid
+         * @memberof proto.EncryptMessageInput
+         * @instance
+         */
+        EncryptMessageInput.prototype.waCanonicalUserFbid = null;
+
+        /**
+         * EncryptMessageInput timestampMs.
+         * @member {number|Long|null|undefined} timestampMs
+         * @memberof proto.EncryptMessageInput
+         * @instance
+         */
+        EncryptMessageInput.prototype.timestampMs = null;
+
+        /**
+         * EncryptMessageInput backupId.
+         * @member {number|Long|null|undefined} backupId
+         * @memberof proto.EncryptMessageInput
+         * @instance
+         */
+        EncryptMessageInput.prototype.backupId = null;
+
+        /**
+         * EncryptMessageInput plaintextPayload.
+         * @member {Uint8Array|null|undefined} plaintextPayload
+         * @memberof proto.EncryptMessageInput
+         * @instance
+         */
+        EncryptMessageInput.prototype.plaintextPayload = null;
+
+        /**
+         * EncryptMessageInput stanzaId.
+         * @member {string|null|undefined} stanzaId
+         * @memberof proto.EncryptMessageInput
+         * @instance
+         */
+        EncryptMessageInput.prototype.stanzaId = null;
+
+        // OneOf field names bound to virtual getters and setters
+        var $oneOfFields;
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageInput.prototype, "_epochRootKey", {
+            get: $util.oneOfGetter($oneOfFields = ["epochRootKey"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageInput.prototype, "_mailboxRootKey", {
+            get: $util.oneOfGetter($oneOfFields = ["mailboxRootKey"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageInput.prototype, "_orfClientState", {
+            get: $util.oneOfGetter($oneOfFields = ["orfClientState"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageInput.prototype, "_epochAnonId", {
+            get: $util.oneOfGetter($oneOfFields = ["epochAnonId"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageInput.prototype, "_epochId", {
+            get: $util.oneOfGetter($oneOfFields = ["epochId"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageInput.prototype, "_threadId", {
+            get: $util.oneOfGetter($oneOfFields = ["threadId"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageInput.prototype, "_waCanonicalUserFbid", {
+            get: $util.oneOfGetter($oneOfFields = ["waCanonicalUserFbid"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageInput.prototype, "_timestampMs", {
+            get: $util.oneOfGetter($oneOfFields = ["timestampMs"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageInput.prototype, "_backupId", {
+            get: $util.oneOfGetter($oneOfFields = ["backupId"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageInput.prototype, "_plaintextPayload", {
+            get: $util.oneOfGetter($oneOfFields = ["plaintextPayload"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageInput.prototype, "_stanzaId", {
+            get: $util.oneOfGetter($oneOfFields = ["stanzaId"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        /**
+         * Creates a new EncryptMessageInput instance using the specified properties.
+         * @function create
+         * @memberof proto.EncryptMessageInput
+         * @static
+         * @param {proto.IEncryptMessageInput=} [properties] Properties to set
+         * @returns {proto.EncryptMessageInput} EncryptMessageInput instance
+         */
+        EncryptMessageInput.create = function create(properties) {
+            return new EncryptMessageInput(properties);
+        };
+
+        /**
+         * Encodes the specified EncryptMessageInput message. Does not implicitly {@link proto.EncryptMessageInput.verify|verify} messages.
+         * @function encode
+         * @memberof proto.EncryptMessageInput
+         * @static
+         * @param {proto.IEncryptMessageInput} message EncryptMessageInput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        EncryptMessageInput.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.epochRootKey != null && Object.hasOwnProperty.call(message, "epochRootKey"))
+                writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.epochRootKey);
+            if (message.mailboxRootKey != null && Object.hasOwnProperty.call(message, "mailboxRootKey"))
+                writer.uint32(/* id 2, wireType 2 =*/18).bytes(message.mailboxRootKey);
+            if (message.orfClientState != null && Object.hasOwnProperty.call(message, "orfClientState"))
+                writer.uint32(/* id 3, wireType 2 =*/26).bytes(message.orfClientState);
+            if (message.epochAnonId != null && Object.hasOwnProperty.call(message, "epochAnonId"))
+                writer.uint32(/* id 4, wireType 2 =*/34).bytes(message.epochAnonId);
+            if (message.epochId != null && Object.hasOwnProperty.call(message, "epochId"))
+                writer.uint32(/* id 5, wireType 0 =*/40).uint64(message.epochId);
+            if (message.threadId != null && Object.hasOwnProperty.call(message, "threadId"))
+                writer.uint32(/* id 6, wireType 2 =*/50).string(message.threadId);
+            if (message.waCanonicalUserFbid != null && Object.hasOwnProperty.call(message, "waCanonicalUserFbid"))
+                writer.uint32(/* id 7, wireType 0 =*/56).uint64(message.waCanonicalUserFbid);
+            if (message.timestampMs != null && Object.hasOwnProperty.call(message, "timestampMs"))
+                writer.uint32(/* id 8, wireType 0 =*/64).uint64(message.timestampMs);
+            if (message.backupId != null && Object.hasOwnProperty.call(message, "backupId"))
+                writer.uint32(/* id 9, wireType 0 =*/72).uint64(message.backupId);
+            if (message.plaintextPayload != null && Object.hasOwnProperty.call(message, "plaintextPayload"))
+                writer.uint32(/* id 10, wireType 2 =*/82).bytes(message.plaintextPayload);
+            if (message.stanzaId != null && Object.hasOwnProperty.call(message, "stanzaId"))
+                writer.uint32(/* id 11, wireType 2 =*/90).string(message.stanzaId);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified EncryptMessageInput message, length delimited. Does not implicitly {@link proto.EncryptMessageInput.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.EncryptMessageInput
+         * @static
+         * @param {proto.IEncryptMessageInput} message EncryptMessageInput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        EncryptMessageInput.encodeDelimited = function encodeDelimited(message, writer) {
+            return this.encode(message, writer).ldelim();
+        };
+
+        /**
+         * Decodes an EncryptMessageInput message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.EncryptMessageInput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.EncryptMessageInput} EncryptMessageInput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        EncryptMessageInput.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.EncryptMessageInput();
+            while (reader.pos < end) {
+                var tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.epochRootKey = reader.bytes();
+                        break;
+                    }
+                case 2: {
+                        message.mailboxRootKey = reader.bytes();
+                        break;
+                    }
+                case 3: {
+                        message.orfClientState = reader.bytes();
+                        break;
+                    }
+                case 4: {
+                        message.epochAnonId = reader.bytes();
+                        break;
+                    }
+                case 5: {
+                        message.epochId = reader.uint64();
+                        break;
+                    }
+                case 6: {
+                        message.threadId = reader.string();
+                        break;
+                    }
+                case 7: {
+                        message.waCanonicalUserFbid = reader.uint64();
+                        break;
+                    }
+                case 8: {
+                        message.timestampMs = reader.uint64();
+                        break;
+                    }
+                case 9: {
+                        message.backupId = reader.uint64();
+                        break;
+                    }
+                case 10: {
+                        message.plaintextPayload = reader.bytes();
+                        break;
+                    }
+                case 11: {
+                        message.stanzaId = reader.string();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Decodes an EncryptMessageInput message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.EncryptMessageInput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.EncryptMessageInput} EncryptMessageInput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        EncryptMessageInput.decodeDelimited = function decodeDelimited(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies an EncryptMessageInput message.
+         * @function verify
+         * @memberof proto.EncryptMessageInput
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        EncryptMessageInput.verify = function verify(message) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            var properties = {};
+            if (message.epochRootKey != null && message.hasOwnProperty("epochRootKey")) {
+                properties._epochRootKey = 1;
+                if (!(message.epochRootKey && typeof message.epochRootKey.length === "number" || $util.isString(message.epochRootKey)))
+                    return "epochRootKey: buffer expected";
+            }
+            if (message.mailboxRootKey != null && message.hasOwnProperty("mailboxRootKey")) {
+                properties._mailboxRootKey = 1;
+                if (!(message.mailboxRootKey && typeof message.mailboxRootKey.length === "number" || $util.isString(message.mailboxRootKey)))
+                    return "mailboxRootKey: buffer expected";
+            }
+            if (message.orfClientState != null && message.hasOwnProperty("orfClientState")) {
+                properties._orfClientState = 1;
+                if (!(message.orfClientState && typeof message.orfClientState.length === "number" || $util.isString(message.orfClientState)))
+                    return "orfClientState: buffer expected";
+            }
+            if (message.epochAnonId != null && message.hasOwnProperty("epochAnonId")) {
+                properties._epochAnonId = 1;
+                if (!(message.epochAnonId && typeof message.epochAnonId.length === "number" || $util.isString(message.epochAnonId)))
+                    return "epochAnonId: buffer expected";
+            }
+            if (message.epochId != null && message.hasOwnProperty("epochId")) {
+                properties._epochId = 1;
+                if (!$util.isInteger(message.epochId) && !(message.epochId && $util.isInteger(message.epochId.low) && $util.isInteger(message.epochId.high)))
+                    return "epochId: integer|Long expected";
+            }
+            if (message.threadId != null && message.hasOwnProperty("threadId")) {
+                properties._threadId = 1;
+                if (!$util.isString(message.threadId))
+                    return "threadId: string expected";
+            }
+            if (message.waCanonicalUserFbid != null && message.hasOwnProperty("waCanonicalUserFbid")) {
+                properties._waCanonicalUserFbid = 1;
+                if (!$util.isInteger(message.waCanonicalUserFbid) && !(message.waCanonicalUserFbid && $util.isInteger(message.waCanonicalUserFbid.low) && $util.isInteger(message.waCanonicalUserFbid.high)))
+                    return "waCanonicalUserFbid: integer|Long expected";
+            }
+            if (message.timestampMs != null && message.hasOwnProperty("timestampMs")) {
+                properties._timestampMs = 1;
+                if (!$util.isInteger(message.timestampMs) && !(message.timestampMs && $util.isInteger(message.timestampMs.low) && $util.isInteger(message.timestampMs.high)))
+                    return "timestampMs: integer|Long expected";
+            }
+            if (message.backupId != null && message.hasOwnProperty("backupId")) {
+                properties._backupId = 1;
+                if (!$util.isInteger(message.backupId) && !(message.backupId && $util.isInteger(message.backupId.low) && $util.isInteger(message.backupId.high)))
+                    return "backupId: integer|Long expected";
+            }
+            if (message.plaintextPayload != null && message.hasOwnProperty("plaintextPayload")) {
+                properties._plaintextPayload = 1;
+                if (!(message.plaintextPayload && typeof message.plaintextPayload.length === "number" || $util.isString(message.plaintextPayload)))
+                    return "plaintextPayload: buffer expected";
+            }
+            if (message.stanzaId != null && message.hasOwnProperty("stanzaId")) {
+                properties._stanzaId = 1;
+                if (!$util.isString(message.stanzaId))
+                    return "stanzaId: string expected";
+            }
+            return null;
+        };
+
+        /**
+         * Creates an EncryptMessageInput message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.EncryptMessageInput
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.EncryptMessageInput} EncryptMessageInput
+         */
+        EncryptMessageInput.fromObject = function fromObject(object) {
+            if (object instanceof $root.proto.EncryptMessageInput)
+                return object;
+            var message = new $root.proto.EncryptMessageInput();
+            if (object.epochRootKey != null)
+                if (typeof object.epochRootKey === "string")
+                    $util.base64.decode(object.epochRootKey, message.epochRootKey = $util.newBuffer($util.base64.length(object.epochRootKey)), 0);
+                else if (object.epochRootKey.length >= 0)
+                    message.epochRootKey = object.epochRootKey;
+            if (object.mailboxRootKey != null)
+                if (typeof object.mailboxRootKey === "string")
+                    $util.base64.decode(object.mailboxRootKey, message.mailboxRootKey = $util.newBuffer($util.base64.length(object.mailboxRootKey)), 0);
+                else if (object.mailboxRootKey.length >= 0)
+                    message.mailboxRootKey = object.mailboxRootKey;
+            if (object.orfClientState != null)
+                if (typeof object.orfClientState === "string")
+                    $util.base64.decode(object.orfClientState, message.orfClientState = $util.newBuffer($util.base64.length(object.orfClientState)), 0);
+                else if (object.orfClientState.length >= 0)
+                    message.orfClientState = object.orfClientState;
+            if (object.epochAnonId != null)
+                if (typeof object.epochAnonId === "string")
+                    $util.base64.decode(object.epochAnonId, message.epochAnonId = $util.newBuffer($util.base64.length(object.epochAnonId)), 0);
+                else if (object.epochAnonId.length >= 0)
+                    message.epochAnonId = object.epochAnonId;
+            if (object.epochId != null)
+                if ($util.Long)
+                    (message.epochId = $util.Long.fromValue(object.epochId)).unsigned = true;
+                else if (typeof object.epochId === "string")
+                    message.epochId = parseInt(object.epochId, 10);
+                else if (typeof object.epochId === "number")
+                    message.epochId = object.epochId;
+                else if (typeof object.epochId === "object")
+                    message.epochId = new $util.LongBits(object.epochId.low >>> 0, object.epochId.high >>> 0).toNumber(true);
+            if (object.threadId != null)
+                message.threadId = String(object.threadId);
+            if (object.waCanonicalUserFbid != null)
+                if ($util.Long)
+                    (message.waCanonicalUserFbid = $util.Long.fromValue(object.waCanonicalUserFbid)).unsigned = true;
+                else if (typeof object.waCanonicalUserFbid === "string")
+                    message.waCanonicalUserFbid = parseInt(object.waCanonicalUserFbid, 10);
+                else if (typeof object.waCanonicalUserFbid === "number")
+                    message.waCanonicalUserFbid = object.waCanonicalUserFbid;
+                else if (typeof object.waCanonicalUserFbid === "object")
+                    message.waCanonicalUserFbid = new $util.LongBits(object.waCanonicalUserFbid.low >>> 0, object.waCanonicalUserFbid.high >>> 0).toNumber(true);
+            if (object.timestampMs != null)
+                if ($util.Long)
+                    (message.timestampMs = $util.Long.fromValue(object.timestampMs)).unsigned = true;
+                else if (typeof object.timestampMs === "string")
+                    message.timestampMs = parseInt(object.timestampMs, 10);
+                else if (typeof object.timestampMs === "number")
+                    message.timestampMs = object.timestampMs;
+                else if (typeof object.timestampMs === "object")
+                    message.timestampMs = new $util.LongBits(object.timestampMs.low >>> 0, object.timestampMs.high >>> 0).toNumber(true);
+            if (object.backupId != null)
+                if ($util.Long)
+                    (message.backupId = $util.Long.fromValue(object.backupId)).unsigned = true;
+                else if (typeof object.backupId === "string")
+                    message.backupId = parseInt(object.backupId, 10);
+                else if (typeof object.backupId === "number")
+                    message.backupId = object.backupId;
+                else if (typeof object.backupId === "object")
+                    message.backupId = new $util.LongBits(object.backupId.low >>> 0, object.backupId.high >>> 0).toNumber(true);
+            if (object.plaintextPayload != null)
+                if (typeof object.plaintextPayload === "string")
+                    $util.base64.decode(object.plaintextPayload, message.plaintextPayload = $util.newBuffer($util.base64.length(object.plaintextPayload)), 0);
+                else if (object.plaintextPayload.length >= 0)
+                    message.plaintextPayload = object.plaintextPayload;
+            if (object.stanzaId != null)
+                message.stanzaId = String(object.stanzaId);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from an EncryptMessageInput message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.EncryptMessageInput
+         * @static
+         * @param {proto.EncryptMessageInput} message EncryptMessageInput
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        EncryptMessageInput.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            var object = {};
+            if (message.epochRootKey != null && message.hasOwnProperty("epochRootKey")) {
+                object.epochRootKey = options.bytes === String ? $util.base64.encode(message.epochRootKey, 0, message.epochRootKey.length) : options.bytes === Array ? Array.prototype.slice.call(message.epochRootKey) : message.epochRootKey;
+                if (options.oneofs)
+                    object._epochRootKey = "epochRootKey";
+            }
+            if (message.mailboxRootKey != null && message.hasOwnProperty("mailboxRootKey")) {
+                object.mailboxRootKey = options.bytes === String ? $util.base64.encode(message.mailboxRootKey, 0, message.mailboxRootKey.length) : options.bytes === Array ? Array.prototype.slice.call(message.mailboxRootKey) : message.mailboxRootKey;
+                if (options.oneofs)
+                    object._mailboxRootKey = "mailboxRootKey";
+            }
+            if (message.orfClientState != null && message.hasOwnProperty("orfClientState")) {
+                object.orfClientState = options.bytes === String ? $util.base64.encode(message.orfClientState, 0, message.orfClientState.length) : options.bytes === Array ? Array.prototype.slice.call(message.orfClientState) : message.orfClientState;
+                if (options.oneofs)
+                    object._orfClientState = "orfClientState";
+            }
+            if (message.epochAnonId != null && message.hasOwnProperty("epochAnonId")) {
+                object.epochAnonId = options.bytes === String ? $util.base64.encode(message.epochAnonId, 0, message.epochAnonId.length) : options.bytes === Array ? Array.prototype.slice.call(message.epochAnonId) : message.epochAnonId;
+                if (options.oneofs)
+                    object._epochAnonId = "epochAnonId";
+            }
+            if (message.epochId != null && message.hasOwnProperty("epochId")) {
+                if (typeof message.epochId === "number")
+                    object.epochId = options.longs === String ? String(message.epochId) : message.epochId;
+                else
+                    object.epochId = options.longs === String ? $util.Long.prototype.toString.call(message.epochId) : options.longs === Number ? new $util.LongBits(message.epochId.low >>> 0, message.epochId.high >>> 0).toNumber(true) : message.epochId;
+                if (options.oneofs)
+                    object._epochId = "epochId";
+            }
+            if (message.threadId != null && message.hasOwnProperty("threadId")) {
+                object.threadId = message.threadId;
+                if (options.oneofs)
+                    object._threadId = "threadId";
+            }
+            if (message.waCanonicalUserFbid != null && message.hasOwnProperty("waCanonicalUserFbid")) {
+                if (typeof message.waCanonicalUserFbid === "number")
+                    object.waCanonicalUserFbid = options.longs === String ? String(message.waCanonicalUserFbid) : message.waCanonicalUserFbid;
+                else
+                    object.waCanonicalUserFbid = options.longs === String ? $util.Long.prototype.toString.call(message.waCanonicalUserFbid) : options.longs === Number ? new $util.LongBits(message.waCanonicalUserFbid.low >>> 0, message.waCanonicalUserFbid.high >>> 0).toNumber(true) : message.waCanonicalUserFbid;
+                if (options.oneofs)
+                    object._waCanonicalUserFbid = "waCanonicalUserFbid";
+            }
+            if (message.timestampMs != null && message.hasOwnProperty("timestampMs")) {
+                if (typeof message.timestampMs === "number")
+                    object.timestampMs = options.longs === String ? String(message.timestampMs) : message.timestampMs;
+                else
+                    object.timestampMs = options.longs === String ? $util.Long.prototype.toString.call(message.timestampMs) : options.longs === Number ? new $util.LongBits(message.timestampMs.low >>> 0, message.timestampMs.high >>> 0).toNumber(true) : message.timestampMs;
+                if (options.oneofs)
+                    object._timestampMs = "timestampMs";
+            }
+            if (message.backupId != null && message.hasOwnProperty("backupId")) {
+                if (typeof message.backupId === "number")
+                    object.backupId = options.longs === String ? String(message.backupId) : message.backupId;
+                else
+                    object.backupId = options.longs === String ? $util.Long.prototype.toString.call(message.backupId) : options.longs === Number ? new $util.LongBits(message.backupId.low >>> 0, message.backupId.high >>> 0).toNumber(true) : message.backupId;
+                if (options.oneofs)
+                    object._backupId = "backupId";
+            }
+            if (message.plaintextPayload != null && message.hasOwnProperty("plaintextPayload")) {
+                object.plaintextPayload = options.bytes === String ? $util.base64.encode(message.plaintextPayload, 0, message.plaintextPayload.length) : options.bytes === Array ? Array.prototype.slice.call(message.plaintextPayload) : message.plaintextPayload;
+                if (options.oneofs)
+                    object._plaintextPayload = "plaintextPayload";
+            }
+            if (message.stanzaId != null && message.hasOwnProperty("stanzaId")) {
+                object.stanzaId = message.stanzaId;
+                if (options.oneofs)
+                    object._stanzaId = "stanzaId";
+            }
+            return object;
+        };
+
+        /**
+         * Converts this EncryptMessageInput to JSON.
+         * @function toJSON
+         * @memberof proto.EncryptMessageInput
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        EncryptMessageInput.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for EncryptMessageInput
+         * @function getTypeUrl
+         * @memberof proto.EncryptMessageInput
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        EncryptMessageInput.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/proto.EncryptMessageInput";
+        };
+
+        return EncryptMessageInput;
+    })();
+
+    proto.EncryptMessageOutput = (function() {
+
+        /**
+         * Properties of an EncryptMessageOutput.
+         * @memberof proto
+         * @interface IEncryptMessageOutput
+         * @property {Uint8Array|null} [encryptedProtobuf] EncryptMessageOutput encryptedProtobuf
+         * @property {Uint8Array|null} [orfThreadId] EncryptMessageOutput orfThreadId
+         * @property {string|null} [valueSecretRef] EncryptMessageOutput valueSecretRef
+         * @property {number|Long|null} [offlineThreadingId] EncryptMessageOutput offlineThreadingId
+         * @property {number|Long|null} [timestampMs] EncryptMessageOutput timestampMs
+         * @property {Uint8Array|null} [messageKey] EncryptMessageOutput messageKey
+         * @property {string|null} [error] EncryptMessageOutput error
+         */
+
+        /**
+         * Constructs a new EncryptMessageOutput.
+         * @memberof proto
+         * @classdesc Represents an EncryptMessageOutput.
+         * @implements IEncryptMessageOutput
+         * @constructor
+         * @param {proto.IEncryptMessageOutput=} [properties] Properties to set
+         */
+        function EncryptMessageOutput(properties) {
+            if (properties)
+                for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * EncryptMessageOutput encryptedProtobuf.
+         * @member {Uint8Array|null|undefined} encryptedProtobuf
+         * @memberof proto.EncryptMessageOutput
+         * @instance
+         */
+        EncryptMessageOutput.prototype.encryptedProtobuf = null;
+
+        /**
+         * EncryptMessageOutput orfThreadId.
+         * @member {Uint8Array|null|undefined} orfThreadId
+         * @memberof proto.EncryptMessageOutput
+         * @instance
+         */
+        EncryptMessageOutput.prototype.orfThreadId = null;
+
+        /**
+         * EncryptMessageOutput valueSecretRef.
+         * @member {string|null|undefined} valueSecretRef
+         * @memberof proto.EncryptMessageOutput
+         * @instance
+         */
+        EncryptMessageOutput.prototype.valueSecretRef = null;
+
+        /**
+         * EncryptMessageOutput offlineThreadingId.
+         * @member {number|Long|null|undefined} offlineThreadingId
+         * @memberof proto.EncryptMessageOutput
+         * @instance
+         */
+        EncryptMessageOutput.prototype.offlineThreadingId = null;
+
+        /**
+         * EncryptMessageOutput timestampMs.
+         * @member {number|Long|null|undefined} timestampMs
+         * @memberof proto.EncryptMessageOutput
+         * @instance
+         */
+        EncryptMessageOutput.prototype.timestampMs = null;
+
+        /**
+         * EncryptMessageOutput messageKey.
+         * @member {Uint8Array|null|undefined} messageKey
+         * @memberof proto.EncryptMessageOutput
+         * @instance
+         */
+        EncryptMessageOutput.prototype.messageKey = null;
+
+        /**
+         * EncryptMessageOutput error.
+         * @member {string|null|undefined} error
+         * @memberof proto.EncryptMessageOutput
+         * @instance
+         */
+        EncryptMessageOutput.prototype.error = null;
+
+        // OneOf field names bound to virtual getters and setters
+        var $oneOfFields;
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageOutput.prototype, "_encryptedProtobuf", {
+            get: $util.oneOfGetter($oneOfFields = ["encryptedProtobuf"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageOutput.prototype, "_orfThreadId", {
+            get: $util.oneOfGetter($oneOfFields = ["orfThreadId"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageOutput.prototype, "_valueSecretRef", {
+            get: $util.oneOfGetter($oneOfFields = ["valueSecretRef"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageOutput.prototype, "_offlineThreadingId", {
+            get: $util.oneOfGetter($oneOfFields = ["offlineThreadingId"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageOutput.prototype, "_timestampMs", {
+            get: $util.oneOfGetter($oneOfFields = ["timestampMs"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageOutput.prototype, "_messageKey", {
+            get: $util.oneOfGetter($oneOfFields = ["messageKey"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptMessageOutput.prototype, "_error", {
+            get: $util.oneOfGetter($oneOfFields = ["error"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        /**
+         * Creates a new EncryptMessageOutput instance using the specified properties.
+         * @function create
+         * @memberof proto.EncryptMessageOutput
+         * @static
+         * @param {proto.IEncryptMessageOutput=} [properties] Properties to set
+         * @returns {proto.EncryptMessageOutput} EncryptMessageOutput instance
+         */
+        EncryptMessageOutput.create = function create(properties) {
+            return new EncryptMessageOutput(properties);
+        };
+
+        /**
+         * Encodes the specified EncryptMessageOutput message. Does not implicitly {@link proto.EncryptMessageOutput.verify|verify} messages.
+         * @function encode
+         * @memberof proto.EncryptMessageOutput
+         * @static
+         * @param {proto.IEncryptMessageOutput} message EncryptMessageOutput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        EncryptMessageOutput.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.encryptedProtobuf != null && Object.hasOwnProperty.call(message, "encryptedProtobuf"))
+                writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.encryptedProtobuf);
+            if (message.orfThreadId != null && Object.hasOwnProperty.call(message, "orfThreadId"))
+                writer.uint32(/* id 2, wireType 2 =*/18).bytes(message.orfThreadId);
+            if (message.valueSecretRef != null && Object.hasOwnProperty.call(message, "valueSecretRef"))
+                writer.uint32(/* id 3, wireType 2 =*/26).string(message.valueSecretRef);
+            if (message.offlineThreadingId != null && Object.hasOwnProperty.call(message, "offlineThreadingId"))
+                writer.uint32(/* id 4, wireType 0 =*/32).uint64(message.offlineThreadingId);
+            if (message.timestampMs != null && Object.hasOwnProperty.call(message, "timestampMs"))
+                writer.uint32(/* id 5, wireType 0 =*/40).uint64(message.timestampMs);
+            if (message.messageKey != null && Object.hasOwnProperty.call(message, "messageKey"))
+                writer.uint32(/* id 6, wireType 2 =*/50).bytes(message.messageKey);
+            if (message.error != null && Object.hasOwnProperty.call(message, "error"))
+                writer.uint32(/* id 7, wireType 2 =*/58).string(message.error);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified EncryptMessageOutput message, length delimited. Does not implicitly {@link proto.EncryptMessageOutput.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.EncryptMessageOutput
+         * @static
+         * @param {proto.IEncryptMessageOutput} message EncryptMessageOutput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        EncryptMessageOutput.encodeDelimited = function encodeDelimited(message, writer) {
+            return this.encode(message, writer).ldelim();
+        };
+
+        /**
+         * Decodes an EncryptMessageOutput message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.EncryptMessageOutput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.EncryptMessageOutput} EncryptMessageOutput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        EncryptMessageOutput.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.EncryptMessageOutput();
+            while (reader.pos < end) {
+                var tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.encryptedProtobuf = reader.bytes();
+                        break;
+                    }
+                case 2: {
+                        message.orfThreadId = reader.bytes();
+                        break;
+                    }
+                case 3: {
+                        message.valueSecretRef = reader.string();
+                        break;
+                    }
+                case 4: {
+                        message.offlineThreadingId = reader.uint64();
+                        break;
+                    }
+                case 5: {
+                        message.timestampMs = reader.uint64();
+                        break;
+                    }
+                case 6: {
+                        message.messageKey = reader.bytes();
+                        break;
+                    }
+                case 7: {
+                        message.error = reader.string();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Decodes an EncryptMessageOutput message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.EncryptMessageOutput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.EncryptMessageOutput} EncryptMessageOutput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        EncryptMessageOutput.decodeDelimited = function decodeDelimited(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies an EncryptMessageOutput message.
+         * @function verify
+         * @memberof proto.EncryptMessageOutput
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        EncryptMessageOutput.verify = function verify(message) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            var properties = {};
+            if (message.encryptedProtobuf != null && message.hasOwnProperty("encryptedProtobuf")) {
+                properties._encryptedProtobuf = 1;
+                if (!(message.encryptedProtobuf && typeof message.encryptedProtobuf.length === "number" || $util.isString(message.encryptedProtobuf)))
+                    return "encryptedProtobuf: buffer expected";
+            }
+            if (message.orfThreadId != null && message.hasOwnProperty("orfThreadId")) {
+                properties._orfThreadId = 1;
+                if (!(message.orfThreadId && typeof message.orfThreadId.length === "number" || $util.isString(message.orfThreadId)))
+                    return "orfThreadId: buffer expected";
+            }
+            if (message.valueSecretRef != null && message.hasOwnProperty("valueSecretRef")) {
+                properties._valueSecretRef = 1;
+                if (!$util.isString(message.valueSecretRef))
+                    return "valueSecretRef: string expected";
+            }
+            if (message.offlineThreadingId != null && message.hasOwnProperty("offlineThreadingId")) {
+                properties._offlineThreadingId = 1;
+                if (!$util.isInteger(message.offlineThreadingId) && !(message.offlineThreadingId && $util.isInteger(message.offlineThreadingId.low) && $util.isInteger(message.offlineThreadingId.high)))
+                    return "offlineThreadingId: integer|Long expected";
+            }
+            if (message.timestampMs != null && message.hasOwnProperty("timestampMs")) {
+                properties._timestampMs = 1;
+                if (!$util.isInteger(message.timestampMs) && !(message.timestampMs && $util.isInteger(message.timestampMs.low) && $util.isInteger(message.timestampMs.high)))
+                    return "timestampMs: integer|Long expected";
+            }
+            if (message.messageKey != null && message.hasOwnProperty("messageKey")) {
+                properties._messageKey = 1;
+                if (!(message.messageKey && typeof message.messageKey.length === "number" || $util.isString(message.messageKey)))
+                    return "messageKey: buffer expected";
+            }
+            if (message.error != null && message.hasOwnProperty("error")) {
+                properties._error = 1;
+                if (!$util.isString(message.error))
+                    return "error: string expected";
+            }
+            return null;
+        };
+
+        /**
+         * Creates an EncryptMessageOutput message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.EncryptMessageOutput
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.EncryptMessageOutput} EncryptMessageOutput
+         */
+        EncryptMessageOutput.fromObject = function fromObject(object) {
+            if (object instanceof $root.proto.EncryptMessageOutput)
+                return object;
+            var message = new $root.proto.EncryptMessageOutput();
+            if (object.encryptedProtobuf != null)
+                if (typeof object.encryptedProtobuf === "string")
+                    $util.base64.decode(object.encryptedProtobuf, message.encryptedProtobuf = $util.newBuffer($util.base64.length(object.encryptedProtobuf)), 0);
+                else if (object.encryptedProtobuf.length >= 0)
+                    message.encryptedProtobuf = object.encryptedProtobuf;
+            if (object.orfThreadId != null)
+                if (typeof object.orfThreadId === "string")
+                    $util.base64.decode(object.orfThreadId, message.orfThreadId = $util.newBuffer($util.base64.length(object.orfThreadId)), 0);
+                else if (object.orfThreadId.length >= 0)
+                    message.orfThreadId = object.orfThreadId;
+            if (object.valueSecretRef != null)
+                message.valueSecretRef = String(object.valueSecretRef);
+            if (object.offlineThreadingId != null)
+                if ($util.Long)
+                    (message.offlineThreadingId = $util.Long.fromValue(object.offlineThreadingId)).unsigned = true;
+                else if (typeof object.offlineThreadingId === "string")
+                    message.offlineThreadingId = parseInt(object.offlineThreadingId, 10);
+                else if (typeof object.offlineThreadingId === "number")
+                    message.offlineThreadingId = object.offlineThreadingId;
+                else if (typeof object.offlineThreadingId === "object")
+                    message.offlineThreadingId = new $util.LongBits(object.offlineThreadingId.low >>> 0, object.offlineThreadingId.high >>> 0).toNumber(true);
+            if (object.timestampMs != null)
+                if ($util.Long)
+                    (message.timestampMs = $util.Long.fromValue(object.timestampMs)).unsigned = true;
+                else if (typeof object.timestampMs === "string")
+                    message.timestampMs = parseInt(object.timestampMs, 10);
+                else if (typeof object.timestampMs === "number")
+                    message.timestampMs = object.timestampMs;
+                else if (typeof object.timestampMs === "object")
+                    message.timestampMs = new $util.LongBits(object.timestampMs.low >>> 0, object.timestampMs.high >>> 0).toNumber(true);
+            if (object.messageKey != null)
+                if (typeof object.messageKey === "string")
+                    $util.base64.decode(object.messageKey, message.messageKey = $util.newBuffer($util.base64.length(object.messageKey)), 0);
+                else if (object.messageKey.length >= 0)
+                    message.messageKey = object.messageKey;
+            if (object.error != null)
+                message.error = String(object.error);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from an EncryptMessageOutput message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.EncryptMessageOutput
+         * @static
+         * @param {proto.EncryptMessageOutput} message EncryptMessageOutput
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        EncryptMessageOutput.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            var object = {};
+            if (message.encryptedProtobuf != null && message.hasOwnProperty("encryptedProtobuf")) {
+                object.encryptedProtobuf = options.bytes === String ? $util.base64.encode(message.encryptedProtobuf, 0, message.encryptedProtobuf.length) : options.bytes === Array ? Array.prototype.slice.call(message.encryptedProtobuf) : message.encryptedProtobuf;
+                if (options.oneofs)
+                    object._encryptedProtobuf = "encryptedProtobuf";
+            }
+            if (message.orfThreadId != null && message.hasOwnProperty("orfThreadId")) {
+                object.orfThreadId = options.bytes === String ? $util.base64.encode(message.orfThreadId, 0, message.orfThreadId.length) : options.bytes === Array ? Array.prototype.slice.call(message.orfThreadId) : message.orfThreadId;
+                if (options.oneofs)
+                    object._orfThreadId = "orfThreadId";
+            }
+            if (message.valueSecretRef != null && message.hasOwnProperty("valueSecretRef")) {
+                object.valueSecretRef = message.valueSecretRef;
+                if (options.oneofs)
+                    object._valueSecretRef = "valueSecretRef";
+            }
+            if (message.offlineThreadingId != null && message.hasOwnProperty("offlineThreadingId")) {
+                if (typeof message.offlineThreadingId === "number")
+                    object.offlineThreadingId = options.longs === String ? String(message.offlineThreadingId) : message.offlineThreadingId;
+                else
+                    object.offlineThreadingId = options.longs === String ? $util.Long.prototype.toString.call(message.offlineThreadingId) : options.longs === Number ? new $util.LongBits(message.offlineThreadingId.low >>> 0, message.offlineThreadingId.high >>> 0).toNumber(true) : message.offlineThreadingId;
+                if (options.oneofs)
+                    object._offlineThreadingId = "offlineThreadingId";
+            }
+            if (message.timestampMs != null && message.hasOwnProperty("timestampMs")) {
+                if (typeof message.timestampMs === "number")
+                    object.timestampMs = options.longs === String ? String(message.timestampMs) : message.timestampMs;
+                else
+                    object.timestampMs = options.longs === String ? $util.Long.prototype.toString.call(message.timestampMs) : options.longs === Number ? new $util.LongBits(message.timestampMs.low >>> 0, message.timestampMs.high >>> 0).toNumber(true) : message.timestampMs;
+                if (options.oneofs)
+                    object._timestampMs = "timestampMs";
+            }
+            if (message.messageKey != null && message.hasOwnProperty("messageKey")) {
+                object.messageKey = options.bytes === String ? $util.base64.encode(message.messageKey, 0, message.messageKey.length) : options.bytes === Array ? Array.prototype.slice.call(message.messageKey) : message.messageKey;
+                if (options.oneofs)
+                    object._messageKey = "messageKey";
+            }
+            if (message.error != null && message.hasOwnProperty("error")) {
+                object.error = message.error;
+                if (options.oneofs)
+                    object._error = "error";
+            }
+            return object;
+        };
+
+        /**
+         * Converts this EncryptMessageOutput to JSON.
+         * @function toJSON
+         * @memberof proto.EncryptMessageOutput
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        EncryptMessageOutput.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for EncryptMessageOutput
+         * @function getTypeUrl
+         * @memberof proto.EncryptMessageOutput
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        EncryptMessageOutput.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/proto.EncryptMessageOutput";
+        };
+
+        return EncryptMessageOutput;
+    })();
+
     proto.EncryptedPairingRequest = (function() {
 
         /**
@@ -72610,6 +75421,479 @@ $root.proto = (function() {
         };
 
         return EncryptedPairingRequest;
+    })();
+
+    proto.EncryptedSecretValuesOutput = (function() {
+
+        /**
+         * Properties of an EncryptedSecretValuesOutput.
+         * @memberof proto
+         * @interface IEncryptedSecretValuesOutput
+         * @property {Uint8Array|null} [encryptedDevicePrivateKey] EncryptedSecretValuesOutput encryptedDevicePrivateKey
+         * @property {Uint8Array|null} [encryptedObliviousValidationTokenBlob] EncryptedSecretValuesOutput encryptedObliviousValidationTokenBlob
+         * @property {Uint8Array|null} [encryptedEpochStoragePrivateKey] EncryptedSecretValuesOutput encryptedEpochStoragePrivateKey
+         * @property {Uint8Array|null} [encryptedOcmfClientState] EncryptedSecretValuesOutput encryptedOcmfClientState
+         * @property {Uint8Array|null} [encryptedOrfClientStateV2] EncryptedSecretValuesOutput encryptedOrfClientStateV2
+         * @property {Uint8Array|null} [encryptedMailboxRootKeyBlob] EncryptedSecretValuesOutput encryptedMailboxRootKeyBlob
+         * @property {Uint8Array|null} [encryptedEpochAnonId] EncryptedSecretValuesOutput encryptedEpochAnonId
+         * @property {Uint8Array|null} [encryptedEpochRootKey] EncryptedSecretValuesOutput encryptedEpochRootKey
+         */
+
+        /**
+         * Constructs a new EncryptedSecretValuesOutput.
+         * @memberof proto
+         * @classdesc Represents an EncryptedSecretValuesOutput.
+         * @implements IEncryptedSecretValuesOutput
+         * @constructor
+         * @param {proto.IEncryptedSecretValuesOutput=} [properties] Properties to set
+         */
+        function EncryptedSecretValuesOutput(properties) {
+            if (properties)
+                for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * EncryptedSecretValuesOutput encryptedDevicePrivateKey.
+         * @member {Uint8Array|null|undefined} encryptedDevicePrivateKey
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @instance
+         */
+        EncryptedSecretValuesOutput.prototype.encryptedDevicePrivateKey = null;
+
+        /**
+         * EncryptedSecretValuesOutput encryptedObliviousValidationTokenBlob.
+         * @member {Uint8Array|null|undefined} encryptedObliviousValidationTokenBlob
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @instance
+         */
+        EncryptedSecretValuesOutput.prototype.encryptedObliviousValidationTokenBlob = null;
+
+        /**
+         * EncryptedSecretValuesOutput encryptedEpochStoragePrivateKey.
+         * @member {Uint8Array|null|undefined} encryptedEpochStoragePrivateKey
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @instance
+         */
+        EncryptedSecretValuesOutput.prototype.encryptedEpochStoragePrivateKey = null;
+
+        /**
+         * EncryptedSecretValuesOutput encryptedOcmfClientState.
+         * @member {Uint8Array|null|undefined} encryptedOcmfClientState
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @instance
+         */
+        EncryptedSecretValuesOutput.prototype.encryptedOcmfClientState = null;
+
+        /**
+         * EncryptedSecretValuesOutput encryptedOrfClientStateV2.
+         * @member {Uint8Array|null|undefined} encryptedOrfClientStateV2
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @instance
+         */
+        EncryptedSecretValuesOutput.prototype.encryptedOrfClientStateV2 = null;
+
+        /**
+         * EncryptedSecretValuesOutput encryptedMailboxRootKeyBlob.
+         * @member {Uint8Array|null|undefined} encryptedMailboxRootKeyBlob
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @instance
+         */
+        EncryptedSecretValuesOutput.prototype.encryptedMailboxRootKeyBlob = null;
+
+        /**
+         * EncryptedSecretValuesOutput encryptedEpochAnonId.
+         * @member {Uint8Array|null|undefined} encryptedEpochAnonId
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @instance
+         */
+        EncryptedSecretValuesOutput.prototype.encryptedEpochAnonId = null;
+
+        /**
+         * EncryptedSecretValuesOutput encryptedEpochRootKey.
+         * @member {Uint8Array|null|undefined} encryptedEpochRootKey
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @instance
+         */
+        EncryptedSecretValuesOutput.prototype.encryptedEpochRootKey = null;
+
+        // OneOf field names bound to virtual getters and setters
+        var $oneOfFields;
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptedSecretValuesOutput.prototype, "_encryptedDevicePrivateKey", {
+            get: $util.oneOfGetter($oneOfFields = ["encryptedDevicePrivateKey"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptedSecretValuesOutput.prototype, "_encryptedObliviousValidationTokenBlob", {
+            get: $util.oneOfGetter($oneOfFields = ["encryptedObliviousValidationTokenBlob"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptedSecretValuesOutput.prototype, "_encryptedEpochStoragePrivateKey", {
+            get: $util.oneOfGetter($oneOfFields = ["encryptedEpochStoragePrivateKey"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptedSecretValuesOutput.prototype, "_encryptedOcmfClientState", {
+            get: $util.oneOfGetter($oneOfFields = ["encryptedOcmfClientState"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptedSecretValuesOutput.prototype, "_encryptedOrfClientStateV2", {
+            get: $util.oneOfGetter($oneOfFields = ["encryptedOrfClientStateV2"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptedSecretValuesOutput.prototype, "_encryptedMailboxRootKeyBlob", {
+            get: $util.oneOfGetter($oneOfFields = ["encryptedMailboxRootKeyBlob"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptedSecretValuesOutput.prototype, "_encryptedEpochAnonId", {
+            get: $util.oneOfGetter($oneOfFields = ["encryptedEpochAnonId"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(EncryptedSecretValuesOutput.prototype, "_encryptedEpochRootKey", {
+            get: $util.oneOfGetter($oneOfFields = ["encryptedEpochRootKey"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        /**
+         * Creates a new EncryptedSecretValuesOutput instance using the specified properties.
+         * @function create
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @static
+         * @param {proto.IEncryptedSecretValuesOutput=} [properties] Properties to set
+         * @returns {proto.EncryptedSecretValuesOutput} EncryptedSecretValuesOutput instance
+         */
+        EncryptedSecretValuesOutput.create = function create(properties) {
+            return new EncryptedSecretValuesOutput(properties);
+        };
+
+        /**
+         * Encodes the specified EncryptedSecretValuesOutput message. Does not implicitly {@link proto.EncryptedSecretValuesOutput.verify|verify} messages.
+         * @function encode
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @static
+         * @param {proto.IEncryptedSecretValuesOutput} message EncryptedSecretValuesOutput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        EncryptedSecretValuesOutput.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.encryptedDevicePrivateKey != null && Object.hasOwnProperty.call(message, "encryptedDevicePrivateKey"))
+                writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.encryptedDevicePrivateKey);
+            if (message.encryptedObliviousValidationTokenBlob != null && Object.hasOwnProperty.call(message, "encryptedObliviousValidationTokenBlob"))
+                writer.uint32(/* id 2, wireType 2 =*/18).bytes(message.encryptedObliviousValidationTokenBlob);
+            if (message.encryptedEpochStoragePrivateKey != null && Object.hasOwnProperty.call(message, "encryptedEpochStoragePrivateKey"))
+                writer.uint32(/* id 3, wireType 2 =*/26).bytes(message.encryptedEpochStoragePrivateKey);
+            if (message.encryptedOcmfClientState != null && Object.hasOwnProperty.call(message, "encryptedOcmfClientState"))
+                writer.uint32(/* id 4, wireType 2 =*/34).bytes(message.encryptedOcmfClientState);
+            if (message.encryptedOrfClientStateV2 != null && Object.hasOwnProperty.call(message, "encryptedOrfClientStateV2"))
+                writer.uint32(/* id 5, wireType 2 =*/42).bytes(message.encryptedOrfClientStateV2);
+            if (message.encryptedMailboxRootKeyBlob != null && Object.hasOwnProperty.call(message, "encryptedMailboxRootKeyBlob"))
+                writer.uint32(/* id 6, wireType 2 =*/50).bytes(message.encryptedMailboxRootKeyBlob);
+            if (message.encryptedEpochAnonId != null && Object.hasOwnProperty.call(message, "encryptedEpochAnonId"))
+                writer.uint32(/* id 7, wireType 2 =*/58).bytes(message.encryptedEpochAnonId);
+            if (message.encryptedEpochRootKey != null && Object.hasOwnProperty.call(message, "encryptedEpochRootKey"))
+                writer.uint32(/* id 8, wireType 2 =*/66).bytes(message.encryptedEpochRootKey);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified EncryptedSecretValuesOutput message, length delimited. Does not implicitly {@link proto.EncryptedSecretValuesOutput.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @static
+         * @param {proto.IEncryptedSecretValuesOutput} message EncryptedSecretValuesOutput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        EncryptedSecretValuesOutput.encodeDelimited = function encodeDelimited(message, writer) {
+            return this.encode(message, writer).ldelim();
+        };
+
+        /**
+         * Decodes an EncryptedSecretValuesOutput message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.EncryptedSecretValuesOutput} EncryptedSecretValuesOutput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        EncryptedSecretValuesOutput.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.EncryptedSecretValuesOutput();
+            while (reader.pos < end) {
+                var tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.encryptedDevicePrivateKey = reader.bytes();
+                        break;
+                    }
+                case 2: {
+                        message.encryptedObliviousValidationTokenBlob = reader.bytes();
+                        break;
+                    }
+                case 3: {
+                        message.encryptedEpochStoragePrivateKey = reader.bytes();
+                        break;
+                    }
+                case 4: {
+                        message.encryptedOcmfClientState = reader.bytes();
+                        break;
+                    }
+                case 5: {
+                        message.encryptedOrfClientStateV2 = reader.bytes();
+                        break;
+                    }
+                case 6: {
+                        message.encryptedMailboxRootKeyBlob = reader.bytes();
+                        break;
+                    }
+                case 7: {
+                        message.encryptedEpochAnonId = reader.bytes();
+                        break;
+                    }
+                case 8: {
+                        message.encryptedEpochRootKey = reader.bytes();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Decodes an EncryptedSecretValuesOutput message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.EncryptedSecretValuesOutput} EncryptedSecretValuesOutput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        EncryptedSecretValuesOutput.decodeDelimited = function decodeDelimited(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies an EncryptedSecretValuesOutput message.
+         * @function verify
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        EncryptedSecretValuesOutput.verify = function verify(message) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            var properties = {};
+            if (message.encryptedDevicePrivateKey != null && message.hasOwnProperty("encryptedDevicePrivateKey")) {
+                properties._encryptedDevicePrivateKey = 1;
+                if (!(message.encryptedDevicePrivateKey && typeof message.encryptedDevicePrivateKey.length === "number" || $util.isString(message.encryptedDevicePrivateKey)))
+                    return "encryptedDevicePrivateKey: buffer expected";
+            }
+            if (message.encryptedObliviousValidationTokenBlob != null && message.hasOwnProperty("encryptedObliviousValidationTokenBlob")) {
+                properties._encryptedObliviousValidationTokenBlob = 1;
+                if (!(message.encryptedObliviousValidationTokenBlob && typeof message.encryptedObliviousValidationTokenBlob.length === "number" || $util.isString(message.encryptedObliviousValidationTokenBlob)))
+                    return "encryptedObliviousValidationTokenBlob: buffer expected";
+            }
+            if (message.encryptedEpochStoragePrivateKey != null && message.hasOwnProperty("encryptedEpochStoragePrivateKey")) {
+                properties._encryptedEpochStoragePrivateKey = 1;
+                if (!(message.encryptedEpochStoragePrivateKey && typeof message.encryptedEpochStoragePrivateKey.length === "number" || $util.isString(message.encryptedEpochStoragePrivateKey)))
+                    return "encryptedEpochStoragePrivateKey: buffer expected";
+            }
+            if (message.encryptedOcmfClientState != null && message.hasOwnProperty("encryptedOcmfClientState")) {
+                properties._encryptedOcmfClientState = 1;
+                if (!(message.encryptedOcmfClientState && typeof message.encryptedOcmfClientState.length === "number" || $util.isString(message.encryptedOcmfClientState)))
+                    return "encryptedOcmfClientState: buffer expected";
+            }
+            if (message.encryptedOrfClientStateV2 != null && message.hasOwnProperty("encryptedOrfClientStateV2")) {
+                properties._encryptedOrfClientStateV2 = 1;
+                if (!(message.encryptedOrfClientStateV2 && typeof message.encryptedOrfClientStateV2.length === "number" || $util.isString(message.encryptedOrfClientStateV2)))
+                    return "encryptedOrfClientStateV2: buffer expected";
+            }
+            if (message.encryptedMailboxRootKeyBlob != null && message.hasOwnProperty("encryptedMailboxRootKeyBlob")) {
+                properties._encryptedMailboxRootKeyBlob = 1;
+                if (!(message.encryptedMailboxRootKeyBlob && typeof message.encryptedMailboxRootKeyBlob.length === "number" || $util.isString(message.encryptedMailboxRootKeyBlob)))
+                    return "encryptedMailboxRootKeyBlob: buffer expected";
+            }
+            if (message.encryptedEpochAnonId != null && message.hasOwnProperty("encryptedEpochAnonId")) {
+                properties._encryptedEpochAnonId = 1;
+                if (!(message.encryptedEpochAnonId && typeof message.encryptedEpochAnonId.length === "number" || $util.isString(message.encryptedEpochAnonId)))
+                    return "encryptedEpochAnonId: buffer expected";
+            }
+            if (message.encryptedEpochRootKey != null && message.hasOwnProperty("encryptedEpochRootKey")) {
+                properties._encryptedEpochRootKey = 1;
+                if (!(message.encryptedEpochRootKey && typeof message.encryptedEpochRootKey.length === "number" || $util.isString(message.encryptedEpochRootKey)))
+                    return "encryptedEpochRootKey: buffer expected";
+            }
+            return null;
+        };
+
+        /**
+         * Creates an EncryptedSecretValuesOutput message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.EncryptedSecretValuesOutput} EncryptedSecretValuesOutput
+         */
+        EncryptedSecretValuesOutput.fromObject = function fromObject(object) {
+            if (object instanceof $root.proto.EncryptedSecretValuesOutput)
+                return object;
+            var message = new $root.proto.EncryptedSecretValuesOutput();
+            if (object.encryptedDevicePrivateKey != null)
+                if (typeof object.encryptedDevicePrivateKey === "string")
+                    $util.base64.decode(object.encryptedDevicePrivateKey, message.encryptedDevicePrivateKey = $util.newBuffer($util.base64.length(object.encryptedDevicePrivateKey)), 0);
+                else if (object.encryptedDevicePrivateKey.length >= 0)
+                    message.encryptedDevicePrivateKey = object.encryptedDevicePrivateKey;
+            if (object.encryptedObliviousValidationTokenBlob != null)
+                if (typeof object.encryptedObliviousValidationTokenBlob === "string")
+                    $util.base64.decode(object.encryptedObliviousValidationTokenBlob, message.encryptedObliviousValidationTokenBlob = $util.newBuffer($util.base64.length(object.encryptedObliviousValidationTokenBlob)), 0);
+                else if (object.encryptedObliviousValidationTokenBlob.length >= 0)
+                    message.encryptedObliviousValidationTokenBlob = object.encryptedObliviousValidationTokenBlob;
+            if (object.encryptedEpochStoragePrivateKey != null)
+                if (typeof object.encryptedEpochStoragePrivateKey === "string")
+                    $util.base64.decode(object.encryptedEpochStoragePrivateKey, message.encryptedEpochStoragePrivateKey = $util.newBuffer($util.base64.length(object.encryptedEpochStoragePrivateKey)), 0);
+                else if (object.encryptedEpochStoragePrivateKey.length >= 0)
+                    message.encryptedEpochStoragePrivateKey = object.encryptedEpochStoragePrivateKey;
+            if (object.encryptedOcmfClientState != null)
+                if (typeof object.encryptedOcmfClientState === "string")
+                    $util.base64.decode(object.encryptedOcmfClientState, message.encryptedOcmfClientState = $util.newBuffer($util.base64.length(object.encryptedOcmfClientState)), 0);
+                else if (object.encryptedOcmfClientState.length >= 0)
+                    message.encryptedOcmfClientState = object.encryptedOcmfClientState;
+            if (object.encryptedOrfClientStateV2 != null)
+                if (typeof object.encryptedOrfClientStateV2 === "string")
+                    $util.base64.decode(object.encryptedOrfClientStateV2, message.encryptedOrfClientStateV2 = $util.newBuffer($util.base64.length(object.encryptedOrfClientStateV2)), 0);
+                else if (object.encryptedOrfClientStateV2.length >= 0)
+                    message.encryptedOrfClientStateV2 = object.encryptedOrfClientStateV2;
+            if (object.encryptedMailboxRootKeyBlob != null)
+                if (typeof object.encryptedMailboxRootKeyBlob === "string")
+                    $util.base64.decode(object.encryptedMailboxRootKeyBlob, message.encryptedMailboxRootKeyBlob = $util.newBuffer($util.base64.length(object.encryptedMailboxRootKeyBlob)), 0);
+                else if (object.encryptedMailboxRootKeyBlob.length >= 0)
+                    message.encryptedMailboxRootKeyBlob = object.encryptedMailboxRootKeyBlob;
+            if (object.encryptedEpochAnonId != null)
+                if (typeof object.encryptedEpochAnonId === "string")
+                    $util.base64.decode(object.encryptedEpochAnonId, message.encryptedEpochAnonId = $util.newBuffer($util.base64.length(object.encryptedEpochAnonId)), 0);
+                else if (object.encryptedEpochAnonId.length >= 0)
+                    message.encryptedEpochAnonId = object.encryptedEpochAnonId;
+            if (object.encryptedEpochRootKey != null)
+                if (typeof object.encryptedEpochRootKey === "string")
+                    $util.base64.decode(object.encryptedEpochRootKey, message.encryptedEpochRootKey = $util.newBuffer($util.base64.length(object.encryptedEpochRootKey)), 0);
+                else if (object.encryptedEpochRootKey.length >= 0)
+                    message.encryptedEpochRootKey = object.encryptedEpochRootKey;
+            return message;
+        };
+
+        /**
+         * Creates a plain object from an EncryptedSecretValuesOutput message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @static
+         * @param {proto.EncryptedSecretValuesOutput} message EncryptedSecretValuesOutput
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        EncryptedSecretValuesOutput.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            var object = {};
+            if (message.encryptedDevicePrivateKey != null && message.hasOwnProperty("encryptedDevicePrivateKey")) {
+                object.encryptedDevicePrivateKey = options.bytes === String ? $util.base64.encode(message.encryptedDevicePrivateKey, 0, message.encryptedDevicePrivateKey.length) : options.bytes === Array ? Array.prototype.slice.call(message.encryptedDevicePrivateKey) : message.encryptedDevicePrivateKey;
+                if (options.oneofs)
+                    object._encryptedDevicePrivateKey = "encryptedDevicePrivateKey";
+            }
+            if (message.encryptedObliviousValidationTokenBlob != null && message.hasOwnProperty("encryptedObliviousValidationTokenBlob")) {
+                object.encryptedObliviousValidationTokenBlob = options.bytes === String ? $util.base64.encode(message.encryptedObliviousValidationTokenBlob, 0, message.encryptedObliviousValidationTokenBlob.length) : options.bytes === Array ? Array.prototype.slice.call(message.encryptedObliviousValidationTokenBlob) : message.encryptedObliviousValidationTokenBlob;
+                if (options.oneofs)
+                    object._encryptedObliviousValidationTokenBlob = "encryptedObliviousValidationTokenBlob";
+            }
+            if (message.encryptedEpochStoragePrivateKey != null && message.hasOwnProperty("encryptedEpochStoragePrivateKey")) {
+                object.encryptedEpochStoragePrivateKey = options.bytes === String ? $util.base64.encode(message.encryptedEpochStoragePrivateKey, 0, message.encryptedEpochStoragePrivateKey.length) : options.bytes === Array ? Array.prototype.slice.call(message.encryptedEpochStoragePrivateKey) : message.encryptedEpochStoragePrivateKey;
+                if (options.oneofs)
+                    object._encryptedEpochStoragePrivateKey = "encryptedEpochStoragePrivateKey";
+            }
+            if (message.encryptedOcmfClientState != null && message.hasOwnProperty("encryptedOcmfClientState")) {
+                object.encryptedOcmfClientState = options.bytes === String ? $util.base64.encode(message.encryptedOcmfClientState, 0, message.encryptedOcmfClientState.length) : options.bytes === Array ? Array.prototype.slice.call(message.encryptedOcmfClientState) : message.encryptedOcmfClientState;
+                if (options.oneofs)
+                    object._encryptedOcmfClientState = "encryptedOcmfClientState";
+            }
+            if (message.encryptedOrfClientStateV2 != null && message.hasOwnProperty("encryptedOrfClientStateV2")) {
+                object.encryptedOrfClientStateV2 = options.bytes === String ? $util.base64.encode(message.encryptedOrfClientStateV2, 0, message.encryptedOrfClientStateV2.length) : options.bytes === Array ? Array.prototype.slice.call(message.encryptedOrfClientStateV2) : message.encryptedOrfClientStateV2;
+                if (options.oneofs)
+                    object._encryptedOrfClientStateV2 = "encryptedOrfClientStateV2";
+            }
+            if (message.encryptedMailboxRootKeyBlob != null && message.hasOwnProperty("encryptedMailboxRootKeyBlob")) {
+                object.encryptedMailboxRootKeyBlob = options.bytes === String ? $util.base64.encode(message.encryptedMailboxRootKeyBlob, 0, message.encryptedMailboxRootKeyBlob.length) : options.bytes === Array ? Array.prototype.slice.call(message.encryptedMailboxRootKeyBlob) : message.encryptedMailboxRootKeyBlob;
+                if (options.oneofs)
+                    object._encryptedMailboxRootKeyBlob = "encryptedMailboxRootKeyBlob";
+            }
+            if (message.encryptedEpochAnonId != null && message.hasOwnProperty("encryptedEpochAnonId")) {
+                object.encryptedEpochAnonId = options.bytes === String ? $util.base64.encode(message.encryptedEpochAnonId, 0, message.encryptedEpochAnonId.length) : options.bytes === Array ? Array.prototype.slice.call(message.encryptedEpochAnonId) : message.encryptedEpochAnonId;
+                if (options.oneofs)
+                    object._encryptedEpochAnonId = "encryptedEpochAnonId";
+            }
+            if (message.encryptedEpochRootKey != null && message.hasOwnProperty("encryptedEpochRootKey")) {
+                object.encryptedEpochRootKey = options.bytes === String ? $util.base64.encode(message.encryptedEpochRootKey, 0, message.encryptedEpochRootKey.length) : options.bytes === Array ? Array.prototype.slice.call(message.encryptedEpochRootKey) : message.encryptedEpochRootKey;
+                if (options.oneofs)
+                    object._encryptedEpochRootKey = "encryptedEpochRootKey";
+            }
+            return object;
+        };
+
+        /**
+         * Converts this EncryptedSecretValuesOutput to JSON.
+         * @function toJSON
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        EncryptedSecretValuesOutput.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for EncryptedSecretValuesOutput
+         * @function getTypeUrl
+         * @memberof proto.EncryptedSecretValuesOutput
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        EncryptedSecretValuesOutput.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/proto.EncryptedSecretValuesOutput";
+        };
+
+        return EncryptedSecretValuesOutput;
     })();
 
     proto.EphemeralSetting = (function() {
@@ -72871,6 +76155,450 @@ $root.proto = (function() {
         };
 
         return EphemeralSetting;
+    })();
+
+    proto.Epoch0Output = (function() {
+
+        /**
+         * Properties of an Epoch0Output.
+         * @memberof proto
+         * @interface IEpoch0Output
+         * @property {number|Long|null} [epochFbid] Epoch0Output epochFbid
+         * @property {Uint8Array|null} [epochAnonId] Epoch0Output epochAnonId
+         * @property {Uint8Array|null} [epochData] Epoch0Output epochData
+         * @property {Uint8Array|null} [wrappedRootKeyForSelf] Epoch0Output wrappedRootKeyForSelf
+         * @property {Uint8Array|null} [epochSignature] Epoch0Output epochSignature
+         * @property {Uint8Array|null} [epochRootKeyFingerprint] Epoch0Output epochRootKeyFingerprint
+         * @property {Uint8Array|null} [epochRootKey] Epoch0Output epochRootKey
+         */
+
+        /**
+         * Constructs a new Epoch0Output.
+         * @memberof proto
+         * @classdesc Represents an Epoch0Output.
+         * @implements IEpoch0Output
+         * @constructor
+         * @param {proto.IEpoch0Output=} [properties] Properties to set
+         */
+        function Epoch0Output(properties) {
+            if (properties)
+                for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * Epoch0Output epochFbid.
+         * @member {number|Long|null|undefined} epochFbid
+         * @memberof proto.Epoch0Output
+         * @instance
+         */
+        Epoch0Output.prototype.epochFbid = null;
+
+        /**
+         * Epoch0Output epochAnonId.
+         * @member {Uint8Array|null|undefined} epochAnonId
+         * @memberof proto.Epoch0Output
+         * @instance
+         */
+        Epoch0Output.prototype.epochAnonId = null;
+
+        /**
+         * Epoch0Output epochData.
+         * @member {Uint8Array|null|undefined} epochData
+         * @memberof proto.Epoch0Output
+         * @instance
+         */
+        Epoch0Output.prototype.epochData = null;
+
+        /**
+         * Epoch0Output wrappedRootKeyForSelf.
+         * @member {Uint8Array|null|undefined} wrappedRootKeyForSelf
+         * @memberof proto.Epoch0Output
+         * @instance
+         */
+        Epoch0Output.prototype.wrappedRootKeyForSelf = null;
+
+        /**
+         * Epoch0Output epochSignature.
+         * @member {Uint8Array|null|undefined} epochSignature
+         * @memberof proto.Epoch0Output
+         * @instance
+         */
+        Epoch0Output.prototype.epochSignature = null;
+
+        /**
+         * Epoch0Output epochRootKeyFingerprint.
+         * @member {Uint8Array|null|undefined} epochRootKeyFingerprint
+         * @memberof proto.Epoch0Output
+         * @instance
+         */
+        Epoch0Output.prototype.epochRootKeyFingerprint = null;
+
+        /**
+         * Epoch0Output epochRootKey.
+         * @member {Uint8Array|null|undefined} epochRootKey
+         * @memberof proto.Epoch0Output
+         * @instance
+         */
+        Epoch0Output.prototype.epochRootKey = null;
+
+        // OneOf field names bound to virtual getters and setters
+        var $oneOfFields;
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(Epoch0Output.prototype, "_epochFbid", {
+            get: $util.oneOfGetter($oneOfFields = ["epochFbid"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(Epoch0Output.prototype, "_epochAnonId", {
+            get: $util.oneOfGetter($oneOfFields = ["epochAnonId"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(Epoch0Output.prototype, "_epochData", {
+            get: $util.oneOfGetter($oneOfFields = ["epochData"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(Epoch0Output.prototype, "_wrappedRootKeyForSelf", {
+            get: $util.oneOfGetter($oneOfFields = ["wrappedRootKeyForSelf"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(Epoch0Output.prototype, "_epochSignature", {
+            get: $util.oneOfGetter($oneOfFields = ["epochSignature"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(Epoch0Output.prototype, "_epochRootKeyFingerprint", {
+            get: $util.oneOfGetter($oneOfFields = ["epochRootKeyFingerprint"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(Epoch0Output.prototype, "_epochRootKey", {
+            get: $util.oneOfGetter($oneOfFields = ["epochRootKey"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        /**
+         * Creates a new Epoch0Output instance using the specified properties.
+         * @function create
+         * @memberof proto.Epoch0Output
+         * @static
+         * @param {proto.IEpoch0Output=} [properties] Properties to set
+         * @returns {proto.Epoch0Output} Epoch0Output instance
+         */
+        Epoch0Output.create = function create(properties) {
+            return new Epoch0Output(properties);
+        };
+
+        /**
+         * Encodes the specified Epoch0Output message. Does not implicitly {@link proto.Epoch0Output.verify|verify} messages.
+         * @function encode
+         * @memberof proto.Epoch0Output
+         * @static
+         * @param {proto.IEpoch0Output} message Epoch0Output message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        Epoch0Output.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.epochFbid != null && Object.hasOwnProperty.call(message, "epochFbid"))
+                writer.uint32(/* id 1, wireType 0 =*/8).uint64(message.epochFbid);
+            if (message.epochAnonId != null && Object.hasOwnProperty.call(message, "epochAnonId"))
+                writer.uint32(/* id 2, wireType 2 =*/18).bytes(message.epochAnonId);
+            if (message.epochData != null && Object.hasOwnProperty.call(message, "epochData"))
+                writer.uint32(/* id 3, wireType 2 =*/26).bytes(message.epochData);
+            if (message.wrappedRootKeyForSelf != null && Object.hasOwnProperty.call(message, "wrappedRootKeyForSelf"))
+                writer.uint32(/* id 4, wireType 2 =*/34).bytes(message.wrappedRootKeyForSelf);
+            if (message.epochSignature != null && Object.hasOwnProperty.call(message, "epochSignature"))
+                writer.uint32(/* id 5, wireType 2 =*/42).bytes(message.epochSignature);
+            if (message.epochRootKeyFingerprint != null && Object.hasOwnProperty.call(message, "epochRootKeyFingerprint"))
+                writer.uint32(/* id 6, wireType 2 =*/50).bytes(message.epochRootKeyFingerprint);
+            if (message.epochRootKey != null && Object.hasOwnProperty.call(message, "epochRootKey"))
+                writer.uint32(/* id 7, wireType 2 =*/58).bytes(message.epochRootKey);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified Epoch0Output message, length delimited. Does not implicitly {@link proto.Epoch0Output.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.Epoch0Output
+         * @static
+         * @param {proto.IEpoch0Output} message Epoch0Output message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        Epoch0Output.encodeDelimited = function encodeDelimited(message, writer) {
+            return this.encode(message, writer).ldelim();
+        };
+
+        /**
+         * Decodes an Epoch0Output message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.Epoch0Output
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.Epoch0Output} Epoch0Output
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        Epoch0Output.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.Epoch0Output();
+            while (reader.pos < end) {
+                var tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.epochFbid = reader.uint64();
+                        break;
+                    }
+                case 2: {
+                        message.epochAnonId = reader.bytes();
+                        break;
+                    }
+                case 3: {
+                        message.epochData = reader.bytes();
+                        break;
+                    }
+                case 4: {
+                        message.wrappedRootKeyForSelf = reader.bytes();
+                        break;
+                    }
+                case 5: {
+                        message.epochSignature = reader.bytes();
+                        break;
+                    }
+                case 6: {
+                        message.epochRootKeyFingerprint = reader.bytes();
+                        break;
+                    }
+                case 7: {
+                        message.epochRootKey = reader.bytes();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Decodes an Epoch0Output message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.Epoch0Output
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.Epoch0Output} Epoch0Output
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        Epoch0Output.decodeDelimited = function decodeDelimited(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies an Epoch0Output message.
+         * @function verify
+         * @memberof proto.Epoch0Output
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        Epoch0Output.verify = function verify(message) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            var properties = {};
+            if (message.epochFbid != null && message.hasOwnProperty("epochFbid")) {
+                properties._epochFbid = 1;
+                if (!$util.isInteger(message.epochFbid) && !(message.epochFbid && $util.isInteger(message.epochFbid.low) && $util.isInteger(message.epochFbid.high)))
+                    return "epochFbid: integer|Long expected";
+            }
+            if (message.epochAnonId != null && message.hasOwnProperty("epochAnonId")) {
+                properties._epochAnonId = 1;
+                if (!(message.epochAnonId && typeof message.epochAnonId.length === "number" || $util.isString(message.epochAnonId)))
+                    return "epochAnonId: buffer expected";
+            }
+            if (message.epochData != null && message.hasOwnProperty("epochData")) {
+                properties._epochData = 1;
+                if (!(message.epochData && typeof message.epochData.length === "number" || $util.isString(message.epochData)))
+                    return "epochData: buffer expected";
+            }
+            if (message.wrappedRootKeyForSelf != null && message.hasOwnProperty("wrappedRootKeyForSelf")) {
+                properties._wrappedRootKeyForSelf = 1;
+                if (!(message.wrappedRootKeyForSelf && typeof message.wrappedRootKeyForSelf.length === "number" || $util.isString(message.wrappedRootKeyForSelf)))
+                    return "wrappedRootKeyForSelf: buffer expected";
+            }
+            if (message.epochSignature != null && message.hasOwnProperty("epochSignature")) {
+                properties._epochSignature = 1;
+                if (!(message.epochSignature && typeof message.epochSignature.length === "number" || $util.isString(message.epochSignature)))
+                    return "epochSignature: buffer expected";
+            }
+            if (message.epochRootKeyFingerprint != null && message.hasOwnProperty("epochRootKeyFingerprint")) {
+                properties._epochRootKeyFingerprint = 1;
+                if (!(message.epochRootKeyFingerprint && typeof message.epochRootKeyFingerprint.length === "number" || $util.isString(message.epochRootKeyFingerprint)))
+                    return "epochRootKeyFingerprint: buffer expected";
+            }
+            if (message.epochRootKey != null && message.hasOwnProperty("epochRootKey")) {
+                properties._epochRootKey = 1;
+                if (!(message.epochRootKey && typeof message.epochRootKey.length === "number" || $util.isString(message.epochRootKey)))
+                    return "epochRootKey: buffer expected";
+            }
+            return null;
+        };
+
+        /**
+         * Creates an Epoch0Output message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.Epoch0Output
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.Epoch0Output} Epoch0Output
+         */
+        Epoch0Output.fromObject = function fromObject(object) {
+            if (object instanceof $root.proto.Epoch0Output)
+                return object;
+            var message = new $root.proto.Epoch0Output();
+            if (object.epochFbid != null)
+                if ($util.Long)
+                    (message.epochFbid = $util.Long.fromValue(object.epochFbid)).unsigned = true;
+                else if (typeof object.epochFbid === "string")
+                    message.epochFbid = parseInt(object.epochFbid, 10);
+                else if (typeof object.epochFbid === "number")
+                    message.epochFbid = object.epochFbid;
+                else if (typeof object.epochFbid === "object")
+                    message.epochFbid = new $util.LongBits(object.epochFbid.low >>> 0, object.epochFbid.high >>> 0).toNumber(true);
+            if (object.epochAnonId != null)
+                if (typeof object.epochAnonId === "string")
+                    $util.base64.decode(object.epochAnonId, message.epochAnonId = $util.newBuffer($util.base64.length(object.epochAnonId)), 0);
+                else if (object.epochAnonId.length >= 0)
+                    message.epochAnonId = object.epochAnonId;
+            if (object.epochData != null)
+                if (typeof object.epochData === "string")
+                    $util.base64.decode(object.epochData, message.epochData = $util.newBuffer($util.base64.length(object.epochData)), 0);
+                else if (object.epochData.length >= 0)
+                    message.epochData = object.epochData;
+            if (object.wrappedRootKeyForSelf != null)
+                if (typeof object.wrappedRootKeyForSelf === "string")
+                    $util.base64.decode(object.wrappedRootKeyForSelf, message.wrappedRootKeyForSelf = $util.newBuffer($util.base64.length(object.wrappedRootKeyForSelf)), 0);
+                else if (object.wrappedRootKeyForSelf.length >= 0)
+                    message.wrappedRootKeyForSelf = object.wrappedRootKeyForSelf;
+            if (object.epochSignature != null)
+                if (typeof object.epochSignature === "string")
+                    $util.base64.decode(object.epochSignature, message.epochSignature = $util.newBuffer($util.base64.length(object.epochSignature)), 0);
+                else if (object.epochSignature.length >= 0)
+                    message.epochSignature = object.epochSignature;
+            if (object.epochRootKeyFingerprint != null)
+                if (typeof object.epochRootKeyFingerprint === "string")
+                    $util.base64.decode(object.epochRootKeyFingerprint, message.epochRootKeyFingerprint = $util.newBuffer($util.base64.length(object.epochRootKeyFingerprint)), 0);
+                else if (object.epochRootKeyFingerprint.length >= 0)
+                    message.epochRootKeyFingerprint = object.epochRootKeyFingerprint;
+            if (object.epochRootKey != null)
+                if (typeof object.epochRootKey === "string")
+                    $util.base64.decode(object.epochRootKey, message.epochRootKey = $util.newBuffer($util.base64.length(object.epochRootKey)), 0);
+                else if (object.epochRootKey.length >= 0)
+                    message.epochRootKey = object.epochRootKey;
+            return message;
+        };
+
+        /**
+         * Creates a plain object from an Epoch0Output message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.Epoch0Output
+         * @static
+         * @param {proto.Epoch0Output} message Epoch0Output
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        Epoch0Output.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            var object = {};
+            if (message.epochFbid != null && message.hasOwnProperty("epochFbid")) {
+                if (typeof message.epochFbid === "number")
+                    object.epochFbid = options.longs === String ? String(message.epochFbid) : message.epochFbid;
+                else
+                    object.epochFbid = options.longs === String ? $util.Long.prototype.toString.call(message.epochFbid) : options.longs === Number ? new $util.LongBits(message.epochFbid.low >>> 0, message.epochFbid.high >>> 0).toNumber(true) : message.epochFbid;
+                if (options.oneofs)
+                    object._epochFbid = "epochFbid";
+            }
+            if (message.epochAnonId != null && message.hasOwnProperty("epochAnonId")) {
+                object.epochAnonId = options.bytes === String ? $util.base64.encode(message.epochAnonId, 0, message.epochAnonId.length) : options.bytes === Array ? Array.prototype.slice.call(message.epochAnonId) : message.epochAnonId;
+                if (options.oneofs)
+                    object._epochAnonId = "epochAnonId";
+            }
+            if (message.epochData != null && message.hasOwnProperty("epochData")) {
+                object.epochData = options.bytes === String ? $util.base64.encode(message.epochData, 0, message.epochData.length) : options.bytes === Array ? Array.prototype.slice.call(message.epochData) : message.epochData;
+                if (options.oneofs)
+                    object._epochData = "epochData";
+            }
+            if (message.wrappedRootKeyForSelf != null && message.hasOwnProperty("wrappedRootKeyForSelf")) {
+                object.wrappedRootKeyForSelf = options.bytes === String ? $util.base64.encode(message.wrappedRootKeyForSelf, 0, message.wrappedRootKeyForSelf.length) : options.bytes === Array ? Array.prototype.slice.call(message.wrappedRootKeyForSelf) : message.wrappedRootKeyForSelf;
+                if (options.oneofs)
+                    object._wrappedRootKeyForSelf = "wrappedRootKeyForSelf";
+            }
+            if (message.epochSignature != null && message.hasOwnProperty("epochSignature")) {
+                object.epochSignature = options.bytes === String ? $util.base64.encode(message.epochSignature, 0, message.epochSignature.length) : options.bytes === Array ? Array.prototype.slice.call(message.epochSignature) : message.epochSignature;
+                if (options.oneofs)
+                    object._epochSignature = "epochSignature";
+            }
+            if (message.epochRootKeyFingerprint != null && message.hasOwnProperty("epochRootKeyFingerprint")) {
+                object.epochRootKeyFingerprint = options.bytes === String ? $util.base64.encode(message.epochRootKeyFingerprint, 0, message.epochRootKeyFingerprint.length) : options.bytes === Array ? Array.prototype.slice.call(message.epochRootKeyFingerprint) : message.epochRootKeyFingerprint;
+                if (options.oneofs)
+                    object._epochRootKeyFingerprint = "epochRootKeyFingerprint";
+            }
+            if (message.epochRootKey != null && message.hasOwnProperty("epochRootKey")) {
+                object.epochRootKey = options.bytes === String ? $util.base64.encode(message.epochRootKey, 0, message.epochRootKey.length) : options.bytes === Array ? Array.prototype.slice.call(message.epochRootKey) : message.epochRootKey;
+                if (options.oneofs)
+                    object._epochRootKey = "epochRootKey";
+            }
+            return object;
+        };
+
+        /**
+         * Converts this Epoch0Output to JSON.
+         * @function toJSON
+         * @memberof proto.Epoch0Output
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        Epoch0Output.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for Epoch0Output
+         * @function getTypeUrl
+         * @memberof proto.Epoch0Output
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        Epoch0Output.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/proto.Epoch0Output";
+        };
+
+        return Epoch0Output;
     })();
 
     proto.EventAdditionalMetadata = (function() {
@@ -87916,6 +91644,340 @@ $root.proto = (function() {
         };
 
         return LIDMigrationMappingSyncPayload;
+    })();
+
+    proto.LabyrinthWaCommand = (function() {
+
+        /**
+         * Properties of a LabyrinthWaCommand.
+         * @memberof proto
+         * @interface ILabyrinthWaCommand
+         * @property {proto.ICreateBackupInput|null} [createBackupInput] LabyrinthWaCommand createBackupInput
+         * @property {proto.IEncryptMessageInput|null} [encryptMessageInput] LabyrinthWaCommand encryptMessageInput
+         * @property {proto.IDecryptMessageInput|null} [decryptMessageInput] LabyrinthWaCommand decryptMessageInput
+         * @property {proto.IOrfThreadIdInput|null} [orfThreadIdInput] LabyrinthWaCommand orfThreadIdInput
+         */
+
+        /**
+         * Constructs a new LabyrinthWaCommand.
+         * @memberof proto
+         * @classdesc Represents a LabyrinthWaCommand.
+         * @implements ILabyrinthWaCommand
+         * @constructor
+         * @param {proto.ILabyrinthWaCommand=} [properties] Properties to set
+         */
+        function LabyrinthWaCommand(properties) {
+            if (properties)
+                for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * LabyrinthWaCommand createBackupInput.
+         * @member {proto.ICreateBackupInput|null|undefined} createBackupInput
+         * @memberof proto.LabyrinthWaCommand
+         * @instance
+         */
+        LabyrinthWaCommand.prototype.createBackupInput = null;
+
+        /**
+         * LabyrinthWaCommand encryptMessageInput.
+         * @member {proto.IEncryptMessageInput|null|undefined} encryptMessageInput
+         * @memberof proto.LabyrinthWaCommand
+         * @instance
+         */
+        LabyrinthWaCommand.prototype.encryptMessageInput = null;
+
+        /**
+         * LabyrinthWaCommand decryptMessageInput.
+         * @member {proto.IDecryptMessageInput|null|undefined} decryptMessageInput
+         * @memberof proto.LabyrinthWaCommand
+         * @instance
+         */
+        LabyrinthWaCommand.prototype.decryptMessageInput = null;
+
+        /**
+         * LabyrinthWaCommand orfThreadIdInput.
+         * @member {proto.IOrfThreadIdInput|null|undefined} orfThreadIdInput
+         * @memberof proto.LabyrinthWaCommand
+         * @instance
+         */
+        LabyrinthWaCommand.prototype.orfThreadIdInput = null;
+
+        // OneOf field names bound to virtual getters and setters
+        var $oneOfFields;
+
+        /**
+         * LabyrinthWaCommand commandInput.
+         * @member {"createBackupInput"|"encryptMessageInput"|"decryptMessageInput"|"orfThreadIdInput"|undefined} commandInput
+         * @memberof proto.LabyrinthWaCommand
+         * @instance
+         */
+        Object.defineProperty(LabyrinthWaCommand.prototype, "commandInput", {
+            get: $util.oneOfGetter($oneOfFields = ["createBackupInput", "encryptMessageInput", "decryptMessageInput", "orfThreadIdInput"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        /**
+         * Creates a new LabyrinthWaCommand instance using the specified properties.
+         * @function create
+         * @memberof proto.LabyrinthWaCommand
+         * @static
+         * @param {proto.ILabyrinthWaCommand=} [properties] Properties to set
+         * @returns {proto.LabyrinthWaCommand} LabyrinthWaCommand instance
+         */
+        LabyrinthWaCommand.create = function create(properties) {
+            return new LabyrinthWaCommand(properties);
+        };
+
+        /**
+         * Encodes the specified LabyrinthWaCommand message. Does not implicitly {@link proto.LabyrinthWaCommand.verify|verify} messages.
+         * @function encode
+         * @memberof proto.LabyrinthWaCommand
+         * @static
+         * @param {proto.ILabyrinthWaCommand} message LabyrinthWaCommand message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        LabyrinthWaCommand.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.createBackupInput != null && Object.hasOwnProperty.call(message, "createBackupInput"))
+                $root.proto.CreateBackupInput.encode(message.createBackupInput, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+            if (message.encryptMessageInput != null && Object.hasOwnProperty.call(message, "encryptMessageInput"))
+                $root.proto.EncryptMessageInput.encode(message.encryptMessageInput, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
+            if (message.decryptMessageInput != null && Object.hasOwnProperty.call(message, "decryptMessageInput"))
+                $root.proto.DecryptMessageInput.encode(message.decryptMessageInput, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+            if (message.orfThreadIdInput != null && Object.hasOwnProperty.call(message, "orfThreadIdInput"))
+                $root.proto.OrfThreadIdInput.encode(message.orfThreadIdInput, writer.uint32(/* id 4, wireType 2 =*/34).fork()).ldelim();
+            return writer;
+        };
+
+        /**
+         * Encodes the specified LabyrinthWaCommand message, length delimited. Does not implicitly {@link proto.LabyrinthWaCommand.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.LabyrinthWaCommand
+         * @static
+         * @param {proto.ILabyrinthWaCommand} message LabyrinthWaCommand message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        LabyrinthWaCommand.encodeDelimited = function encodeDelimited(message, writer) {
+            return this.encode(message, writer).ldelim();
+        };
+
+        /**
+         * Decodes a LabyrinthWaCommand message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.LabyrinthWaCommand
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.LabyrinthWaCommand} LabyrinthWaCommand
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        LabyrinthWaCommand.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.LabyrinthWaCommand();
+            while (reader.pos < end) {
+                var tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.createBackupInput = $root.proto.CreateBackupInput.decode(reader, reader.uint32());
+                        break;
+                    }
+                case 2: {
+                        message.encryptMessageInput = $root.proto.EncryptMessageInput.decode(reader, reader.uint32());
+                        break;
+                    }
+                case 3: {
+                        message.decryptMessageInput = $root.proto.DecryptMessageInput.decode(reader, reader.uint32());
+                        break;
+                    }
+                case 4: {
+                        message.orfThreadIdInput = $root.proto.OrfThreadIdInput.decode(reader, reader.uint32());
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Decodes a LabyrinthWaCommand message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.LabyrinthWaCommand
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.LabyrinthWaCommand} LabyrinthWaCommand
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        LabyrinthWaCommand.decodeDelimited = function decodeDelimited(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a LabyrinthWaCommand message.
+         * @function verify
+         * @memberof proto.LabyrinthWaCommand
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        LabyrinthWaCommand.verify = function verify(message) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            var properties = {};
+            if (message.createBackupInput != null && message.hasOwnProperty("createBackupInput")) {
+                properties.commandInput = 1;
+                {
+                    var error = $root.proto.CreateBackupInput.verify(message.createBackupInput);
+                    if (error)
+                        return "createBackupInput." + error;
+                }
+            }
+            if (message.encryptMessageInput != null && message.hasOwnProperty("encryptMessageInput")) {
+                if (properties.commandInput === 1)
+                    return "commandInput: multiple values";
+                properties.commandInput = 1;
+                {
+                    var error = $root.proto.EncryptMessageInput.verify(message.encryptMessageInput);
+                    if (error)
+                        return "encryptMessageInput." + error;
+                }
+            }
+            if (message.decryptMessageInput != null && message.hasOwnProperty("decryptMessageInput")) {
+                if (properties.commandInput === 1)
+                    return "commandInput: multiple values";
+                properties.commandInput = 1;
+                {
+                    var error = $root.proto.DecryptMessageInput.verify(message.decryptMessageInput);
+                    if (error)
+                        return "decryptMessageInput." + error;
+                }
+            }
+            if (message.orfThreadIdInput != null && message.hasOwnProperty("orfThreadIdInput")) {
+                if (properties.commandInput === 1)
+                    return "commandInput: multiple values";
+                properties.commandInput = 1;
+                {
+                    var error = $root.proto.OrfThreadIdInput.verify(message.orfThreadIdInput);
+                    if (error)
+                        return "orfThreadIdInput." + error;
+                }
+            }
+            return null;
+        };
+
+        /**
+         * Creates a LabyrinthWaCommand message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.LabyrinthWaCommand
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.LabyrinthWaCommand} LabyrinthWaCommand
+         */
+        LabyrinthWaCommand.fromObject = function fromObject(object) {
+            if (object instanceof $root.proto.LabyrinthWaCommand)
+                return object;
+            var message = new $root.proto.LabyrinthWaCommand();
+            if (object.createBackupInput != null) {
+                if (typeof object.createBackupInput !== "object")
+                    throw TypeError(".proto.LabyrinthWaCommand.createBackupInput: object expected");
+                message.createBackupInput = $root.proto.CreateBackupInput.fromObject(object.createBackupInput);
+            }
+            if (object.encryptMessageInput != null) {
+                if (typeof object.encryptMessageInput !== "object")
+                    throw TypeError(".proto.LabyrinthWaCommand.encryptMessageInput: object expected");
+                message.encryptMessageInput = $root.proto.EncryptMessageInput.fromObject(object.encryptMessageInput);
+            }
+            if (object.decryptMessageInput != null) {
+                if (typeof object.decryptMessageInput !== "object")
+                    throw TypeError(".proto.LabyrinthWaCommand.decryptMessageInput: object expected");
+                message.decryptMessageInput = $root.proto.DecryptMessageInput.fromObject(object.decryptMessageInput);
+            }
+            if (object.orfThreadIdInput != null) {
+                if (typeof object.orfThreadIdInput !== "object")
+                    throw TypeError(".proto.LabyrinthWaCommand.orfThreadIdInput: object expected");
+                message.orfThreadIdInput = $root.proto.OrfThreadIdInput.fromObject(object.orfThreadIdInput);
+            }
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a LabyrinthWaCommand message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.LabyrinthWaCommand
+         * @static
+         * @param {proto.LabyrinthWaCommand} message LabyrinthWaCommand
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        LabyrinthWaCommand.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            var object = {};
+            if (message.createBackupInput != null && message.hasOwnProperty("createBackupInput")) {
+                object.createBackupInput = $root.proto.CreateBackupInput.toObject(message.createBackupInput, options);
+                if (options.oneofs)
+                    object.commandInput = "createBackupInput";
+            }
+            if (message.encryptMessageInput != null && message.hasOwnProperty("encryptMessageInput")) {
+                object.encryptMessageInput = $root.proto.EncryptMessageInput.toObject(message.encryptMessageInput, options);
+                if (options.oneofs)
+                    object.commandInput = "encryptMessageInput";
+            }
+            if (message.decryptMessageInput != null && message.hasOwnProperty("decryptMessageInput")) {
+                object.decryptMessageInput = $root.proto.DecryptMessageInput.toObject(message.decryptMessageInput, options);
+                if (options.oneofs)
+                    object.commandInput = "decryptMessageInput";
+            }
+            if (message.orfThreadIdInput != null && message.hasOwnProperty("orfThreadIdInput")) {
+                object.orfThreadIdInput = $root.proto.OrfThreadIdInput.toObject(message.orfThreadIdInput, options);
+                if (options.oneofs)
+                    object.commandInput = "orfThreadIdInput";
+            }
+            return object;
+        };
+
+        /**
+         * Converts this LabyrinthWaCommand to JSON.
+         * @function toJSON
+         * @memberof proto.LabyrinthWaCommand
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        LabyrinthWaCommand.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for LabyrinthWaCommand
+         * @function getTypeUrl
+         * @memberof proto.LabyrinthWaCommand
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        LabyrinthWaCommand.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/proto.LabyrinthWaCommand";
+        };
+
+        return LabyrinthWaCommand;
     })();
 
     proto.LegacyMessage = (function() {
@@ -167910,6 +171972,8 @@ $root.proto = (function() {
      * @property {number} THREAD_PIN_ACTION=85 THREAD_PIN_ACTION value
      * @property {number} AUTO_ORGANIZE_BUSINESS_CHAT_SETTING=86 AUTO_ORGANIZE_BUSINESS_CHAT_SETTING value
      * @property {number} BIZ_AI_SETTINGS_NUDGE_ACTION=87 BIZ_AI_SETTINGS_NUDGE_ACTION value
+     * @property {number} COEX_V2_VERSION_ACTION=88 COEX_V2_VERSION_ACTION value
+     * @property {number} WASA_ROOT_SECRET_ACTION=89 WASA_ROOT_SECRET_ACTION value
      * @property {number} SHARE_OWN_PN=10001 SHARE_OWN_PN value
      * @property {number} BUSINESS_BROADCAST_ACTION=10002 BUSINESS_BROADCAST_ACTION value
      * @property {number} AI_THREAD_DELETE_ACTION=10003 AI_THREAD_DELETE_ACTION value
@@ -167997,6 +172061,8 @@ $root.proto = (function() {
         values[valuesById[85] = "THREAD_PIN_ACTION"] = 85;
         values[valuesById[86] = "AUTO_ORGANIZE_BUSINESS_CHAT_SETTING"] = 86;
         values[valuesById[87] = "BIZ_AI_SETTINGS_NUDGE_ACTION"] = 87;
+        values[valuesById[88] = "COEX_V2_VERSION_ACTION"] = 88;
+        values[valuesById[89] = "WASA_ROOT_SECRET_ACTION"] = 89;
         values[valuesById[10001] = "SHARE_OWN_PN"] = 10001;
         values[valuesById[10002] = "BUSINESS_BROADCAST_ACTION"] = 10002;
         values[valuesById[10003] = "AI_THREAD_DELETE_ACTION"] = 10003;
@@ -169343,6 +173409,514 @@ $root.proto = (function() {
         };
 
         return NotificationSettings;
+    })();
+
+    proto.OrfThreadIdInput = (function() {
+
+        /**
+         * Properties of an OrfThreadIdInput.
+         * @memberof proto
+         * @interface IOrfThreadIdInput
+         * @property {Uint8Array|null} [orfClientState] OrfThreadIdInput orfClientState
+         * @property {string|null} [threadId] OrfThreadIdInput threadId
+         */
+
+        /**
+         * Constructs a new OrfThreadIdInput.
+         * @memberof proto
+         * @classdesc Represents an OrfThreadIdInput.
+         * @implements IOrfThreadIdInput
+         * @constructor
+         * @param {proto.IOrfThreadIdInput=} [properties] Properties to set
+         */
+        function OrfThreadIdInput(properties) {
+            if (properties)
+                for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * OrfThreadIdInput orfClientState.
+         * @member {Uint8Array|null|undefined} orfClientState
+         * @memberof proto.OrfThreadIdInput
+         * @instance
+         */
+        OrfThreadIdInput.prototype.orfClientState = null;
+
+        /**
+         * OrfThreadIdInput threadId.
+         * @member {string|null|undefined} threadId
+         * @memberof proto.OrfThreadIdInput
+         * @instance
+         */
+        OrfThreadIdInput.prototype.threadId = null;
+
+        // OneOf field names bound to virtual getters and setters
+        var $oneOfFields;
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(OrfThreadIdInput.prototype, "_orfClientState", {
+            get: $util.oneOfGetter($oneOfFields = ["orfClientState"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(OrfThreadIdInput.prototype, "_threadId", {
+            get: $util.oneOfGetter($oneOfFields = ["threadId"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        /**
+         * Creates a new OrfThreadIdInput instance using the specified properties.
+         * @function create
+         * @memberof proto.OrfThreadIdInput
+         * @static
+         * @param {proto.IOrfThreadIdInput=} [properties] Properties to set
+         * @returns {proto.OrfThreadIdInput} OrfThreadIdInput instance
+         */
+        OrfThreadIdInput.create = function create(properties) {
+            return new OrfThreadIdInput(properties);
+        };
+
+        /**
+         * Encodes the specified OrfThreadIdInput message. Does not implicitly {@link proto.OrfThreadIdInput.verify|verify} messages.
+         * @function encode
+         * @memberof proto.OrfThreadIdInput
+         * @static
+         * @param {proto.IOrfThreadIdInput} message OrfThreadIdInput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        OrfThreadIdInput.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.orfClientState != null && Object.hasOwnProperty.call(message, "orfClientState"))
+                writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.orfClientState);
+            if (message.threadId != null && Object.hasOwnProperty.call(message, "threadId"))
+                writer.uint32(/* id 2, wireType 2 =*/18).string(message.threadId);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified OrfThreadIdInput message, length delimited. Does not implicitly {@link proto.OrfThreadIdInput.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.OrfThreadIdInput
+         * @static
+         * @param {proto.IOrfThreadIdInput} message OrfThreadIdInput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        OrfThreadIdInput.encodeDelimited = function encodeDelimited(message, writer) {
+            return this.encode(message, writer).ldelim();
+        };
+
+        /**
+         * Decodes an OrfThreadIdInput message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.OrfThreadIdInput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.OrfThreadIdInput} OrfThreadIdInput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        OrfThreadIdInput.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.OrfThreadIdInput();
+            while (reader.pos < end) {
+                var tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.orfClientState = reader.bytes();
+                        break;
+                    }
+                case 2: {
+                        message.threadId = reader.string();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Decodes an OrfThreadIdInput message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.OrfThreadIdInput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.OrfThreadIdInput} OrfThreadIdInput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        OrfThreadIdInput.decodeDelimited = function decodeDelimited(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies an OrfThreadIdInput message.
+         * @function verify
+         * @memberof proto.OrfThreadIdInput
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        OrfThreadIdInput.verify = function verify(message) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            var properties = {};
+            if (message.orfClientState != null && message.hasOwnProperty("orfClientState")) {
+                properties._orfClientState = 1;
+                if (!(message.orfClientState && typeof message.orfClientState.length === "number" || $util.isString(message.orfClientState)))
+                    return "orfClientState: buffer expected";
+            }
+            if (message.threadId != null && message.hasOwnProperty("threadId")) {
+                properties._threadId = 1;
+                if (!$util.isString(message.threadId))
+                    return "threadId: string expected";
+            }
+            return null;
+        };
+
+        /**
+         * Creates an OrfThreadIdInput message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.OrfThreadIdInput
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.OrfThreadIdInput} OrfThreadIdInput
+         */
+        OrfThreadIdInput.fromObject = function fromObject(object) {
+            if (object instanceof $root.proto.OrfThreadIdInput)
+                return object;
+            var message = new $root.proto.OrfThreadIdInput();
+            if (object.orfClientState != null)
+                if (typeof object.orfClientState === "string")
+                    $util.base64.decode(object.orfClientState, message.orfClientState = $util.newBuffer($util.base64.length(object.orfClientState)), 0);
+                else if (object.orfClientState.length >= 0)
+                    message.orfClientState = object.orfClientState;
+            if (object.threadId != null)
+                message.threadId = String(object.threadId);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from an OrfThreadIdInput message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.OrfThreadIdInput
+         * @static
+         * @param {proto.OrfThreadIdInput} message OrfThreadIdInput
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        OrfThreadIdInput.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            var object = {};
+            if (message.orfClientState != null && message.hasOwnProperty("orfClientState")) {
+                object.orfClientState = options.bytes === String ? $util.base64.encode(message.orfClientState, 0, message.orfClientState.length) : options.bytes === Array ? Array.prototype.slice.call(message.orfClientState) : message.orfClientState;
+                if (options.oneofs)
+                    object._orfClientState = "orfClientState";
+            }
+            if (message.threadId != null && message.hasOwnProperty("threadId")) {
+                object.threadId = message.threadId;
+                if (options.oneofs)
+                    object._threadId = "threadId";
+            }
+            return object;
+        };
+
+        /**
+         * Converts this OrfThreadIdInput to JSON.
+         * @function toJSON
+         * @memberof proto.OrfThreadIdInput
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        OrfThreadIdInput.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for OrfThreadIdInput
+         * @function getTypeUrl
+         * @memberof proto.OrfThreadIdInput
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        OrfThreadIdInput.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/proto.OrfThreadIdInput";
+        };
+
+        return OrfThreadIdInput;
+    })();
+
+    proto.OrfThreadIdOutput = (function() {
+
+        /**
+         * Properties of an OrfThreadIdOutput.
+         * @memberof proto
+         * @interface IOrfThreadIdOutput
+         * @property {Uint8Array|null} [orfThreadId] OrfThreadIdOutput orfThreadId
+         * @property {string|null} [error] OrfThreadIdOutput error
+         */
+
+        /**
+         * Constructs a new OrfThreadIdOutput.
+         * @memberof proto
+         * @classdesc Represents an OrfThreadIdOutput.
+         * @implements IOrfThreadIdOutput
+         * @constructor
+         * @param {proto.IOrfThreadIdOutput=} [properties] Properties to set
+         */
+        function OrfThreadIdOutput(properties) {
+            if (properties)
+                for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * OrfThreadIdOutput orfThreadId.
+         * @member {Uint8Array|null|undefined} orfThreadId
+         * @memberof proto.OrfThreadIdOutput
+         * @instance
+         */
+        OrfThreadIdOutput.prototype.orfThreadId = null;
+
+        /**
+         * OrfThreadIdOutput error.
+         * @member {string|null|undefined} error
+         * @memberof proto.OrfThreadIdOutput
+         * @instance
+         */
+        OrfThreadIdOutput.prototype.error = null;
+
+        // OneOf field names bound to virtual getters and setters
+        var $oneOfFields;
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(OrfThreadIdOutput.prototype, "_orfThreadId", {
+            get: $util.oneOfGetter($oneOfFields = ["orfThreadId"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(OrfThreadIdOutput.prototype, "_error", {
+            get: $util.oneOfGetter($oneOfFields = ["error"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        /**
+         * Creates a new OrfThreadIdOutput instance using the specified properties.
+         * @function create
+         * @memberof proto.OrfThreadIdOutput
+         * @static
+         * @param {proto.IOrfThreadIdOutput=} [properties] Properties to set
+         * @returns {proto.OrfThreadIdOutput} OrfThreadIdOutput instance
+         */
+        OrfThreadIdOutput.create = function create(properties) {
+            return new OrfThreadIdOutput(properties);
+        };
+
+        /**
+         * Encodes the specified OrfThreadIdOutput message. Does not implicitly {@link proto.OrfThreadIdOutput.verify|verify} messages.
+         * @function encode
+         * @memberof proto.OrfThreadIdOutput
+         * @static
+         * @param {proto.IOrfThreadIdOutput} message OrfThreadIdOutput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        OrfThreadIdOutput.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.orfThreadId != null && Object.hasOwnProperty.call(message, "orfThreadId"))
+                writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.orfThreadId);
+            if (message.error != null && Object.hasOwnProperty.call(message, "error"))
+                writer.uint32(/* id 2, wireType 2 =*/18).string(message.error);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified OrfThreadIdOutput message, length delimited. Does not implicitly {@link proto.OrfThreadIdOutput.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.OrfThreadIdOutput
+         * @static
+         * @param {proto.IOrfThreadIdOutput} message OrfThreadIdOutput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        OrfThreadIdOutput.encodeDelimited = function encodeDelimited(message, writer) {
+            return this.encode(message, writer).ldelim();
+        };
+
+        /**
+         * Decodes an OrfThreadIdOutput message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.OrfThreadIdOutput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.OrfThreadIdOutput} OrfThreadIdOutput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        OrfThreadIdOutput.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.OrfThreadIdOutput();
+            while (reader.pos < end) {
+                var tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.orfThreadId = reader.bytes();
+                        break;
+                    }
+                case 2: {
+                        message.error = reader.string();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Decodes an OrfThreadIdOutput message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.OrfThreadIdOutput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.OrfThreadIdOutput} OrfThreadIdOutput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        OrfThreadIdOutput.decodeDelimited = function decodeDelimited(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies an OrfThreadIdOutput message.
+         * @function verify
+         * @memberof proto.OrfThreadIdOutput
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        OrfThreadIdOutput.verify = function verify(message) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            var properties = {};
+            if (message.orfThreadId != null && message.hasOwnProperty("orfThreadId")) {
+                properties._orfThreadId = 1;
+                if (!(message.orfThreadId && typeof message.orfThreadId.length === "number" || $util.isString(message.orfThreadId)))
+                    return "orfThreadId: buffer expected";
+            }
+            if (message.error != null && message.hasOwnProperty("error")) {
+                properties._error = 1;
+                if (!$util.isString(message.error))
+                    return "error: string expected";
+            }
+            return null;
+        };
+
+        /**
+         * Creates an OrfThreadIdOutput message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.OrfThreadIdOutput
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.OrfThreadIdOutput} OrfThreadIdOutput
+         */
+        OrfThreadIdOutput.fromObject = function fromObject(object) {
+            if (object instanceof $root.proto.OrfThreadIdOutput)
+                return object;
+            var message = new $root.proto.OrfThreadIdOutput();
+            if (object.orfThreadId != null)
+                if (typeof object.orfThreadId === "string")
+                    $util.base64.decode(object.orfThreadId, message.orfThreadId = $util.newBuffer($util.base64.length(object.orfThreadId)), 0);
+                else if (object.orfThreadId.length >= 0)
+                    message.orfThreadId = object.orfThreadId;
+            if (object.error != null)
+                message.error = String(object.error);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from an OrfThreadIdOutput message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.OrfThreadIdOutput
+         * @static
+         * @param {proto.OrfThreadIdOutput} message OrfThreadIdOutput
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        OrfThreadIdOutput.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            var object = {};
+            if (message.orfThreadId != null && message.hasOwnProperty("orfThreadId")) {
+                object.orfThreadId = options.bytes === String ? $util.base64.encode(message.orfThreadId, 0, message.orfThreadId.length) : options.bytes === Array ? Array.prototype.slice.call(message.orfThreadId) : message.orfThreadId;
+                if (options.oneofs)
+                    object._orfThreadId = "orfThreadId";
+            }
+            if (message.error != null && message.hasOwnProperty("error")) {
+                object.error = message.error;
+                if (options.oneofs)
+                    object._error = "error";
+            }
+            return object;
+        };
+
+        /**
+         * Converts this OrfThreadIdOutput to JSON.
+         * @function toJSON
+         * @memberof proto.OrfThreadIdOutput
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        OrfThreadIdOutput.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for OrfThreadIdOutput
+         * @function getTypeUrl
+         * @memberof proto.OrfThreadIdOutput
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        OrfThreadIdOutput.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/proto.OrfThreadIdOutput";
+        };
+
+        return OrfThreadIdOutput;
     })();
 
     proto.PairingRequest = (function() {
@@ -175648,6 +180222,8 @@ $root.proto = (function() {
          * @property {Uint8Array|null} [baseKey] PreKeySignalMessage baseKey
          * @property {Uint8Array|null} [identityKey] PreKeySignalMessage identityKey
          * @property {Uint8Array|null} [message] PreKeySignalMessage message
+         * @property {number|null} [kyberPreKeyId] PreKeySignalMessage kyberPreKeyId
+         * @property {Uint8Array|null} [kyberCiphertext] PreKeySignalMessage kyberCiphertext
          */
 
         /**
@@ -175713,6 +180289,22 @@ $root.proto = (function() {
          */
         PreKeySignalMessage.prototype.message = null;
 
+        /**
+         * PreKeySignalMessage kyberPreKeyId.
+         * @member {number|null|undefined} kyberPreKeyId
+         * @memberof proto.PreKeySignalMessage
+         * @instance
+         */
+        PreKeySignalMessage.prototype.kyberPreKeyId = null;
+
+        /**
+         * PreKeySignalMessage kyberCiphertext.
+         * @member {Uint8Array|null|undefined} kyberCiphertext
+         * @memberof proto.PreKeySignalMessage
+         * @instance
+         */
+        PreKeySignalMessage.prototype.kyberCiphertext = null;
+
         // OneOf field names bound to virtual getters and setters
         var $oneOfFields;
 
@@ -175752,6 +180344,18 @@ $root.proto = (function() {
             set: $util.oneOfSetter($oneOfFields)
         });
 
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(PreKeySignalMessage.prototype, "_kyberPreKeyId", {
+            get: $util.oneOfGetter($oneOfFields = ["kyberPreKeyId"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(PreKeySignalMessage.prototype, "_kyberCiphertext", {
+            get: $util.oneOfGetter($oneOfFields = ["kyberCiphertext"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
         /**
          * Creates a new PreKeySignalMessage instance using the specified properties.
          * @function create
@@ -175788,6 +180392,10 @@ $root.proto = (function() {
                 writer.uint32(/* id 5, wireType 0 =*/40).uint32(message.registrationId);
             if (message.signedPreKeyId != null && Object.hasOwnProperty.call(message, "signedPreKeyId"))
                 writer.uint32(/* id 6, wireType 0 =*/48).uint32(message.signedPreKeyId);
+            if (message.kyberPreKeyId != null && Object.hasOwnProperty.call(message, "kyberPreKeyId"))
+                writer.uint32(/* id 7, wireType 0 =*/56).uint32(message.kyberPreKeyId);
+            if (message.kyberCiphertext != null && Object.hasOwnProperty.call(message, "kyberCiphertext"))
+                writer.uint32(/* id 8, wireType 2 =*/66).bytes(message.kyberCiphertext);
             return writer;
         };
 
@@ -175846,6 +180454,14 @@ $root.proto = (function() {
                     }
                 case 4: {
                         message.message = reader.bytes();
+                        break;
+                    }
+                case 7: {
+                        message.kyberPreKeyId = reader.uint32();
+                        break;
+                    }
+                case 8: {
+                        message.kyberCiphertext = reader.bytes();
                         break;
                     }
                 default:
@@ -175914,6 +180530,16 @@ $root.proto = (function() {
                 if (!(message.message && typeof message.message.length === "number" || $util.isString(message.message)))
                     return "message: buffer expected";
             }
+            if (message.kyberPreKeyId != null && message.hasOwnProperty("kyberPreKeyId")) {
+                properties._kyberPreKeyId = 1;
+                if (!$util.isInteger(message.kyberPreKeyId))
+                    return "kyberPreKeyId: integer expected";
+            }
+            if (message.kyberCiphertext != null && message.hasOwnProperty("kyberCiphertext")) {
+                properties._kyberCiphertext = 1;
+                if (!(message.kyberCiphertext && typeof message.kyberCiphertext.length === "number" || $util.isString(message.kyberCiphertext)))
+                    return "kyberCiphertext: buffer expected";
+            }
             return null;
         };
 
@@ -175950,6 +180576,13 @@ $root.proto = (function() {
                     $util.base64.decode(object.message, message.message = $util.newBuffer($util.base64.length(object.message)), 0);
                 else if (object.message.length >= 0)
                     message.message = object.message;
+            if (object.kyberPreKeyId != null)
+                message.kyberPreKeyId = object.kyberPreKeyId >>> 0;
+            if (object.kyberCiphertext != null)
+                if (typeof object.kyberCiphertext === "string")
+                    $util.base64.decode(object.kyberCiphertext, message.kyberCiphertext = $util.newBuffer($util.base64.length(object.kyberCiphertext)), 0);
+                else if (object.kyberCiphertext.length >= 0)
+                    message.kyberCiphertext = object.kyberCiphertext;
             return message;
         };
 
@@ -175995,6 +180628,16 @@ $root.proto = (function() {
                 object.signedPreKeyId = message.signedPreKeyId;
                 if (options.oneofs)
                     object._signedPreKeyId = "signedPreKeyId";
+            }
+            if (message.kyberPreKeyId != null && message.hasOwnProperty("kyberPreKeyId")) {
+                object.kyberPreKeyId = message.kyberPreKeyId;
+                if (options.oneofs)
+                    object._kyberPreKeyId = "kyberPreKeyId";
+            }
+            if (message.kyberCiphertext != null && message.hasOwnProperty("kyberCiphertext")) {
+                object.kyberCiphertext = options.bytes === String ? $util.base64.encode(message.kyberCiphertext, 0, message.kyberCiphertext.length) : options.bytes === Array ? Array.prototype.slice.call(message.kyberCiphertext) : message.kyberCiphertext;
+                if (options.oneofs)
+                    object._kyberCiphertext = "kyberCiphertext";
             }
             return object;
         };
@@ -185289,6 +189932,8 @@ $root.proto = (function() {
              * @property {number|null} [preKeyId] PendingPreKey preKeyId
              * @property {number|null} [signedPreKeyId] PendingPreKey signedPreKeyId
              * @property {Uint8Array|null} [baseKey] PendingPreKey baseKey
+             * @property {number|null} [kyberPreKeyId] PendingPreKey kyberPreKeyId
+             * @property {Uint8Array|null} [kyberCiphertext] PendingPreKey kyberCiphertext
              */
 
             /**
@@ -185330,6 +189975,22 @@ $root.proto = (function() {
              */
             PendingPreKey.prototype.baseKey = null;
 
+            /**
+             * PendingPreKey kyberPreKeyId.
+             * @member {number|null|undefined} kyberPreKeyId
+             * @memberof proto.SessionStructure.PendingPreKey
+             * @instance
+             */
+            PendingPreKey.prototype.kyberPreKeyId = null;
+
+            /**
+             * PendingPreKey kyberCiphertext.
+             * @member {Uint8Array|null|undefined} kyberCiphertext
+             * @memberof proto.SessionStructure.PendingPreKey
+             * @instance
+             */
+            PendingPreKey.prototype.kyberCiphertext = null;
+
             // OneOf field names bound to virtual getters and setters
             var $oneOfFields;
 
@@ -185348,6 +190009,18 @@ $root.proto = (function() {
             // Virtual OneOf for proto3 optional field
             Object.defineProperty(PendingPreKey.prototype, "_baseKey", {
                 get: $util.oneOfGetter($oneOfFields = ["baseKey"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            // Virtual OneOf for proto3 optional field
+            Object.defineProperty(PendingPreKey.prototype, "_kyberPreKeyId", {
+                get: $util.oneOfGetter($oneOfFields = ["kyberPreKeyId"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            // Virtual OneOf for proto3 optional field
+            Object.defineProperty(PendingPreKey.prototype, "_kyberCiphertext", {
+                get: $util.oneOfGetter($oneOfFields = ["kyberCiphertext"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
@@ -185381,6 +190054,10 @@ $root.proto = (function() {
                     writer.uint32(/* id 2, wireType 2 =*/18).bytes(message.baseKey);
                 if (message.signedPreKeyId != null && Object.hasOwnProperty.call(message, "signedPreKeyId"))
                     writer.uint32(/* id 3, wireType 0 =*/24).int32(message.signedPreKeyId);
+                if (message.kyberPreKeyId != null && Object.hasOwnProperty.call(message, "kyberPreKeyId"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).uint32(message.kyberPreKeyId);
+                if (message.kyberCiphertext != null && Object.hasOwnProperty.call(message, "kyberCiphertext"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).bytes(message.kyberCiphertext);
                 return writer;
             };
 
@@ -185427,6 +190104,14 @@ $root.proto = (function() {
                         }
                     case 2: {
                             message.baseKey = reader.bytes();
+                            break;
+                        }
+                    case 4: {
+                            message.kyberPreKeyId = reader.uint32();
+                            break;
+                        }
+                    case 5: {
+                            message.kyberCiphertext = reader.bytes();
                             break;
                         }
                     default:
@@ -185480,6 +190165,16 @@ $root.proto = (function() {
                     if (!(message.baseKey && typeof message.baseKey.length === "number" || $util.isString(message.baseKey)))
                         return "baseKey: buffer expected";
                 }
+                if (message.kyberPreKeyId != null && message.hasOwnProperty("kyberPreKeyId")) {
+                    properties._kyberPreKeyId = 1;
+                    if (!$util.isInteger(message.kyberPreKeyId))
+                        return "kyberPreKeyId: integer expected";
+                }
+                if (message.kyberCiphertext != null && message.hasOwnProperty("kyberCiphertext")) {
+                    properties._kyberCiphertext = 1;
+                    if (!(message.kyberCiphertext && typeof message.kyberCiphertext.length === "number" || $util.isString(message.kyberCiphertext)))
+                        return "kyberCiphertext: buffer expected";
+                }
                 return null;
             };
 
@@ -185504,6 +190199,13 @@ $root.proto = (function() {
                         $util.base64.decode(object.baseKey, message.baseKey = $util.newBuffer($util.base64.length(object.baseKey)), 0);
                     else if (object.baseKey.length >= 0)
                         message.baseKey = object.baseKey;
+                if (object.kyberPreKeyId != null)
+                    message.kyberPreKeyId = object.kyberPreKeyId >>> 0;
+                if (object.kyberCiphertext != null)
+                    if (typeof object.kyberCiphertext === "string")
+                        $util.base64.decode(object.kyberCiphertext, message.kyberCiphertext = $util.newBuffer($util.base64.length(object.kyberCiphertext)), 0);
+                    else if (object.kyberCiphertext.length >= 0)
+                        message.kyberCiphertext = object.kyberCiphertext;
                 return message;
             };
 
@@ -185534,6 +190236,16 @@ $root.proto = (function() {
                     object.signedPreKeyId = message.signedPreKeyId;
                     if (options.oneofs)
                         object._signedPreKeyId = "signedPreKeyId";
+                }
+                if (message.kyberPreKeyId != null && message.hasOwnProperty("kyberPreKeyId")) {
+                    object.kyberPreKeyId = message.kyberPreKeyId;
+                    if (options.oneofs)
+                        object._kyberPreKeyId = "kyberPreKeyId";
+                }
+                if (message.kyberCiphertext != null && message.hasOwnProperty("kyberCiphertext")) {
+                    object.kyberCiphertext = options.bytes === String ? $util.base64.encode(message.kyberCiphertext, 0, message.kyberCiphertext.length) : options.bytes === Array ? Array.prototype.slice.call(message.kyberCiphertext) : message.kyberCiphertext;
+                    if (options.oneofs)
+                        object._kyberCiphertext = "kyberCiphertext";
                 }
                 return object;
             };
@@ -191162,6 +195874,8 @@ $root.proto = (function() {
          * @property {proto.SyncActionValue.IThreadPinAction|null} [threadPinAction] SyncActionValue threadPinAction
          * @property {proto.SyncActionValue.IAutoOrganizeBusinessChatSetting|null} [autoOrganizeBusinessChatSetting] SyncActionValue autoOrganizeBusinessChatSetting
          * @property {proto.SyncActionValue.IBizAISettingsNudgeAction|null} [bizAiSettingsNudgeAction] SyncActionValue bizAiSettingsNudgeAction
+         * @property {proto.SyncActionValue.ICoexV2VersionAction|null} [coexV2VersionAction] SyncActionValue coexV2VersionAction
+         * @property {proto.SyncActionValue.IWASARootSecretAction|null} [wasaRootSecretAction] SyncActionValue wasaRootSecretAction
          */
 
         /**
@@ -191803,6 +196517,22 @@ $root.proto = (function() {
          */
         SyncActionValue.prototype.bizAiSettingsNudgeAction = null;
 
+        /**
+         * SyncActionValue coexV2VersionAction.
+         * @member {proto.SyncActionValue.ICoexV2VersionAction|null|undefined} coexV2VersionAction
+         * @memberof proto.SyncActionValue
+         * @instance
+         */
+        SyncActionValue.prototype.coexV2VersionAction = null;
+
+        /**
+         * SyncActionValue wasaRootSecretAction.
+         * @member {proto.SyncActionValue.IWASARootSecretAction|null|undefined} wasaRootSecretAction
+         * @memberof proto.SyncActionValue
+         * @instance
+         */
+        SyncActionValue.prototype.wasaRootSecretAction = null;
+
         // OneOf field names bound to virtual getters and setters
         var $oneOfFields;
 
@@ -192274,6 +197004,18 @@ $root.proto = (function() {
             set: $util.oneOfSetter($oneOfFields)
         });
 
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(SyncActionValue.prototype, "_coexV2VersionAction", {
+            get: $util.oneOfGetter($oneOfFields = ["coexV2VersionAction"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(SyncActionValue.prototype, "_wasaRootSecretAction", {
+            get: $util.oneOfGetter($oneOfFields = ["wasaRootSecretAction"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
         /**
          * Creates a new SyncActionValue instance using the specified properties.
          * @function create
@@ -192454,6 +197196,10 @@ $root.proto = (function() {
                 $root.proto.SyncActionValue.AutoOrganizeBusinessChatSetting.encode(message.autoOrganizeBusinessChatSetting, writer.uint32(/* id 86, wireType 2 =*/690).fork()).ldelim();
             if (message.bizAiSettingsNudgeAction != null && Object.hasOwnProperty.call(message, "bizAiSettingsNudgeAction"))
                 $root.proto.SyncActionValue.BizAISettingsNudgeAction.encode(message.bizAiSettingsNudgeAction, writer.uint32(/* id 87, wireType 2 =*/698).fork()).ldelim();
+            if (message.coexV2VersionAction != null && Object.hasOwnProperty.call(message, "coexV2VersionAction"))
+                $root.proto.SyncActionValue.CoexV2VersionAction.encode(message.coexV2VersionAction, writer.uint32(/* id 88, wireType 2 =*/706).fork()).ldelim();
+            if (message.wasaRootSecretAction != null && Object.hasOwnProperty.call(message, "wasaRootSecretAction"))
+                $root.proto.SyncActionValue.WASARootSecretAction.encode(message.wasaRootSecretAction, writer.uint32(/* id 89, wireType 2 =*/714).fork()).ldelim();
             return writer;
         };
 
@@ -192800,6 +197546,14 @@ $root.proto = (function() {
                     }
                 case 87: {
                         message.bizAiSettingsNudgeAction = $root.proto.SyncActionValue.BizAISettingsNudgeAction.decode(reader, reader.uint32());
+                        break;
+                    }
+                case 88: {
+                        message.coexV2VersionAction = $root.proto.SyncActionValue.CoexV2VersionAction.decode(reader, reader.uint32());
+                        break;
+                    }
+                case 89: {
+                        message.wasaRootSecretAction = $root.proto.SyncActionValue.WASARootSecretAction.decode(reader, reader.uint32());
                         break;
                     }
                 default:
@@ -193459,6 +198213,22 @@ $root.proto = (function() {
                         return "bizAiSettingsNudgeAction." + error;
                 }
             }
+            if (message.coexV2VersionAction != null && message.hasOwnProperty("coexV2VersionAction")) {
+                properties._coexV2VersionAction = 1;
+                {
+                    var error = $root.proto.SyncActionValue.CoexV2VersionAction.verify(message.coexV2VersionAction);
+                    if (error)
+                        return "coexV2VersionAction." + error;
+                }
+            }
+            if (message.wasaRootSecretAction != null && message.hasOwnProperty("wasaRootSecretAction")) {
+                properties._wasaRootSecretAction = 1;
+                {
+                    var error = $root.proto.SyncActionValue.WASARootSecretAction.verify(message.wasaRootSecretAction);
+                    if (error)
+                        return "wasaRootSecretAction." + error;
+                }
+            }
             return null;
         };
 
@@ -193867,6 +198637,16 @@ $root.proto = (function() {
                 if (typeof object.bizAiSettingsNudgeAction !== "object")
                     throw TypeError(".proto.SyncActionValue.bizAiSettingsNudgeAction: object expected");
                 message.bizAiSettingsNudgeAction = $root.proto.SyncActionValue.BizAISettingsNudgeAction.fromObject(object.bizAiSettingsNudgeAction);
+            }
+            if (object.coexV2VersionAction != null) {
+                if (typeof object.coexV2VersionAction !== "object")
+                    throw TypeError(".proto.SyncActionValue.coexV2VersionAction: object expected");
+                message.coexV2VersionAction = $root.proto.SyncActionValue.CoexV2VersionAction.fromObject(object.coexV2VersionAction);
+            }
+            if (object.wasaRootSecretAction != null) {
+                if (typeof object.wasaRootSecretAction !== "object")
+                    throw TypeError(".proto.SyncActionValue.wasaRootSecretAction: object expected");
+                message.wasaRootSecretAction = $root.proto.SyncActionValue.WASARootSecretAction.fromObject(object.wasaRootSecretAction);
             }
             return message;
         };
@@ -194277,6 +199057,16 @@ $root.proto = (function() {
                 if (options.oneofs)
                     object._bizAiSettingsNudgeAction = "bizAiSettingsNudgeAction";
             }
+            if (message.coexV2VersionAction != null && message.hasOwnProperty("coexV2VersionAction")) {
+                object.coexV2VersionAction = $root.proto.SyncActionValue.CoexV2VersionAction.toObject(message.coexV2VersionAction, options);
+                if (options.oneofs)
+                    object._coexV2VersionAction = "coexV2VersionAction";
+            }
+            if (message.wasaRootSecretAction != null && message.hasOwnProperty("wasaRootSecretAction")) {
+                object.wasaRootSecretAction = $root.proto.SyncActionValue.WASARootSecretAction.toObject(message.wasaRootSecretAction, options);
+                if (options.oneofs)
+                    object._wasaRootSecretAction = "wasaRootSecretAction";
+            }
             return object;
         };
 
@@ -194313,7 +199103,7 @@ $root.proto = (function() {
              * @memberof proto.SyncActionValue
              * @interface IAgentAction
              * @property {string|null} [name] AgentAction name
-             * @property {number|null} [deviceID] AgentAction deviceID
+             * @property {number|null} [deviceId] AgentAction deviceId
              * @property {boolean|null} [isDeleted] AgentAction isDeleted
              */
 
@@ -194341,12 +199131,12 @@ $root.proto = (function() {
             AgentAction.prototype.name = null;
 
             /**
-             * AgentAction deviceID.
-             * @member {number|null|undefined} deviceID
+             * AgentAction deviceId.
+             * @member {number|null|undefined} deviceId
              * @memberof proto.SyncActionValue.AgentAction
              * @instance
              */
-            AgentAction.prototype.deviceID = null;
+            AgentAction.prototype.deviceId = null;
 
             /**
              * AgentAction isDeleted.
@@ -194366,8 +199156,8 @@ $root.proto = (function() {
             });
 
             // Virtual OneOf for proto3 optional field
-            Object.defineProperty(AgentAction.prototype, "_deviceID", {
-                get: $util.oneOfGetter($oneOfFields = ["deviceID"]),
+            Object.defineProperty(AgentAction.prototype, "_deviceId", {
+                get: $util.oneOfGetter($oneOfFields = ["deviceId"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
@@ -194403,8 +199193,8 @@ $root.proto = (function() {
                     writer = $Writer.create();
                 if (message.name != null && Object.hasOwnProperty.call(message, "name"))
                     writer.uint32(/* id 1, wireType 2 =*/10).string(message.name);
-                if (message.deviceID != null && Object.hasOwnProperty.call(message, "deviceID"))
-                    writer.uint32(/* id 2, wireType 0 =*/16).int32(message.deviceID);
+                if (message.deviceId != null && Object.hasOwnProperty.call(message, "deviceId"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int32(message.deviceId);
                 if (message.isDeleted != null && Object.hasOwnProperty.call(message, "isDeleted"))
                     writer.uint32(/* id 3, wireType 0 =*/24).bool(message.isDeleted);
                 return writer;
@@ -194448,7 +199238,7 @@ $root.proto = (function() {
                             break;
                         }
                     case 2: {
-                            message.deviceID = reader.int32();
+                            message.deviceId = reader.int32();
                             break;
                         }
                     case 3: {
@@ -194496,10 +199286,10 @@ $root.proto = (function() {
                     if (!$util.isString(message.name))
                         return "name: string expected";
                 }
-                if (message.deviceID != null && message.hasOwnProperty("deviceID")) {
-                    properties._deviceID = 1;
-                    if (!$util.isInteger(message.deviceID))
-                        return "deviceID: integer expected";
+                if (message.deviceId != null && message.hasOwnProperty("deviceId")) {
+                    properties._deviceId = 1;
+                    if (!$util.isInteger(message.deviceId))
+                        return "deviceId: integer expected";
                 }
                 if (message.isDeleted != null && message.hasOwnProperty("isDeleted")) {
                     properties._isDeleted = 1;
@@ -194523,8 +199313,8 @@ $root.proto = (function() {
                 var message = new $root.proto.SyncActionValue.AgentAction();
                 if (object.name != null)
                     message.name = String(object.name);
-                if (object.deviceID != null)
-                    message.deviceID = object.deviceID | 0;
+                if (object.deviceId != null)
+                    message.deviceId = object.deviceId | 0;
                 if (object.isDeleted != null)
                     message.isDeleted = Boolean(object.isDeleted);
                 return message;
@@ -194548,10 +199338,10 @@ $root.proto = (function() {
                     if (options.oneofs)
                         object._name = "name";
                 }
-                if (message.deviceID != null && message.hasOwnProperty("deviceID")) {
-                    object.deviceID = message.deviceID;
+                if (message.deviceId != null && message.hasOwnProperty("deviceId")) {
+                    object.deviceId = message.deviceId;
                     if (options.oneofs)
-                        object._deviceID = "deviceID";
+                        object._deviceId = "deviceId";
                 }
                 if (message.isDeleted != null && message.hasOwnProperty("isDeleted")) {
                     object.isDeleted = message.isDeleted;
@@ -198361,7 +203151,7 @@ $root.proto = (function() {
              * Properties of a ChatAssignmentAction.
              * @memberof proto.SyncActionValue
              * @interface IChatAssignmentAction
-             * @property {string|null} [deviceAgentID] ChatAssignmentAction deviceAgentID
+             * @property {string|null} [deviceAgentId] ChatAssignmentAction deviceAgentId
              */
 
             /**
@@ -198380,19 +203170,19 @@ $root.proto = (function() {
             }
 
             /**
-             * ChatAssignmentAction deviceAgentID.
-             * @member {string|null|undefined} deviceAgentID
+             * ChatAssignmentAction deviceAgentId.
+             * @member {string|null|undefined} deviceAgentId
              * @memberof proto.SyncActionValue.ChatAssignmentAction
              * @instance
              */
-            ChatAssignmentAction.prototype.deviceAgentID = null;
+            ChatAssignmentAction.prototype.deviceAgentId = null;
 
             // OneOf field names bound to virtual getters and setters
             var $oneOfFields;
 
             // Virtual OneOf for proto3 optional field
-            Object.defineProperty(ChatAssignmentAction.prototype, "_deviceAgentID", {
-                get: $util.oneOfGetter($oneOfFields = ["deviceAgentID"]),
+            Object.defineProperty(ChatAssignmentAction.prototype, "_deviceAgentId", {
+                get: $util.oneOfGetter($oneOfFields = ["deviceAgentId"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
@@ -198420,8 +203210,8 @@ $root.proto = (function() {
             ChatAssignmentAction.encode = function encode(message, writer) {
                 if (!writer)
                     writer = $Writer.create();
-                if (message.deviceAgentID != null && Object.hasOwnProperty.call(message, "deviceAgentID"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.deviceAgentID);
+                if (message.deviceAgentId != null && Object.hasOwnProperty.call(message, "deviceAgentId"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.deviceAgentId);
                 return writer;
             };
 
@@ -198459,7 +203249,7 @@ $root.proto = (function() {
                         break;
                     switch (tag >>> 3) {
                     case 1: {
-                            message.deviceAgentID = reader.string();
+                            message.deviceAgentId = reader.string();
                             break;
                         }
                     default:
@@ -198498,10 +203288,10 @@ $root.proto = (function() {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
                 var properties = {};
-                if (message.deviceAgentID != null && message.hasOwnProperty("deviceAgentID")) {
-                    properties._deviceAgentID = 1;
-                    if (!$util.isString(message.deviceAgentID))
-                        return "deviceAgentID: string expected";
+                if (message.deviceAgentId != null && message.hasOwnProperty("deviceAgentId")) {
+                    properties._deviceAgentId = 1;
+                    if (!$util.isString(message.deviceAgentId))
+                        return "deviceAgentId: string expected";
                 }
                 return null;
             };
@@ -198518,8 +203308,8 @@ $root.proto = (function() {
                 if (object instanceof $root.proto.SyncActionValue.ChatAssignmentAction)
                     return object;
                 var message = new $root.proto.SyncActionValue.ChatAssignmentAction();
-                if (object.deviceAgentID != null)
-                    message.deviceAgentID = String(object.deviceAgentID);
+                if (object.deviceAgentId != null)
+                    message.deviceAgentId = String(object.deviceAgentId);
                 return message;
             };
 
@@ -198536,10 +203326,10 @@ $root.proto = (function() {
                 if (!options)
                     options = {};
                 var object = {};
-                if (message.deviceAgentID != null && message.hasOwnProperty("deviceAgentID")) {
-                    object.deviceAgentID = message.deviceAgentID;
+                if (message.deviceAgentId != null && message.hasOwnProperty("deviceAgentId")) {
+                    object.deviceAgentId = message.deviceAgentId;
                     if (options.oneofs)
-                        object._deviceAgentID = "deviceAgentID";
+                        object._deviceAgentId = "deviceAgentId";
                 }
                 return object;
             };
@@ -199013,6 +203803,234 @@ $root.proto = (function() {
             };
 
             return ClearChatAction;
+        })();
+
+        SyncActionValue.CoexV2VersionAction = (function() {
+
+            /**
+             * Properties of a CoexV2VersionAction.
+             * @memberof proto.SyncActionValue
+             * @interface ICoexV2VersionAction
+             * @property {number|Long|null} [version] CoexV2VersionAction version
+             */
+
+            /**
+             * Constructs a new CoexV2VersionAction.
+             * @memberof proto.SyncActionValue
+             * @classdesc Represents a CoexV2VersionAction.
+             * @implements ICoexV2VersionAction
+             * @constructor
+             * @param {proto.SyncActionValue.ICoexV2VersionAction=} [properties] Properties to set
+             */
+            function CoexV2VersionAction(properties) {
+                if (properties)
+                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * CoexV2VersionAction version.
+             * @member {number|Long|null|undefined} version
+             * @memberof proto.SyncActionValue.CoexV2VersionAction
+             * @instance
+             */
+            CoexV2VersionAction.prototype.version = null;
+
+            // OneOf field names bound to virtual getters and setters
+            var $oneOfFields;
+
+            // Virtual OneOf for proto3 optional field
+            Object.defineProperty(CoexV2VersionAction.prototype, "_version", {
+                get: $util.oneOfGetter($oneOfFields = ["version"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new CoexV2VersionAction instance using the specified properties.
+             * @function create
+             * @memberof proto.SyncActionValue.CoexV2VersionAction
+             * @static
+             * @param {proto.SyncActionValue.ICoexV2VersionAction=} [properties] Properties to set
+             * @returns {proto.SyncActionValue.CoexV2VersionAction} CoexV2VersionAction instance
+             */
+            CoexV2VersionAction.create = function create(properties) {
+                return new CoexV2VersionAction(properties);
+            };
+
+            /**
+             * Encodes the specified CoexV2VersionAction message. Does not implicitly {@link proto.SyncActionValue.CoexV2VersionAction.verify|verify} messages.
+             * @function encode
+             * @memberof proto.SyncActionValue.CoexV2VersionAction
+             * @static
+             * @param {proto.SyncActionValue.ICoexV2VersionAction} message CoexV2VersionAction message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            CoexV2VersionAction.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.version != null && Object.hasOwnProperty.call(message, "version"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).uint64(message.version);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified CoexV2VersionAction message, length delimited. Does not implicitly {@link proto.SyncActionValue.CoexV2VersionAction.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof proto.SyncActionValue.CoexV2VersionAction
+             * @static
+             * @param {proto.SyncActionValue.ICoexV2VersionAction} message CoexV2VersionAction message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            CoexV2VersionAction.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a CoexV2VersionAction message from the specified reader or buffer.
+             * @function decode
+             * @memberof proto.SyncActionValue.CoexV2VersionAction
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {proto.SyncActionValue.CoexV2VersionAction} CoexV2VersionAction
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            CoexV2VersionAction.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.SyncActionValue.CoexV2VersionAction();
+                while (reader.pos < end) {
+                    var tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.version = reader.uint64();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a CoexV2VersionAction message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof proto.SyncActionValue.CoexV2VersionAction
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {proto.SyncActionValue.CoexV2VersionAction} CoexV2VersionAction
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            CoexV2VersionAction.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a CoexV2VersionAction message.
+             * @function verify
+             * @memberof proto.SyncActionValue.CoexV2VersionAction
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            CoexV2VersionAction.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                var properties = {};
+                if (message.version != null && message.hasOwnProperty("version")) {
+                    properties._version = 1;
+                    if (!$util.isInteger(message.version) && !(message.version && $util.isInteger(message.version.low) && $util.isInteger(message.version.high)))
+                        return "version: integer|Long expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a CoexV2VersionAction message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof proto.SyncActionValue.CoexV2VersionAction
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {proto.SyncActionValue.CoexV2VersionAction} CoexV2VersionAction
+             */
+            CoexV2VersionAction.fromObject = function fromObject(object) {
+                if (object instanceof $root.proto.SyncActionValue.CoexV2VersionAction)
+                    return object;
+                var message = new $root.proto.SyncActionValue.CoexV2VersionAction();
+                if (object.version != null)
+                    if ($util.Long)
+                        (message.version = $util.Long.fromValue(object.version)).unsigned = true;
+                    else if (typeof object.version === "string")
+                        message.version = parseInt(object.version, 10);
+                    else if (typeof object.version === "number")
+                        message.version = object.version;
+                    else if (typeof object.version === "object")
+                        message.version = new $util.LongBits(object.version.low >>> 0, object.version.high >>> 0).toNumber(true);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a CoexV2VersionAction message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof proto.SyncActionValue.CoexV2VersionAction
+             * @static
+             * @param {proto.SyncActionValue.CoexV2VersionAction} message CoexV2VersionAction
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            CoexV2VersionAction.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                var object = {};
+                if (message.version != null && message.hasOwnProperty("version")) {
+                    if (typeof message.version === "number")
+                        object.version = options.longs === String ? String(message.version) : message.version;
+                    else
+                        object.version = options.longs === String ? $util.Long.prototype.toString.call(message.version) : options.longs === Number ? new $util.LongBits(message.version.low >>> 0, message.version.high >>> 0).toNumber(true) : message.version;
+                    if (options.oneofs)
+                        object._version = "version";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this CoexV2VersionAction to JSON.
+             * @function toJSON
+             * @memberof proto.SyncActionValue.CoexV2VersionAction
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            CoexV2VersionAction.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for CoexV2VersionAction
+             * @function getTypeUrl
+             * @memberof proto.SyncActionValue.CoexV2VersionAction
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            CoexV2VersionAction.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/proto.SyncActionValue.CoexV2VersionAction";
+            };
+
+            return CoexV2VersionAction;
         })();
 
         SyncActionValue.ContactAction = (function() {
@@ -214025,8 +219043,8 @@ $root.proto = (function() {
              * @interface IStatusPrivacyAction
              * @property {proto.SyncActionValue.StatusPrivacyAction.StatusDistributionMode|null} [mode] StatusPrivacyAction mode
              * @property {Array.<string>|null} [userJid] StatusPrivacyAction userJid
-             * @property {boolean|null} [shareToFB] StatusPrivacyAction shareToFB
-             * @property {boolean|null} [shareToIG] StatusPrivacyAction shareToIG
+             * @property {boolean|null} [shareToFb] StatusPrivacyAction shareToFb
+             * @property {boolean|null} [shareToIg] StatusPrivacyAction shareToIg
              * @property {Array.<proto.SyncActionValue.StatusPrivacyAction.ICustomList>|null} [customLists] StatusPrivacyAction customLists
              * @property {Array.<proto.SyncActionValue.StatusPrivacyAction.StatusDistributionMode>|null} [modes] StatusPrivacyAction modes
              */
@@ -214066,20 +219084,20 @@ $root.proto = (function() {
             StatusPrivacyAction.prototype.userJid = $util.emptyArray;
 
             /**
-             * StatusPrivacyAction shareToFB.
-             * @member {boolean|null|undefined} shareToFB
+             * StatusPrivacyAction shareToFb.
+             * @member {boolean|null|undefined} shareToFb
              * @memberof proto.SyncActionValue.StatusPrivacyAction
              * @instance
              */
-            StatusPrivacyAction.prototype.shareToFB = null;
+            StatusPrivacyAction.prototype.shareToFb = null;
 
             /**
-             * StatusPrivacyAction shareToIG.
-             * @member {boolean|null|undefined} shareToIG
+             * StatusPrivacyAction shareToIg.
+             * @member {boolean|null|undefined} shareToIg
              * @memberof proto.SyncActionValue.StatusPrivacyAction
              * @instance
              */
-            StatusPrivacyAction.prototype.shareToIG = null;
+            StatusPrivacyAction.prototype.shareToIg = null;
 
             /**
              * StatusPrivacyAction customLists.
@@ -214107,14 +219125,14 @@ $root.proto = (function() {
             });
 
             // Virtual OneOf for proto3 optional field
-            Object.defineProperty(StatusPrivacyAction.prototype, "_shareToFB", {
-                get: $util.oneOfGetter($oneOfFields = ["shareToFB"]),
+            Object.defineProperty(StatusPrivacyAction.prototype, "_shareToFb", {
+                get: $util.oneOfGetter($oneOfFields = ["shareToFb"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
             // Virtual OneOf for proto3 optional field
-            Object.defineProperty(StatusPrivacyAction.prototype, "_shareToIG", {
-                get: $util.oneOfGetter($oneOfFields = ["shareToIG"]),
+            Object.defineProperty(StatusPrivacyAction.prototype, "_shareToIg", {
+                get: $util.oneOfGetter($oneOfFields = ["shareToIg"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
@@ -214147,10 +219165,10 @@ $root.proto = (function() {
                 if (message.userJid != null && message.userJid.length)
                     for (var i = 0; i < message.userJid.length; ++i)
                         writer.uint32(/* id 2, wireType 2 =*/18).string(message.userJid[i]);
-                if (message.shareToFB != null && Object.hasOwnProperty.call(message, "shareToFB"))
-                    writer.uint32(/* id 3, wireType 0 =*/24).bool(message.shareToFB);
-                if (message.shareToIG != null && Object.hasOwnProperty.call(message, "shareToIG"))
-                    writer.uint32(/* id 4, wireType 0 =*/32).bool(message.shareToIG);
+                if (message.shareToFb != null && Object.hasOwnProperty.call(message, "shareToFb"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).bool(message.shareToFb);
+                if (message.shareToIg != null && Object.hasOwnProperty.call(message, "shareToIg"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).bool(message.shareToIg);
                 if (message.customLists != null && message.customLists.length)
                     for (var i = 0; i < message.customLists.length; ++i)
                         $root.proto.SyncActionValue.StatusPrivacyAction.CustomList.encode(message.customLists[i], writer.uint32(/* id 5, wireType 2 =*/42).fork()).ldelim();
@@ -214207,11 +219225,11 @@ $root.proto = (function() {
                             break;
                         }
                     case 3: {
-                            message.shareToFB = reader.bool();
+                            message.shareToFb = reader.bool();
                             break;
                         }
                     case 4: {
-                            message.shareToIG = reader.bool();
+                            message.shareToIg = reader.bool();
                             break;
                         }
                     case 5: {
@@ -214287,15 +219305,15 @@ $root.proto = (function() {
                         if (!$util.isString(message.userJid[i]))
                             return "userJid: string[] expected";
                 }
-                if (message.shareToFB != null && message.hasOwnProperty("shareToFB")) {
-                    properties._shareToFB = 1;
-                    if (typeof message.shareToFB !== "boolean")
-                        return "shareToFB: boolean expected";
+                if (message.shareToFb != null && message.hasOwnProperty("shareToFb")) {
+                    properties._shareToFb = 1;
+                    if (typeof message.shareToFb !== "boolean")
+                        return "shareToFb: boolean expected";
                 }
-                if (message.shareToIG != null && message.hasOwnProperty("shareToIG")) {
-                    properties._shareToIG = 1;
-                    if (typeof message.shareToIG !== "boolean")
-                        return "shareToIG: boolean expected";
+                if (message.shareToIg != null && message.hasOwnProperty("shareToIg")) {
+                    properties._shareToIg = 1;
+                    if (typeof message.shareToIg !== "boolean")
+                        return "shareToIg: boolean expected";
                 }
                 if (message.customLists != null && message.hasOwnProperty("customLists")) {
                     if (!Array.isArray(message.customLists))
@@ -214371,10 +219389,10 @@ $root.proto = (function() {
                     for (var i = 0; i < object.userJid.length; ++i)
                         message.userJid[i] = String(object.userJid[i]);
                 }
-                if (object.shareToFB != null)
-                    message.shareToFB = Boolean(object.shareToFB);
-                if (object.shareToIG != null)
-                    message.shareToIG = Boolean(object.shareToIG);
+                if (object.shareToFb != null)
+                    message.shareToFb = Boolean(object.shareToFb);
+                if (object.shareToIg != null)
+                    message.shareToIg = Boolean(object.shareToIg);
                 if (object.customLists) {
                     if (!Array.isArray(object.customLists))
                         throw TypeError(".proto.SyncActionValue.StatusPrivacyAction.customLists: array expected");
@@ -214449,15 +219467,15 @@ $root.proto = (function() {
                     for (var j = 0; j < message.userJid.length; ++j)
                         object.userJid[j] = message.userJid[j];
                 }
-                if (message.shareToFB != null && message.hasOwnProperty("shareToFB")) {
-                    object.shareToFB = message.shareToFB;
+                if (message.shareToFb != null && message.hasOwnProperty("shareToFb")) {
+                    object.shareToFb = message.shareToFb;
                     if (options.oneofs)
-                        object._shareToFB = "shareToFB";
+                        object._shareToFb = "shareToFb";
                 }
-                if (message.shareToIG != null && message.hasOwnProperty("shareToIG")) {
-                    object.shareToIG = message.shareToIG;
+                if (message.shareToIg != null && message.hasOwnProperty("shareToIg")) {
+                    object.shareToIg = message.shareToIg;
                     if (options.oneofs)
-                        object._shareToIG = "shareToIG";
+                        object._shareToIg = "shareToIg";
                 }
                 if (message.customLists && message.customLists.length) {
                     object.customLists = [];
@@ -218804,6 +223822,529 @@ $root.proto = (function() {
             })();
 
             return UsernameChatStartModeAction;
+        })();
+
+        SyncActionValue.WASARootSecretAction = (function() {
+
+            /**
+             * Properties of a WASARootSecretAction.
+             * @memberof proto.SyncActionValue
+             * @interface IWASARootSecretAction
+             * @property {Array.<proto.SyncActionValue.WASARootSecretAction.IRootSecretEntry>|null} [secrets] WASARootSecretAction secrets
+             */
+
+            /**
+             * Constructs a new WASARootSecretAction.
+             * @memberof proto.SyncActionValue
+             * @classdesc Represents a WASARootSecretAction.
+             * @implements IWASARootSecretAction
+             * @constructor
+             * @param {proto.SyncActionValue.IWASARootSecretAction=} [properties] Properties to set
+             */
+            function WASARootSecretAction(properties) {
+                this.secrets = [];
+                if (properties)
+                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * WASARootSecretAction secrets.
+             * @member {Array.<proto.SyncActionValue.WASARootSecretAction.IRootSecretEntry>} secrets
+             * @memberof proto.SyncActionValue.WASARootSecretAction
+             * @instance
+             */
+            WASARootSecretAction.prototype.secrets = $util.emptyArray;
+
+            /**
+             * Creates a new WASARootSecretAction instance using the specified properties.
+             * @function create
+             * @memberof proto.SyncActionValue.WASARootSecretAction
+             * @static
+             * @param {proto.SyncActionValue.IWASARootSecretAction=} [properties] Properties to set
+             * @returns {proto.SyncActionValue.WASARootSecretAction} WASARootSecretAction instance
+             */
+            WASARootSecretAction.create = function create(properties) {
+                return new WASARootSecretAction(properties);
+            };
+
+            /**
+             * Encodes the specified WASARootSecretAction message. Does not implicitly {@link proto.SyncActionValue.WASARootSecretAction.verify|verify} messages.
+             * @function encode
+             * @memberof proto.SyncActionValue.WASARootSecretAction
+             * @static
+             * @param {proto.SyncActionValue.IWASARootSecretAction} message WASARootSecretAction message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            WASARootSecretAction.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.secrets != null && message.secrets.length)
+                    for (var i = 0; i < message.secrets.length; ++i)
+                        $root.proto.SyncActionValue.WASARootSecretAction.RootSecretEntry.encode(message.secrets[i], writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified WASARootSecretAction message, length delimited. Does not implicitly {@link proto.SyncActionValue.WASARootSecretAction.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof proto.SyncActionValue.WASARootSecretAction
+             * @static
+             * @param {proto.SyncActionValue.IWASARootSecretAction} message WASARootSecretAction message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            WASARootSecretAction.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a WASARootSecretAction message from the specified reader or buffer.
+             * @function decode
+             * @memberof proto.SyncActionValue.WASARootSecretAction
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {proto.SyncActionValue.WASARootSecretAction} WASARootSecretAction
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            WASARootSecretAction.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.SyncActionValue.WASARootSecretAction();
+                while (reader.pos < end) {
+                    var tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            if (!(message.secrets && message.secrets.length))
+                                message.secrets = [];
+                            message.secrets.push($root.proto.SyncActionValue.WASARootSecretAction.RootSecretEntry.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a WASARootSecretAction message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof proto.SyncActionValue.WASARootSecretAction
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {proto.SyncActionValue.WASARootSecretAction} WASARootSecretAction
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            WASARootSecretAction.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a WASARootSecretAction message.
+             * @function verify
+             * @memberof proto.SyncActionValue.WASARootSecretAction
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            WASARootSecretAction.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.secrets != null && message.hasOwnProperty("secrets")) {
+                    if (!Array.isArray(message.secrets))
+                        return "secrets: array expected";
+                    for (var i = 0; i < message.secrets.length; ++i) {
+                        var error = $root.proto.SyncActionValue.WASARootSecretAction.RootSecretEntry.verify(message.secrets[i]);
+                        if (error)
+                            return "secrets." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a WASARootSecretAction message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof proto.SyncActionValue.WASARootSecretAction
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {proto.SyncActionValue.WASARootSecretAction} WASARootSecretAction
+             */
+            WASARootSecretAction.fromObject = function fromObject(object) {
+                if (object instanceof $root.proto.SyncActionValue.WASARootSecretAction)
+                    return object;
+                var message = new $root.proto.SyncActionValue.WASARootSecretAction();
+                if (object.secrets) {
+                    if (!Array.isArray(object.secrets))
+                        throw TypeError(".proto.SyncActionValue.WASARootSecretAction.secrets: array expected");
+                    message.secrets = [];
+                    for (var i = 0; i < object.secrets.length; ++i) {
+                        if (typeof object.secrets[i] !== "object")
+                            throw TypeError(".proto.SyncActionValue.WASARootSecretAction.secrets: object expected");
+                        message.secrets[i] = $root.proto.SyncActionValue.WASARootSecretAction.RootSecretEntry.fromObject(object.secrets[i]);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a WASARootSecretAction message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof proto.SyncActionValue.WASARootSecretAction
+             * @static
+             * @param {proto.SyncActionValue.WASARootSecretAction} message WASARootSecretAction
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            WASARootSecretAction.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                var object = {};
+                if (options.arrays || options.defaults)
+                    object.secrets = [];
+                if (message.secrets && message.secrets.length) {
+                    object.secrets = [];
+                    for (var j = 0; j < message.secrets.length; ++j)
+                        object.secrets[j] = $root.proto.SyncActionValue.WASARootSecretAction.RootSecretEntry.toObject(message.secrets[j], options);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this WASARootSecretAction to JSON.
+             * @function toJSON
+             * @memberof proto.SyncActionValue.WASARootSecretAction
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            WASARootSecretAction.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for WASARootSecretAction
+             * @function getTypeUrl
+             * @memberof proto.SyncActionValue.WASARootSecretAction
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            WASARootSecretAction.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/proto.SyncActionValue.WASARootSecretAction";
+            };
+
+            WASARootSecretAction.RootSecretEntry = (function() {
+
+                /**
+                 * Properties of a RootSecretEntry.
+                 * @memberof proto.SyncActionValue.WASARootSecretAction
+                 * @interface IRootSecretEntry
+                 * @property {string|null} [id] RootSecretEntry id
+                 * @property {Uint8Array|null} [rootSecret] RootSecretEntry rootSecret
+                 * @property {number|Long|null} [epoch] RootSecretEntry epoch
+                 */
+
+                /**
+                 * Constructs a new RootSecretEntry.
+                 * @memberof proto.SyncActionValue.WASARootSecretAction
+                 * @classdesc Represents a RootSecretEntry.
+                 * @implements IRootSecretEntry
+                 * @constructor
+                 * @param {proto.SyncActionValue.WASARootSecretAction.IRootSecretEntry=} [properties] Properties to set
+                 */
+                function RootSecretEntry(properties) {
+                    if (properties)
+                        for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null)
+                                this[keys[i]] = properties[keys[i]];
+                }
+
+                /**
+                 * RootSecretEntry id.
+                 * @member {string|null|undefined} id
+                 * @memberof proto.SyncActionValue.WASARootSecretAction.RootSecretEntry
+                 * @instance
+                 */
+                RootSecretEntry.prototype.id = null;
+
+                /**
+                 * RootSecretEntry rootSecret.
+                 * @member {Uint8Array|null|undefined} rootSecret
+                 * @memberof proto.SyncActionValue.WASARootSecretAction.RootSecretEntry
+                 * @instance
+                 */
+                RootSecretEntry.prototype.rootSecret = null;
+
+                /**
+                 * RootSecretEntry epoch.
+                 * @member {number|Long|null|undefined} epoch
+                 * @memberof proto.SyncActionValue.WASARootSecretAction.RootSecretEntry
+                 * @instance
+                 */
+                RootSecretEntry.prototype.epoch = null;
+
+                // OneOf field names bound to virtual getters and setters
+                var $oneOfFields;
+
+                // Virtual OneOf for proto3 optional field
+                Object.defineProperty(RootSecretEntry.prototype, "_id", {
+                    get: $util.oneOfGetter($oneOfFields = ["id"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                // Virtual OneOf for proto3 optional field
+                Object.defineProperty(RootSecretEntry.prototype, "_rootSecret", {
+                    get: $util.oneOfGetter($oneOfFields = ["rootSecret"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                // Virtual OneOf for proto3 optional field
+                Object.defineProperty(RootSecretEntry.prototype, "_epoch", {
+                    get: $util.oneOfGetter($oneOfFields = ["epoch"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * Creates a new RootSecretEntry instance using the specified properties.
+                 * @function create
+                 * @memberof proto.SyncActionValue.WASARootSecretAction.RootSecretEntry
+                 * @static
+                 * @param {proto.SyncActionValue.WASARootSecretAction.IRootSecretEntry=} [properties] Properties to set
+                 * @returns {proto.SyncActionValue.WASARootSecretAction.RootSecretEntry} RootSecretEntry instance
+                 */
+                RootSecretEntry.create = function create(properties) {
+                    return new RootSecretEntry(properties);
+                };
+
+                /**
+                 * Encodes the specified RootSecretEntry message. Does not implicitly {@link proto.SyncActionValue.WASARootSecretAction.RootSecretEntry.verify|verify} messages.
+                 * @function encode
+                 * @memberof proto.SyncActionValue.WASARootSecretAction.RootSecretEntry
+                 * @static
+                 * @param {proto.SyncActionValue.WASARootSecretAction.IRootSecretEntry} message RootSecretEntry message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                RootSecretEntry.encode = function encode(message, writer) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (message.id != null && Object.hasOwnProperty.call(message, "id"))
+                        writer.uint32(/* id 1, wireType 2 =*/10).string(message.id);
+                    if (message.rootSecret != null && Object.hasOwnProperty.call(message, "rootSecret"))
+                        writer.uint32(/* id 2, wireType 2 =*/18).bytes(message.rootSecret);
+                    if (message.epoch != null && Object.hasOwnProperty.call(message, "epoch"))
+                        writer.uint32(/* id 3, wireType 0 =*/24).int64(message.epoch);
+                    return writer;
+                };
+
+                /**
+                 * Encodes the specified RootSecretEntry message, length delimited. Does not implicitly {@link proto.SyncActionValue.WASARootSecretAction.RootSecretEntry.verify|verify} messages.
+                 * @function encodeDelimited
+                 * @memberof proto.SyncActionValue.WASARootSecretAction.RootSecretEntry
+                 * @static
+                 * @param {proto.SyncActionValue.WASARootSecretAction.IRootSecretEntry} message RootSecretEntry message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                RootSecretEntry.encodeDelimited = function encodeDelimited(message, writer) {
+                    return this.encode(message, writer).ldelim();
+                };
+
+                /**
+                 * Decodes a RootSecretEntry message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof proto.SyncActionValue.WASARootSecretAction.RootSecretEntry
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {proto.SyncActionValue.WASARootSecretAction.RootSecretEntry} RootSecretEntry
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                RootSecretEntry.decode = function decode(reader, length, error) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.SyncActionValue.WASARootSecretAction.RootSecretEntry();
+                    while (reader.pos < end) {
+                        var tag = reader.uint32();
+                        if (tag === error)
+                            break;
+                        switch (tag >>> 3) {
+                        case 1: {
+                                message.id = reader.string();
+                                break;
+                            }
+                        case 2: {
+                                message.rootSecret = reader.bytes();
+                                break;
+                            }
+                        case 3: {
+                                message.epoch = reader.int64();
+                                break;
+                            }
+                        default:
+                            reader.skipType(tag & 7);
+                            break;
+                        }
+                    }
+                    return message;
+                };
+
+                /**
+                 * Decodes a RootSecretEntry message from the specified reader or buffer, length delimited.
+                 * @function decodeDelimited
+                 * @memberof proto.SyncActionValue.WASARootSecretAction.RootSecretEntry
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @returns {proto.SyncActionValue.WASARootSecretAction.RootSecretEntry} RootSecretEntry
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                RootSecretEntry.decodeDelimited = function decodeDelimited(reader) {
+                    if (!(reader instanceof $Reader))
+                        reader = new $Reader(reader);
+                    return this.decode(reader, reader.uint32());
+                };
+
+                /**
+                 * Verifies a RootSecretEntry message.
+                 * @function verify
+                 * @memberof proto.SyncActionValue.WASARootSecretAction.RootSecretEntry
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                RootSecretEntry.verify = function verify(message) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    var properties = {};
+                    if (message.id != null && message.hasOwnProperty("id")) {
+                        properties._id = 1;
+                        if (!$util.isString(message.id))
+                            return "id: string expected";
+                    }
+                    if (message.rootSecret != null && message.hasOwnProperty("rootSecret")) {
+                        properties._rootSecret = 1;
+                        if (!(message.rootSecret && typeof message.rootSecret.length === "number" || $util.isString(message.rootSecret)))
+                            return "rootSecret: buffer expected";
+                    }
+                    if (message.epoch != null && message.hasOwnProperty("epoch")) {
+                        properties._epoch = 1;
+                        if (!$util.isInteger(message.epoch) && !(message.epoch && $util.isInteger(message.epoch.low) && $util.isInteger(message.epoch.high)))
+                            return "epoch: integer|Long expected";
+                    }
+                    return null;
+                };
+
+                /**
+                 * Creates a RootSecretEntry message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof proto.SyncActionValue.WASARootSecretAction.RootSecretEntry
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {proto.SyncActionValue.WASARootSecretAction.RootSecretEntry} RootSecretEntry
+                 */
+                RootSecretEntry.fromObject = function fromObject(object) {
+                    if (object instanceof $root.proto.SyncActionValue.WASARootSecretAction.RootSecretEntry)
+                        return object;
+                    var message = new $root.proto.SyncActionValue.WASARootSecretAction.RootSecretEntry();
+                    if (object.id != null)
+                        message.id = String(object.id);
+                    if (object.rootSecret != null)
+                        if (typeof object.rootSecret === "string")
+                            $util.base64.decode(object.rootSecret, message.rootSecret = $util.newBuffer($util.base64.length(object.rootSecret)), 0);
+                        else if (object.rootSecret.length >= 0)
+                            message.rootSecret = object.rootSecret;
+                    if (object.epoch != null)
+                        if ($util.Long)
+                            (message.epoch = $util.Long.fromValue(object.epoch)).unsigned = false;
+                        else if (typeof object.epoch === "string")
+                            message.epoch = parseInt(object.epoch, 10);
+                        else if (typeof object.epoch === "number")
+                            message.epoch = object.epoch;
+                        else if (typeof object.epoch === "object")
+                            message.epoch = new $util.LongBits(object.epoch.low >>> 0, object.epoch.high >>> 0).toNumber();
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a RootSecretEntry message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof proto.SyncActionValue.WASARootSecretAction.RootSecretEntry
+                 * @static
+                 * @param {proto.SyncActionValue.WASARootSecretAction.RootSecretEntry} message RootSecretEntry
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                RootSecretEntry.toObject = function toObject(message, options) {
+                    if (!options)
+                        options = {};
+                    var object = {};
+                    if (message.id != null && message.hasOwnProperty("id")) {
+                        object.id = message.id;
+                        if (options.oneofs)
+                            object._id = "id";
+                    }
+                    if (message.rootSecret != null && message.hasOwnProperty("rootSecret")) {
+                        object.rootSecret = options.bytes === String ? $util.base64.encode(message.rootSecret, 0, message.rootSecret.length) : options.bytes === Array ? Array.prototype.slice.call(message.rootSecret) : message.rootSecret;
+                        if (options.oneofs)
+                            object._rootSecret = "rootSecret";
+                    }
+                    if (message.epoch != null && message.hasOwnProperty("epoch")) {
+                        if (typeof message.epoch === "number")
+                            object.epoch = options.longs === String ? String(message.epoch) : message.epoch;
+                        else
+                            object.epoch = options.longs === String ? $util.Long.prototype.toString.call(message.epoch) : options.longs === Number ? new $util.LongBits(message.epoch.low >>> 0, message.epoch.high >>> 0).toNumber() : message.epoch;
+                        if (options.oneofs)
+                            object._epoch = "epoch";
+                    }
+                    return object;
+                };
+
+                /**
+                 * Converts this RootSecretEntry to JSON.
+                 * @function toJSON
+                 * @memberof proto.SyncActionValue.WASARootSecretAction.RootSecretEntry
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                RootSecretEntry.prototype.toJSON = function toJSON() {
+                    return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the default type url for RootSecretEntry
+                 * @function getTypeUrl
+                 * @memberof proto.SyncActionValue.WASARootSecretAction.RootSecretEntry
+                 * @static
+                 * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns {string} The default type url
+                 */
+                RootSecretEntry.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                    if (typeUrlPrefix === undefined) {
+                        typeUrlPrefix = "type.googleapis.com";
+                    }
+                    return typeUrlPrefix + "/proto.SyncActionValue.WASARootSecretAction.RootSecretEntry";
+                };
+
+                return RootSecretEntry;
+            })();
+
+            return WASARootSecretAction;
         })();
 
         SyncActionValue.WaffleAccountLinkStateAction = (function() {
@@ -227186,6 +232727,446 @@ $root.proto = (function() {
         })();
 
         return VerifiedNameCertificate;
+    })();
+
+    proto.VirtualDeviceOutput = (function() {
+
+        /**
+         * Properties of a VirtualDeviceOutput.
+         * @memberof proto
+         * @interface IVirtualDeviceOutput
+         * @property {Uint8Array|null} [vdId] VirtualDeviceOutput vdId
+         * @property {Uint8Array|null} [vdPublicKey] VirtualDeviceOutput vdPublicKey
+         * @property {Uint8Array|null} [vdEpochStoragePublicKey] VirtualDeviceOutput vdEpochStoragePublicKey
+         * @property {Uint8Array|null} [vdEpochStoragePublicKeySig] VirtualDeviceOutput vdEpochStoragePublicKeySig
+         * @property {Uint8Array|null} [ocmfRotationToken] VirtualDeviceOutput ocmfRotationToken
+         * @property {Uint8Array|null} [deviceEpochHmac] VirtualDeviceOutput deviceEpochHmac
+         * @property {proto.IEncryptedSecretValuesOutput|null} [encryptedSecretValues] VirtualDeviceOutput encryptedSecretValues
+         */
+
+        /**
+         * Constructs a new VirtualDeviceOutput.
+         * @memberof proto
+         * @classdesc Represents a VirtualDeviceOutput.
+         * @implements IVirtualDeviceOutput
+         * @constructor
+         * @param {proto.IVirtualDeviceOutput=} [properties] Properties to set
+         */
+        function VirtualDeviceOutput(properties) {
+            if (properties)
+                for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * VirtualDeviceOutput vdId.
+         * @member {Uint8Array|null|undefined} vdId
+         * @memberof proto.VirtualDeviceOutput
+         * @instance
+         */
+        VirtualDeviceOutput.prototype.vdId = null;
+
+        /**
+         * VirtualDeviceOutput vdPublicKey.
+         * @member {Uint8Array|null|undefined} vdPublicKey
+         * @memberof proto.VirtualDeviceOutput
+         * @instance
+         */
+        VirtualDeviceOutput.prototype.vdPublicKey = null;
+
+        /**
+         * VirtualDeviceOutput vdEpochStoragePublicKey.
+         * @member {Uint8Array|null|undefined} vdEpochStoragePublicKey
+         * @memberof proto.VirtualDeviceOutput
+         * @instance
+         */
+        VirtualDeviceOutput.prototype.vdEpochStoragePublicKey = null;
+
+        /**
+         * VirtualDeviceOutput vdEpochStoragePublicKeySig.
+         * @member {Uint8Array|null|undefined} vdEpochStoragePublicKeySig
+         * @memberof proto.VirtualDeviceOutput
+         * @instance
+         */
+        VirtualDeviceOutput.prototype.vdEpochStoragePublicKeySig = null;
+
+        /**
+         * VirtualDeviceOutput ocmfRotationToken.
+         * @member {Uint8Array|null|undefined} ocmfRotationToken
+         * @memberof proto.VirtualDeviceOutput
+         * @instance
+         */
+        VirtualDeviceOutput.prototype.ocmfRotationToken = null;
+
+        /**
+         * VirtualDeviceOutput deviceEpochHmac.
+         * @member {Uint8Array|null|undefined} deviceEpochHmac
+         * @memberof proto.VirtualDeviceOutput
+         * @instance
+         */
+        VirtualDeviceOutput.prototype.deviceEpochHmac = null;
+
+        /**
+         * VirtualDeviceOutput encryptedSecretValues.
+         * @member {proto.IEncryptedSecretValuesOutput|null|undefined} encryptedSecretValues
+         * @memberof proto.VirtualDeviceOutput
+         * @instance
+         */
+        VirtualDeviceOutput.prototype.encryptedSecretValues = null;
+
+        // OneOf field names bound to virtual getters and setters
+        var $oneOfFields;
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(VirtualDeviceOutput.prototype, "_vdId", {
+            get: $util.oneOfGetter($oneOfFields = ["vdId"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(VirtualDeviceOutput.prototype, "_vdPublicKey", {
+            get: $util.oneOfGetter($oneOfFields = ["vdPublicKey"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(VirtualDeviceOutput.prototype, "_vdEpochStoragePublicKey", {
+            get: $util.oneOfGetter($oneOfFields = ["vdEpochStoragePublicKey"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(VirtualDeviceOutput.prototype, "_vdEpochStoragePublicKeySig", {
+            get: $util.oneOfGetter($oneOfFields = ["vdEpochStoragePublicKeySig"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(VirtualDeviceOutput.prototype, "_ocmfRotationToken", {
+            get: $util.oneOfGetter($oneOfFields = ["ocmfRotationToken"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(VirtualDeviceOutput.prototype, "_deviceEpochHmac", {
+            get: $util.oneOfGetter($oneOfFields = ["deviceEpochHmac"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        // Virtual OneOf for proto3 optional field
+        Object.defineProperty(VirtualDeviceOutput.prototype, "_encryptedSecretValues", {
+            get: $util.oneOfGetter($oneOfFields = ["encryptedSecretValues"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
+
+        /**
+         * Creates a new VirtualDeviceOutput instance using the specified properties.
+         * @function create
+         * @memberof proto.VirtualDeviceOutput
+         * @static
+         * @param {proto.IVirtualDeviceOutput=} [properties] Properties to set
+         * @returns {proto.VirtualDeviceOutput} VirtualDeviceOutput instance
+         */
+        VirtualDeviceOutput.create = function create(properties) {
+            return new VirtualDeviceOutput(properties);
+        };
+
+        /**
+         * Encodes the specified VirtualDeviceOutput message. Does not implicitly {@link proto.VirtualDeviceOutput.verify|verify} messages.
+         * @function encode
+         * @memberof proto.VirtualDeviceOutput
+         * @static
+         * @param {proto.IVirtualDeviceOutput} message VirtualDeviceOutput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        VirtualDeviceOutput.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.vdId != null && Object.hasOwnProperty.call(message, "vdId"))
+                writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.vdId);
+            if (message.vdPublicKey != null && Object.hasOwnProperty.call(message, "vdPublicKey"))
+                writer.uint32(/* id 2, wireType 2 =*/18).bytes(message.vdPublicKey);
+            if (message.vdEpochStoragePublicKey != null && Object.hasOwnProperty.call(message, "vdEpochStoragePublicKey"))
+                writer.uint32(/* id 3, wireType 2 =*/26).bytes(message.vdEpochStoragePublicKey);
+            if (message.vdEpochStoragePublicKeySig != null && Object.hasOwnProperty.call(message, "vdEpochStoragePublicKeySig"))
+                writer.uint32(/* id 4, wireType 2 =*/34).bytes(message.vdEpochStoragePublicKeySig);
+            if (message.ocmfRotationToken != null && Object.hasOwnProperty.call(message, "ocmfRotationToken"))
+                writer.uint32(/* id 5, wireType 2 =*/42).bytes(message.ocmfRotationToken);
+            if (message.deviceEpochHmac != null && Object.hasOwnProperty.call(message, "deviceEpochHmac"))
+                writer.uint32(/* id 6, wireType 2 =*/50).bytes(message.deviceEpochHmac);
+            if (message.encryptedSecretValues != null && Object.hasOwnProperty.call(message, "encryptedSecretValues"))
+                $root.proto.EncryptedSecretValuesOutput.encode(message.encryptedSecretValues, writer.uint32(/* id 7, wireType 2 =*/58).fork()).ldelim();
+            return writer;
+        };
+
+        /**
+         * Encodes the specified VirtualDeviceOutput message, length delimited. Does not implicitly {@link proto.VirtualDeviceOutput.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.VirtualDeviceOutput
+         * @static
+         * @param {proto.IVirtualDeviceOutput} message VirtualDeviceOutput message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        VirtualDeviceOutput.encodeDelimited = function encodeDelimited(message, writer) {
+            return this.encode(message, writer).ldelim();
+        };
+
+        /**
+         * Decodes a VirtualDeviceOutput message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.VirtualDeviceOutput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.VirtualDeviceOutput} VirtualDeviceOutput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        VirtualDeviceOutput.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.VirtualDeviceOutput();
+            while (reader.pos < end) {
+                var tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.vdId = reader.bytes();
+                        break;
+                    }
+                case 2: {
+                        message.vdPublicKey = reader.bytes();
+                        break;
+                    }
+                case 3: {
+                        message.vdEpochStoragePublicKey = reader.bytes();
+                        break;
+                    }
+                case 4: {
+                        message.vdEpochStoragePublicKeySig = reader.bytes();
+                        break;
+                    }
+                case 5: {
+                        message.ocmfRotationToken = reader.bytes();
+                        break;
+                    }
+                case 6: {
+                        message.deviceEpochHmac = reader.bytes();
+                        break;
+                    }
+                case 7: {
+                        message.encryptedSecretValues = $root.proto.EncryptedSecretValuesOutput.decode(reader, reader.uint32());
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Decodes a VirtualDeviceOutput message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.VirtualDeviceOutput
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.VirtualDeviceOutput} VirtualDeviceOutput
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        VirtualDeviceOutput.decodeDelimited = function decodeDelimited(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a VirtualDeviceOutput message.
+         * @function verify
+         * @memberof proto.VirtualDeviceOutput
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        VirtualDeviceOutput.verify = function verify(message) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            var properties = {};
+            if (message.vdId != null && message.hasOwnProperty("vdId")) {
+                properties._vdId = 1;
+                if (!(message.vdId && typeof message.vdId.length === "number" || $util.isString(message.vdId)))
+                    return "vdId: buffer expected";
+            }
+            if (message.vdPublicKey != null && message.hasOwnProperty("vdPublicKey")) {
+                properties._vdPublicKey = 1;
+                if (!(message.vdPublicKey && typeof message.vdPublicKey.length === "number" || $util.isString(message.vdPublicKey)))
+                    return "vdPublicKey: buffer expected";
+            }
+            if (message.vdEpochStoragePublicKey != null && message.hasOwnProperty("vdEpochStoragePublicKey")) {
+                properties._vdEpochStoragePublicKey = 1;
+                if (!(message.vdEpochStoragePublicKey && typeof message.vdEpochStoragePublicKey.length === "number" || $util.isString(message.vdEpochStoragePublicKey)))
+                    return "vdEpochStoragePublicKey: buffer expected";
+            }
+            if (message.vdEpochStoragePublicKeySig != null && message.hasOwnProperty("vdEpochStoragePublicKeySig")) {
+                properties._vdEpochStoragePublicKeySig = 1;
+                if (!(message.vdEpochStoragePublicKeySig && typeof message.vdEpochStoragePublicKeySig.length === "number" || $util.isString(message.vdEpochStoragePublicKeySig)))
+                    return "vdEpochStoragePublicKeySig: buffer expected";
+            }
+            if (message.ocmfRotationToken != null && message.hasOwnProperty("ocmfRotationToken")) {
+                properties._ocmfRotationToken = 1;
+                if (!(message.ocmfRotationToken && typeof message.ocmfRotationToken.length === "number" || $util.isString(message.ocmfRotationToken)))
+                    return "ocmfRotationToken: buffer expected";
+            }
+            if (message.deviceEpochHmac != null && message.hasOwnProperty("deviceEpochHmac")) {
+                properties._deviceEpochHmac = 1;
+                if (!(message.deviceEpochHmac && typeof message.deviceEpochHmac.length === "number" || $util.isString(message.deviceEpochHmac)))
+                    return "deviceEpochHmac: buffer expected";
+            }
+            if (message.encryptedSecretValues != null && message.hasOwnProperty("encryptedSecretValues")) {
+                properties._encryptedSecretValues = 1;
+                {
+                    var error = $root.proto.EncryptedSecretValuesOutput.verify(message.encryptedSecretValues);
+                    if (error)
+                        return "encryptedSecretValues." + error;
+                }
+            }
+            return null;
+        };
+
+        /**
+         * Creates a VirtualDeviceOutput message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.VirtualDeviceOutput
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.VirtualDeviceOutput} VirtualDeviceOutput
+         */
+        VirtualDeviceOutput.fromObject = function fromObject(object) {
+            if (object instanceof $root.proto.VirtualDeviceOutput)
+                return object;
+            var message = new $root.proto.VirtualDeviceOutput();
+            if (object.vdId != null)
+                if (typeof object.vdId === "string")
+                    $util.base64.decode(object.vdId, message.vdId = $util.newBuffer($util.base64.length(object.vdId)), 0);
+                else if (object.vdId.length >= 0)
+                    message.vdId = object.vdId;
+            if (object.vdPublicKey != null)
+                if (typeof object.vdPublicKey === "string")
+                    $util.base64.decode(object.vdPublicKey, message.vdPublicKey = $util.newBuffer($util.base64.length(object.vdPublicKey)), 0);
+                else if (object.vdPublicKey.length >= 0)
+                    message.vdPublicKey = object.vdPublicKey;
+            if (object.vdEpochStoragePublicKey != null)
+                if (typeof object.vdEpochStoragePublicKey === "string")
+                    $util.base64.decode(object.vdEpochStoragePublicKey, message.vdEpochStoragePublicKey = $util.newBuffer($util.base64.length(object.vdEpochStoragePublicKey)), 0);
+                else if (object.vdEpochStoragePublicKey.length >= 0)
+                    message.vdEpochStoragePublicKey = object.vdEpochStoragePublicKey;
+            if (object.vdEpochStoragePublicKeySig != null)
+                if (typeof object.vdEpochStoragePublicKeySig === "string")
+                    $util.base64.decode(object.vdEpochStoragePublicKeySig, message.vdEpochStoragePublicKeySig = $util.newBuffer($util.base64.length(object.vdEpochStoragePublicKeySig)), 0);
+                else if (object.vdEpochStoragePublicKeySig.length >= 0)
+                    message.vdEpochStoragePublicKeySig = object.vdEpochStoragePublicKeySig;
+            if (object.ocmfRotationToken != null)
+                if (typeof object.ocmfRotationToken === "string")
+                    $util.base64.decode(object.ocmfRotationToken, message.ocmfRotationToken = $util.newBuffer($util.base64.length(object.ocmfRotationToken)), 0);
+                else if (object.ocmfRotationToken.length >= 0)
+                    message.ocmfRotationToken = object.ocmfRotationToken;
+            if (object.deviceEpochHmac != null)
+                if (typeof object.deviceEpochHmac === "string")
+                    $util.base64.decode(object.deviceEpochHmac, message.deviceEpochHmac = $util.newBuffer($util.base64.length(object.deviceEpochHmac)), 0);
+                else if (object.deviceEpochHmac.length >= 0)
+                    message.deviceEpochHmac = object.deviceEpochHmac;
+            if (object.encryptedSecretValues != null) {
+                if (typeof object.encryptedSecretValues !== "object")
+                    throw TypeError(".proto.VirtualDeviceOutput.encryptedSecretValues: object expected");
+                message.encryptedSecretValues = $root.proto.EncryptedSecretValuesOutput.fromObject(object.encryptedSecretValues);
+            }
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a VirtualDeviceOutput message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.VirtualDeviceOutput
+         * @static
+         * @param {proto.VirtualDeviceOutput} message VirtualDeviceOutput
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        VirtualDeviceOutput.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            var object = {};
+            if (message.vdId != null && message.hasOwnProperty("vdId")) {
+                object.vdId = options.bytes === String ? $util.base64.encode(message.vdId, 0, message.vdId.length) : options.bytes === Array ? Array.prototype.slice.call(message.vdId) : message.vdId;
+                if (options.oneofs)
+                    object._vdId = "vdId";
+            }
+            if (message.vdPublicKey != null && message.hasOwnProperty("vdPublicKey")) {
+                object.vdPublicKey = options.bytes === String ? $util.base64.encode(message.vdPublicKey, 0, message.vdPublicKey.length) : options.bytes === Array ? Array.prototype.slice.call(message.vdPublicKey) : message.vdPublicKey;
+                if (options.oneofs)
+                    object._vdPublicKey = "vdPublicKey";
+            }
+            if (message.vdEpochStoragePublicKey != null && message.hasOwnProperty("vdEpochStoragePublicKey")) {
+                object.vdEpochStoragePublicKey = options.bytes === String ? $util.base64.encode(message.vdEpochStoragePublicKey, 0, message.vdEpochStoragePublicKey.length) : options.bytes === Array ? Array.prototype.slice.call(message.vdEpochStoragePublicKey) : message.vdEpochStoragePublicKey;
+                if (options.oneofs)
+                    object._vdEpochStoragePublicKey = "vdEpochStoragePublicKey";
+            }
+            if (message.vdEpochStoragePublicKeySig != null && message.hasOwnProperty("vdEpochStoragePublicKeySig")) {
+                object.vdEpochStoragePublicKeySig = options.bytes === String ? $util.base64.encode(message.vdEpochStoragePublicKeySig, 0, message.vdEpochStoragePublicKeySig.length) : options.bytes === Array ? Array.prototype.slice.call(message.vdEpochStoragePublicKeySig) : message.vdEpochStoragePublicKeySig;
+                if (options.oneofs)
+                    object._vdEpochStoragePublicKeySig = "vdEpochStoragePublicKeySig";
+            }
+            if (message.ocmfRotationToken != null && message.hasOwnProperty("ocmfRotationToken")) {
+                object.ocmfRotationToken = options.bytes === String ? $util.base64.encode(message.ocmfRotationToken, 0, message.ocmfRotationToken.length) : options.bytes === Array ? Array.prototype.slice.call(message.ocmfRotationToken) : message.ocmfRotationToken;
+                if (options.oneofs)
+                    object._ocmfRotationToken = "ocmfRotationToken";
+            }
+            if (message.deviceEpochHmac != null && message.hasOwnProperty("deviceEpochHmac")) {
+                object.deviceEpochHmac = options.bytes === String ? $util.base64.encode(message.deviceEpochHmac, 0, message.deviceEpochHmac.length) : options.bytes === Array ? Array.prototype.slice.call(message.deviceEpochHmac) : message.deviceEpochHmac;
+                if (options.oneofs)
+                    object._deviceEpochHmac = "deviceEpochHmac";
+            }
+            if (message.encryptedSecretValues != null && message.hasOwnProperty("encryptedSecretValues")) {
+                object.encryptedSecretValues = $root.proto.EncryptedSecretValuesOutput.toObject(message.encryptedSecretValues, options);
+                if (options.oneofs)
+                    object._encryptedSecretValues = "encryptedSecretValues";
+            }
+            return object;
+        };
+
+        /**
+         * Converts this VirtualDeviceOutput to JSON.
+         * @function toJSON
+         * @memberof proto.VirtualDeviceOutput
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        VirtualDeviceOutput.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for VirtualDeviceOutput
+         * @function getTypeUrl
+         * @memberof proto.VirtualDeviceOutput
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        VirtualDeviceOutput.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/proto.VirtualDeviceOutput";
+        };
+
+        return VirtualDeviceOutput;
     })();
 
     proto.WallpaperSettings = (function() {
@@ -235761,6 +241742,7 @@ $root.proto = (function() {
          * @interface IappDataMessage
          * @property {proto.IreactionInfo|null} [reactionInfo] appDataMessage reactionInfo
          * @property {proto.IliveTranscriptionInfo|null} [transcriptionInfo] appDataMessage transcriptionInfo
+         * @property {proto.IarEffectInfo|null} [arEffectInfo] appDataMessage arEffectInfo
          */
 
         /**
@@ -235795,6 +241777,14 @@ $root.proto = (function() {
         appDataMessage.prototype.transcriptionInfo = null;
 
         /**
+         * appDataMessage arEffectInfo.
+         * @member {proto.IarEffectInfo|null|undefined} arEffectInfo
+         * @memberof proto.appDataMessage
+         * @instance
+         */
+        appDataMessage.prototype.arEffectInfo = null;
+
+        /**
          * Creates a new appDataMessage instance using the specified properties.
          * @function create
          * @memberof proto.appDataMessage
@@ -235822,6 +241812,8 @@ $root.proto = (function() {
                 $root.proto.reactionInfo.encode(message.reactionInfo, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
             if (message.transcriptionInfo != null && Object.hasOwnProperty.call(message, "transcriptionInfo"))
                 $root.proto.liveTranscriptionInfo.encode(message.transcriptionInfo, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
+            if (message.arEffectInfo != null && Object.hasOwnProperty.call(message, "arEffectInfo"))
+                $root.proto.arEffectInfo.encode(message.arEffectInfo, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
             return writer;
         };
 
@@ -235864,6 +241856,10 @@ $root.proto = (function() {
                     }
                 case 2: {
                         message.transcriptionInfo = $root.proto.liveTranscriptionInfo.decode(reader, reader.uint32());
+                        break;
+                    }
+                case 3: {
+                        message.arEffectInfo = $root.proto.arEffectInfo.decode(reader, reader.uint32());
                         break;
                     }
                 default:
@@ -235911,6 +241907,11 @@ $root.proto = (function() {
                 if (error)
                     return "transcriptionInfo." + error;
             }
+            if (message.arEffectInfo != null && message.hasOwnProperty("arEffectInfo")) {
+                var error = $root.proto.arEffectInfo.verify(message.arEffectInfo);
+                if (error)
+                    return "arEffectInfo." + error;
+            }
             return null;
         };
 
@@ -235936,6 +241937,11 @@ $root.proto = (function() {
                     throw TypeError(".proto.appDataMessage.transcriptionInfo: object expected");
                 message.transcriptionInfo = $root.proto.liveTranscriptionInfo.fromObject(object.transcriptionInfo);
             }
+            if (object.arEffectInfo != null) {
+                if (typeof object.arEffectInfo !== "object")
+                    throw TypeError(".proto.appDataMessage.arEffectInfo: object expected");
+                message.arEffectInfo = $root.proto.arEffectInfo.fromObject(object.arEffectInfo);
+            }
             return message;
         };
 
@@ -235955,11 +241961,14 @@ $root.proto = (function() {
             if (options.defaults) {
                 object.reactionInfo = null;
                 object.transcriptionInfo = null;
+                object.arEffectInfo = null;
             }
             if (message.reactionInfo != null && message.hasOwnProperty("reactionInfo"))
                 object.reactionInfo = $root.proto.reactionInfo.toObject(message.reactionInfo, options);
             if (message.transcriptionInfo != null && message.hasOwnProperty("transcriptionInfo"))
                 object.transcriptionInfo = $root.proto.liveTranscriptionInfo.toObject(message.transcriptionInfo, options);
+            if (message.arEffectInfo != null && message.hasOwnProperty("arEffectInfo"))
+                object.arEffectInfo = $root.proto.arEffectInfo.toObject(message.arEffectInfo, options);
             return object;
         };
 
@@ -236434,6 +242443,454 @@ $root.proto = (function() {
         };
 
         return AQSStats;
+    })();
+
+    proto.arEffectInfo = (function() {
+
+        /**
+         * Properties of an arEffectInfo.
+         * @memberof proto
+         * @interface IarEffectInfo
+         * @property {number|Long|null} [transactionId] arEffectInfo transactionId
+         * @property {string|null} [arEffectId] arEffectInfo arEffectId
+         */
+
+        /**
+         * Constructs a new arEffectInfo.
+         * @memberof proto
+         * @classdesc Represents an arEffectInfo.
+         * @implements IarEffectInfo
+         * @constructor
+         * @param {proto.IarEffectInfo=} [properties] Properties to set
+         */
+        function arEffectInfo(properties) {
+            if (properties)
+                for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * arEffectInfo transactionId.
+         * @member {number|Long} transactionId
+         * @memberof proto.arEffectInfo
+         * @instance
+         */
+        arEffectInfo.prototype.transactionId = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+
+        /**
+         * arEffectInfo arEffectId.
+         * @member {string} arEffectId
+         * @memberof proto.arEffectInfo
+         * @instance
+         */
+        arEffectInfo.prototype.arEffectId = "";
+
+        /**
+         * Creates a new arEffectInfo instance using the specified properties.
+         * @function create
+         * @memberof proto.arEffectInfo
+         * @static
+         * @param {proto.IarEffectInfo=} [properties] Properties to set
+         * @returns {proto.arEffectInfo} arEffectInfo instance
+         */
+        arEffectInfo.create = function create(properties) {
+            return new arEffectInfo(properties);
+        };
+
+        /**
+         * Encodes the specified arEffectInfo message. Does not implicitly {@link proto.arEffectInfo.verify|verify} messages.
+         * @function encode
+         * @memberof proto.arEffectInfo
+         * @static
+         * @param {proto.IarEffectInfo} message arEffectInfo message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        arEffectInfo.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.transactionId != null && Object.hasOwnProperty.call(message, "transactionId"))
+                writer.uint32(/* id 1, wireType 0 =*/8).uint64(message.transactionId);
+            if (message.arEffectId != null && Object.hasOwnProperty.call(message, "arEffectId"))
+                writer.uint32(/* id 2, wireType 2 =*/18).string(message.arEffectId);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified arEffectInfo message, length delimited. Does not implicitly {@link proto.arEffectInfo.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.arEffectInfo
+         * @static
+         * @param {proto.IarEffectInfo} message arEffectInfo message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        arEffectInfo.encodeDelimited = function encodeDelimited(message, writer) {
+            return this.encode(message, writer).ldelim();
+        };
+
+        /**
+         * Decodes an arEffectInfo message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.arEffectInfo
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.arEffectInfo} arEffectInfo
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        arEffectInfo.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.arEffectInfo();
+            while (reader.pos < end) {
+                var tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.transactionId = reader.uint64();
+                        break;
+                    }
+                case 2: {
+                        message.arEffectId = reader.string();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Decodes an arEffectInfo message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.arEffectInfo
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.arEffectInfo} arEffectInfo
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        arEffectInfo.decodeDelimited = function decodeDelimited(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies an arEffectInfo message.
+         * @function verify
+         * @memberof proto.arEffectInfo
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        arEffectInfo.verify = function verify(message) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            if (message.transactionId != null && message.hasOwnProperty("transactionId"))
+                if (!$util.isInteger(message.transactionId) && !(message.transactionId && $util.isInteger(message.transactionId.low) && $util.isInteger(message.transactionId.high)))
+                    return "transactionId: integer|Long expected";
+            if (message.arEffectId != null && message.hasOwnProperty("arEffectId"))
+                if (!$util.isString(message.arEffectId))
+                    return "arEffectId: string expected";
+            return null;
+        };
+
+        /**
+         * Creates an arEffectInfo message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.arEffectInfo
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.arEffectInfo} arEffectInfo
+         */
+        arEffectInfo.fromObject = function fromObject(object) {
+            if (object instanceof $root.proto.arEffectInfo)
+                return object;
+            var message = new $root.proto.arEffectInfo();
+            if (object.transactionId != null)
+                if ($util.Long)
+                    (message.transactionId = $util.Long.fromValue(object.transactionId)).unsigned = true;
+                else if (typeof object.transactionId === "string")
+                    message.transactionId = parseInt(object.transactionId, 10);
+                else if (typeof object.transactionId === "number")
+                    message.transactionId = object.transactionId;
+                else if (typeof object.transactionId === "object")
+                    message.transactionId = new $util.LongBits(object.transactionId.low >>> 0, object.transactionId.high >>> 0).toNumber(true);
+            if (object.arEffectId != null)
+                message.arEffectId = String(object.arEffectId);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from an arEffectInfo message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.arEffectInfo
+         * @static
+         * @param {proto.arEffectInfo} message arEffectInfo
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        arEffectInfo.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            var object = {};
+            if (options.defaults) {
+                if ($util.Long) {
+                    var long = new $util.Long(0, 0, true);
+                    object.transactionId = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                } else
+                    object.transactionId = options.longs === String ? "0" : 0;
+                object.arEffectId = "";
+            }
+            if (message.transactionId != null && message.hasOwnProperty("transactionId"))
+                if (typeof message.transactionId === "number")
+                    object.transactionId = options.longs === String ? String(message.transactionId) : message.transactionId;
+                else
+                    object.transactionId = options.longs === String ? $util.Long.prototype.toString.call(message.transactionId) : options.longs === Number ? new $util.LongBits(message.transactionId.low >>> 0, message.transactionId.high >>> 0).toNumber(true) : message.transactionId;
+            if (message.arEffectId != null && message.hasOwnProperty("arEffectId"))
+                object.arEffectId = message.arEffectId;
+            return object;
+        };
+
+        /**
+         * Converts this arEffectInfo to JSON.
+         * @function toJSON
+         * @memberof proto.arEffectInfo
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        arEffectInfo.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for arEffectInfo
+         * @function getTypeUrl
+         * @memberof proto.arEffectInfo
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        arEffectInfo.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/proto.arEffectInfo";
+        };
+
+        return arEffectInfo;
+    })();
+
+    proto.BackupMute = (function() {
+
+        /**
+         * Properties of a BackupMute.
+         * @memberof proto
+         * @interface IBackupMute
+         * @property {boolean|null} [isMuted] BackupMute isMuted
+         */
+
+        /**
+         * Constructs a new BackupMute.
+         * @memberof proto
+         * @classdesc Represents a BackupMute.
+         * @implements IBackupMute
+         * @constructor
+         * @param {proto.IBackupMute=} [properties] Properties to set
+         */
+        function BackupMute(properties) {
+            if (properties)
+                for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * BackupMute isMuted.
+         * @member {boolean} isMuted
+         * @memberof proto.BackupMute
+         * @instance
+         */
+        BackupMute.prototype.isMuted = false;
+
+        /**
+         * Creates a new BackupMute instance using the specified properties.
+         * @function create
+         * @memberof proto.BackupMute
+         * @static
+         * @param {proto.IBackupMute=} [properties] Properties to set
+         * @returns {proto.BackupMute} BackupMute instance
+         */
+        BackupMute.create = function create(properties) {
+            return new BackupMute(properties);
+        };
+
+        /**
+         * Encodes the specified BackupMute message. Does not implicitly {@link proto.BackupMute.verify|verify} messages.
+         * @function encode
+         * @memberof proto.BackupMute
+         * @static
+         * @param {proto.IBackupMute} message BackupMute message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        BackupMute.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.isMuted != null && Object.hasOwnProperty.call(message, "isMuted"))
+                writer.uint32(/* id 1, wireType 0 =*/8).bool(message.isMuted);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified BackupMute message, length delimited. Does not implicitly {@link proto.BackupMute.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.BackupMute
+         * @static
+         * @param {proto.IBackupMute} message BackupMute message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        BackupMute.encodeDelimited = function encodeDelimited(message, writer) {
+            return this.encode(message, writer).ldelim();
+        };
+
+        /**
+         * Decodes a BackupMute message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.BackupMute
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.BackupMute} BackupMute
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        BackupMute.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.BackupMute();
+            while (reader.pos < end) {
+                var tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.isMuted = reader.bool();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Decodes a BackupMute message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.BackupMute
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.BackupMute} BackupMute
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        BackupMute.decodeDelimited = function decodeDelimited(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a BackupMute message.
+         * @function verify
+         * @memberof proto.BackupMute
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        BackupMute.verify = function verify(message) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            if (message.isMuted != null && message.hasOwnProperty("isMuted"))
+                if (typeof message.isMuted !== "boolean")
+                    return "isMuted: boolean expected";
+            return null;
+        };
+
+        /**
+         * Creates a BackupMute message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.BackupMute
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.BackupMute} BackupMute
+         */
+        BackupMute.fromObject = function fromObject(object) {
+            if (object instanceof $root.proto.BackupMute)
+                return object;
+            var message = new $root.proto.BackupMute();
+            if (object.isMuted != null)
+                message.isMuted = Boolean(object.isMuted);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a BackupMute message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.BackupMute
+         * @static
+         * @param {proto.BackupMute} message BackupMute
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        BackupMute.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            var object = {};
+            if (options.defaults)
+                object.isMuted = false;
+            if (message.isMuted != null && message.hasOwnProperty("isMuted"))
+                object.isMuted = message.isMuted;
+            return object;
+        };
+
+        /**
+         * Converts this BackupMute to JSON.
+         * @function toJSON
+         * @memberof proto.BackupMute
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        BackupMute.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for BackupMute
+         * @function getTypeUrl
+         * @memberof proto.BackupMute
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        BackupMute.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/proto.BackupMute";
+        };
+
+        return BackupMute;
     })();
 
     proto.BackupRelayLatency = (function() {
@@ -237129,6 +243586,9 @@ $root.proto = (function() {
          * @memberof proto
          * @interface IBackupSignalEnvelope
          * @property {proto.IBackupRelayLatencyReport|null} [relayLatency] BackupSignalEnvelope relayLatency
+         * @property {proto.IBackupMute|null} [mute] BackupSignalEnvelope mute
+         * @property {proto.IBackupVideoState|null} [videoState] BackupSignalEnvelope videoState
+         * @property {proto.IBackupTerminate|null} [terminate] BackupSignalEnvelope terminate
          */
 
         /**
@@ -237153,6 +243613,30 @@ $root.proto = (function() {
          * @instance
          */
         BackupSignalEnvelope.prototype.relayLatency = null;
+
+        /**
+         * BackupSignalEnvelope mute.
+         * @member {proto.IBackupMute|null|undefined} mute
+         * @memberof proto.BackupSignalEnvelope
+         * @instance
+         */
+        BackupSignalEnvelope.prototype.mute = null;
+
+        /**
+         * BackupSignalEnvelope videoState.
+         * @member {proto.IBackupVideoState|null|undefined} videoState
+         * @memberof proto.BackupSignalEnvelope
+         * @instance
+         */
+        BackupSignalEnvelope.prototype.videoState = null;
+
+        /**
+         * BackupSignalEnvelope terminate.
+         * @member {proto.IBackupTerminate|null|undefined} terminate
+         * @memberof proto.BackupSignalEnvelope
+         * @instance
+         */
+        BackupSignalEnvelope.prototype.terminate = null;
 
         /**
          * Creates a new BackupSignalEnvelope instance using the specified properties.
@@ -237180,6 +243664,12 @@ $root.proto = (function() {
                 writer = $Writer.create();
             if (message.relayLatency != null && Object.hasOwnProperty.call(message, "relayLatency"))
                 $root.proto.BackupRelayLatencyReport.encode(message.relayLatency, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+            if (message.mute != null && Object.hasOwnProperty.call(message, "mute"))
+                $root.proto.BackupMute.encode(message.mute, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
+            if (message.videoState != null && Object.hasOwnProperty.call(message, "videoState"))
+                $root.proto.BackupVideoState.encode(message.videoState, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+            if (message.terminate != null && Object.hasOwnProperty.call(message, "terminate"))
+                $root.proto.BackupTerminate.encode(message.terminate, writer.uint32(/* id 4, wireType 2 =*/34).fork()).ldelim();
             return writer;
         };
 
@@ -237218,6 +243708,18 @@ $root.proto = (function() {
                 switch (tag >>> 3) {
                 case 1: {
                         message.relayLatency = $root.proto.BackupRelayLatencyReport.decode(reader, reader.uint32());
+                        break;
+                    }
+                case 2: {
+                        message.mute = $root.proto.BackupMute.decode(reader, reader.uint32());
+                        break;
+                    }
+                case 3: {
+                        message.videoState = $root.proto.BackupVideoState.decode(reader, reader.uint32());
+                        break;
+                    }
+                case 4: {
+                        message.terminate = $root.proto.BackupTerminate.decode(reader, reader.uint32());
                         break;
                     }
                 default:
@@ -237260,6 +243762,21 @@ $root.proto = (function() {
                 if (error)
                     return "relayLatency." + error;
             }
+            if (message.mute != null && message.hasOwnProperty("mute")) {
+                var error = $root.proto.BackupMute.verify(message.mute);
+                if (error)
+                    return "mute." + error;
+            }
+            if (message.videoState != null && message.hasOwnProperty("videoState")) {
+                var error = $root.proto.BackupVideoState.verify(message.videoState);
+                if (error)
+                    return "videoState." + error;
+            }
+            if (message.terminate != null && message.hasOwnProperty("terminate")) {
+                var error = $root.proto.BackupTerminate.verify(message.terminate);
+                if (error)
+                    return "terminate." + error;
+            }
             return null;
         };
 
@@ -237280,6 +243797,21 @@ $root.proto = (function() {
                     throw TypeError(".proto.BackupSignalEnvelope.relayLatency: object expected");
                 message.relayLatency = $root.proto.BackupRelayLatencyReport.fromObject(object.relayLatency);
             }
+            if (object.mute != null) {
+                if (typeof object.mute !== "object")
+                    throw TypeError(".proto.BackupSignalEnvelope.mute: object expected");
+                message.mute = $root.proto.BackupMute.fromObject(object.mute);
+            }
+            if (object.videoState != null) {
+                if (typeof object.videoState !== "object")
+                    throw TypeError(".proto.BackupSignalEnvelope.videoState: object expected");
+                message.videoState = $root.proto.BackupVideoState.fromObject(object.videoState);
+            }
+            if (object.terminate != null) {
+                if (typeof object.terminate !== "object")
+                    throw TypeError(".proto.BackupSignalEnvelope.terminate: object expected");
+                message.terminate = $root.proto.BackupTerminate.fromObject(object.terminate);
+            }
             return message;
         };
 
@@ -237296,10 +243828,20 @@ $root.proto = (function() {
             if (!options)
                 options = {};
             var object = {};
-            if (options.defaults)
+            if (options.defaults) {
                 object.relayLatency = null;
+                object.mute = null;
+                object.videoState = null;
+                object.terminate = null;
+            }
             if (message.relayLatency != null && message.hasOwnProperty("relayLatency"))
                 object.relayLatency = $root.proto.BackupRelayLatencyReport.toObject(message.relayLatency, options);
+            if (message.mute != null && message.hasOwnProperty("mute"))
+                object.mute = $root.proto.BackupMute.toObject(message.mute, options);
+            if (message.videoState != null && message.hasOwnProperty("videoState"))
+                object.videoState = $root.proto.BackupVideoState.toObject(message.videoState, options);
+            if (message.terminate != null && message.hasOwnProperty("terminate"))
+                object.terminate = $root.proto.BackupTerminate.toObject(message.terminate, options);
             return object;
         };
 
@@ -237330,6 +243872,509 @@ $root.proto = (function() {
         };
 
         return BackupSignalEnvelope;
+    })();
+
+    proto.BackupTerminate = (function() {
+
+        /**
+         * Properties of a BackupTerminate.
+         * @memberof proto
+         * @interface IBackupTerminate
+         * @property {string|null} [reason] BackupTerminate reason
+         */
+
+        /**
+         * Constructs a new BackupTerminate.
+         * @memberof proto
+         * @classdesc Represents a BackupTerminate.
+         * @implements IBackupTerminate
+         * @constructor
+         * @param {proto.IBackupTerminate=} [properties] Properties to set
+         */
+        function BackupTerminate(properties) {
+            if (properties)
+                for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * BackupTerminate reason.
+         * @member {string} reason
+         * @memberof proto.BackupTerminate
+         * @instance
+         */
+        BackupTerminate.prototype.reason = "";
+
+        /**
+         * Creates a new BackupTerminate instance using the specified properties.
+         * @function create
+         * @memberof proto.BackupTerminate
+         * @static
+         * @param {proto.IBackupTerminate=} [properties] Properties to set
+         * @returns {proto.BackupTerminate} BackupTerminate instance
+         */
+        BackupTerminate.create = function create(properties) {
+            return new BackupTerminate(properties);
+        };
+
+        /**
+         * Encodes the specified BackupTerminate message. Does not implicitly {@link proto.BackupTerminate.verify|verify} messages.
+         * @function encode
+         * @memberof proto.BackupTerminate
+         * @static
+         * @param {proto.IBackupTerminate} message BackupTerminate message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        BackupTerminate.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.reason != null && Object.hasOwnProperty.call(message, "reason"))
+                writer.uint32(/* id 1, wireType 2 =*/10).string(message.reason);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified BackupTerminate message, length delimited. Does not implicitly {@link proto.BackupTerminate.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.BackupTerminate
+         * @static
+         * @param {proto.IBackupTerminate} message BackupTerminate message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        BackupTerminate.encodeDelimited = function encodeDelimited(message, writer) {
+            return this.encode(message, writer).ldelim();
+        };
+
+        /**
+         * Decodes a BackupTerminate message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.BackupTerminate
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.BackupTerminate} BackupTerminate
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        BackupTerminate.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.BackupTerminate();
+            while (reader.pos < end) {
+                var tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.reason = reader.string();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Decodes a BackupTerminate message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.BackupTerminate
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.BackupTerminate} BackupTerminate
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        BackupTerminate.decodeDelimited = function decodeDelimited(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a BackupTerminate message.
+         * @function verify
+         * @memberof proto.BackupTerminate
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        BackupTerminate.verify = function verify(message) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            if (message.reason != null && message.hasOwnProperty("reason"))
+                if (!$util.isString(message.reason))
+                    return "reason: string expected";
+            return null;
+        };
+
+        /**
+         * Creates a BackupTerminate message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.BackupTerminate
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.BackupTerminate} BackupTerminate
+         */
+        BackupTerminate.fromObject = function fromObject(object) {
+            if (object instanceof $root.proto.BackupTerminate)
+                return object;
+            var message = new $root.proto.BackupTerminate();
+            if (object.reason != null)
+                message.reason = String(object.reason);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a BackupTerminate message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.BackupTerminate
+         * @static
+         * @param {proto.BackupTerminate} message BackupTerminate
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        BackupTerminate.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            var object = {};
+            if (options.defaults)
+                object.reason = "";
+            if (message.reason != null && message.hasOwnProperty("reason"))
+                object.reason = message.reason;
+            return object;
+        };
+
+        /**
+         * Converts this BackupTerminate to JSON.
+         * @function toJSON
+         * @memberof proto.BackupTerminate
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        BackupTerminate.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for BackupTerminate
+         * @function getTypeUrl
+         * @memberof proto.BackupTerminate
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        BackupTerminate.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/proto.BackupTerminate";
+        };
+
+        return BackupTerminate;
+    })();
+
+    proto.BackupVideoState = (function() {
+
+        /**
+         * Properties of a BackupVideoState.
+         * @memberof proto
+         * @interface IBackupVideoState
+         * @property {number|null} [videoState] BackupVideoState videoState
+         * @property {number|null} [transactionId] BackupVideoState transactionId
+         * @property {number|null} [deviceOrientation] BackupVideoState deviceOrientation
+         * @property {number|null} [codecScheme] BackupVideoState codecScheme
+         * @property {string|null} [vidDecCapability] BackupVideoState vidDecCapability
+         */
+
+        /**
+         * Constructs a new BackupVideoState.
+         * @memberof proto
+         * @classdesc Represents a BackupVideoState.
+         * @implements IBackupVideoState
+         * @constructor
+         * @param {proto.IBackupVideoState=} [properties] Properties to set
+         */
+        function BackupVideoState(properties) {
+            if (properties)
+                for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null)
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        /**
+         * BackupVideoState videoState.
+         * @member {number} videoState
+         * @memberof proto.BackupVideoState
+         * @instance
+         */
+        BackupVideoState.prototype.videoState = 0;
+
+        /**
+         * BackupVideoState transactionId.
+         * @member {number} transactionId
+         * @memberof proto.BackupVideoState
+         * @instance
+         */
+        BackupVideoState.prototype.transactionId = 0;
+
+        /**
+         * BackupVideoState deviceOrientation.
+         * @member {number} deviceOrientation
+         * @memberof proto.BackupVideoState
+         * @instance
+         */
+        BackupVideoState.prototype.deviceOrientation = 0;
+
+        /**
+         * BackupVideoState codecScheme.
+         * @member {number} codecScheme
+         * @memberof proto.BackupVideoState
+         * @instance
+         */
+        BackupVideoState.prototype.codecScheme = 0;
+
+        /**
+         * BackupVideoState vidDecCapability.
+         * @member {string} vidDecCapability
+         * @memberof proto.BackupVideoState
+         * @instance
+         */
+        BackupVideoState.prototype.vidDecCapability = "";
+
+        /**
+         * Creates a new BackupVideoState instance using the specified properties.
+         * @function create
+         * @memberof proto.BackupVideoState
+         * @static
+         * @param {proto.IBackupVideoState=} [properties] Properties to set
+         * @returns {proto.BackupVideoState} BackupVideoState instance
+         */
+        BackupVideoState.create = function create(properties) {
+            return new BackupVideoState(properties);
+        };
+
+        /**
+         * Encodes the specified BackupVideoState message. Does not implicitly {@link proto.BackupVideoState.verify|verify} messages.
+         * @function encode
+         * @memberof proto.BackupVideoState
+         * @static
+         * @param {proto.IBackupVideoState} message BackupVideoState message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        BackupVideoState.encode = function encode(message, writer) {
+            if (!writer)
+                writer = $Writer.create();
+            if (message.videoState != null && Object.hasOwnProperty.call(message, "videoState"))
+                writer.uint32(/* id 1, wireType 0 =*/8).int32(message.videoState);
+            if (message.transactionId != null && Object.hasOwnProperty.call(message, "transactionId"))
+                writer.uint32(/* id 2, wireType 0 =*/16).int32(message.transactionId);
+            if (message.deviceOrientation != null && Object.hasOwnProperty.call(message, "deviceOrientation"))
+                writer.uint32(/* id 3, wireType 0 =*/24).int32(message.deviceOrientation);
+            if (message.codecScheme != null && Object.hasOwnProperty.call(message, "codecScheme"))
+                writer.uint32(/* id 4, wireType 0 =*/32).int32(message.codecScheme);
+            if (message.vidDecCapability != null && Object.hasOwnProperty.call(message, "vidDecCapability"))
+                writer.uint32(/* id 5, wireType 2 =*/42).string(message.vidDecCapability);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified BackupVideoState message, length delimited. Does not implicitly {@link proto.BackupVideoState.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.BackupVideoState
+         * @static
+         * @param {proto.IBackupVideoState} message BackupVideoState message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        BackupVideoState.encodeDelimited = function encodeDelimited(message, writer) {
+            return this.encode(message, writer).ldelim();
+        };
+
+        /**
+         * Decodes a BackupVideoState message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.BackupVideoState
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.BackupVideoState} BackupVideoState
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        BackupVideoState.decode = function decode(reader, length, error) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            var end = length === undefined ? reader.len : reader.pos + length, message = new $root.proto.BackupVideoState();
+            while (reader.pos < end) {
+                var tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.videoState = reader.int32();
+                        break;
+                    }
+                case 2: {
+                        message.transactionId = reader.int32();
+                        break;
+                    }
+                case 3: {
+                        message.deviceOrientation = reader.int32();
+                        break;
+                    }
+                case 4: {
+                        message.codecScheme = reader.int32();
+                        break;
+                    }
+                case 5: {
+                        message.vidDecCapability = reader.string();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Decodes a BackupVideoState message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.BackupVideoState
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.BackupVideoState} BackupVideoState
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        BackupVideoState.decodeDelimited = function decodeDelimited(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a BackupVideoState message.
+         * @function verify
+         * @memberof proto.BackupVideoState
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        BackupVideoState.verify = function verify(message) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            if (message.videoState != null && message.hasOwnProperty("videoState"))
+                if (!$util.isInteger(message.videoState))
+                    return "videoState: integer expected";
+            if (message.transactionId != null && message.hasOwnProperty("transactionId"))
+                if (!$util.isInteger(message.transactionId))
+                    return "transactionId: integer expected";
+            if (message.deviceOrientation != null && message.hasOwnProperty("deviceOrientation"))
+                if (!$util.isInteger(message.deviceOrientation))
+                    return "deviceOrientation: integer expected";
+            if (message.codecScheme != null && message.hasOwnProperty("codecScheme"))
+                if (!$util.isInteger(message.codecScheme))
+                    return "codecScheme: integer expected";
+            if (message.vidDecCapability != null && message.hasOwnProperty("vidDecCapability"))
+                if (!$util.isString(message.vidDecCapability))
+                    return "vidDecCapability: string expected";
+            return null;
+        };
+
+        /**
+         * Creates a BackupVideoState message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.BackupVideoState
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.BackupVideoState} BackupVideoState
+         */
+        BackupVideoState.fromObject = function fromObject(object) {
+            if (object instanceof $root.proto.BackupVideoState)
+                return object;
+            var message = new $root.proto.BackupVideoState();
+            if (object.videoState != null)
+                message.videoState = object.videoState | 0;
+            if (object.transactionId != null)
+                message.transactionId = object.transactionId | 0;
+            if (object.deviceOrientation != null)
+                message.deviceOrientation = object.deviceOrientation | 0;
+            if (object.codecScheme != null)
+                message.codecScheme = object.codecScheme | 0;
+            if (object.vidDecCapability != null)
+                message.vidDecCapability = String(object.vidDecCapability);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a BackupVideoState message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.BackupVideoState
+         * @static
+         * @param {proto.BackupVideoState} message BackupVideoState
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        BackupVideoState.toObject = function toObject(message, options) {
+            if (!options)
+                options = {};
+            var object = {};
+            if (options.defaults) {
+                object.videoState = 0;
+                object.transactionId = 0;
+                object.deviceOrientation = 0;
+                object.codecScheme = 0;
+                object.vidDecCapability = "";
+            }
+            if (message.videoState != null && message.hasOwnProperty("videoState"))
+                object.videoState = message.videoState;
+            if (message.transactionId != null && message.hasOwnProperty("transactionId"))
+                object.transactionId = message.transactionId;
+            if (message.deviceOrientation != null && message.hasOwnProperty("deviceOrientation"))
+                object.deviceOrientation = message.deviceOrientation;
+            if (message.codecScheme != null && message.hasOwnProperty("codecScheme"))
+                object.codecScheme = message.codecScheme;
+            if (message.vidDecCapability != null && message.hasOwnProperty("vidDecCapability"))
+                object.vidDecCapability = message.vidDecCapability;
+            return object;
+        };
+
+        /**
+         * Converts this BackupVideoState to JSON.
+         * @function toJSON
+         * @memberof proto.BackupVideoState
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        BackupVideoState.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the default type url for BackupVideoState
+         * @function getTypeUrl
+         * @memberof proto.BackupVideoState
+         * @static
+         * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+         * @returns {string} The default type url
+         */
+        BackupVideoState.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/proto.BackupVideoState";
+        };
+
+        return BackupVideoState;
     })();
 
     proto.BwaInfo = (function() {

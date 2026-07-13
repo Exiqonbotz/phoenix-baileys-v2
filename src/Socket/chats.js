@@ -116,7 +116,62 @@ const makeChatsSocket = config => {
 				},
 				content: [{ tag: 'privacy', attrs: {} }]
 			})
-			privacySettings = (0, WABinary_1.reduceBinaryNodeToDictionary)(content?.[0], 'category')
+			const privacyNode = content?.[0]
+			privacySettings = (0, WABinary_1.reduceBinaryNodeToDictionary)(privacyNode, 'category')
+
+			// A. Online Privacy Mode — may arrive as <category name="online" value="..."/> or
+			//    as a dedicated <online_privacy_setting value="..."/> child node.
+			const onlinePrivacy =
+				privacySettings['online'] ||
+				(0, WABinary_1.getBinaryNodeChild)(privacyNode, 'online_privacy_setting')?.attrs?.value ||
+				'all'
+
+			// C. Enhanced Block — root attrs or dedicated child node.
+			const enhancedBlockEnabled =
+				privacyNode?.attrs?.enhanced_block_enabled === 'true' ||
+				(0, WABinary_1.getBinaryNodeChild)(privacyNode, 'enhanced_block')?.attrs?.enabled === 'true'
+
+			// E. MD Privacy V2 flag.
+			const mdPrivacyV2 =
+				privacyNode?.attrs?.md_privacy_v2 === 'true' ||
+				(0, WABinary_1.getBinaryNodeChild)(privacyNode, 'md_privacy_v2')?.attrs?.value === 'true'
+
+			// F. Syncd clear-chat / delete-chat flag.
+			const syncdClearChatDeleteChatEnabled =
+				privacyNode?.attrs?.syncd_clear_chat_delete_chat_enabled === 'true' ||
+				(0, WABinary_1.getBinaryNodeChild)(privacyNode, 'syncd_clear_chat')?.attrs?.delete_chat_enabled === 'true'
+
+			// A. Syncd anti-tampering fatal-exception gate.
+			const syncdAntiTamperingEnabled =
+				privacyNode?.attrs?.syncd_anti_tampering_fatal_exception_enabled === 'true' ||
+				(0, WABinary_1.getBinaryNodeChild)(privacyNode, 'syncd_anti_tampering')?.attrs?.fatal_exception_enabled === 'true'
+
+			// B. Syncd key-index rotation gate.
+			const keyRotationEnabled =
+				privacyNode?.attrs?.syncd_key_rotation_enabled === 'true' ||
+				(0, WABinary_1.getBinaryNodeChild)(privacyNode, 'syncd_key_rotation')?.attrs?.enabled === 'true'
+
+			// Emit combined settings update so consumers can react without parsing raw creds.
+			ev.emit('settings.update', {
+				onlinePrivacy,
+				enhancedBlockEnabled,
+				mdPrivacyV2,
+				syncdClearChatDeleteChatEnabled,
+				...(syncdAntiTamperingEnabled ? { syncdAntiTamperingEnabled: true } : {}),
+				keyRotationEnabled
+			})
+
+			// Persist extended privacy flags in credentials.
+			ev.emit('creds.update', {
+				privacySettings: {
+					onlinePrivacy,
+					enhancedBlockEnabled,
+					mdPrivacyV2,
+					syncdClearChatDeleteChatEnabled,
+					syncdAntiTamperingEnabled,
+					keyRotationEnabled
+				}
+			})
 		}
 		return privacySettings
 	}
@@ -179,7 +234,7 @@ const makeChatsSocket = config => {
 		const privacyNode = result?.content?.[0]
 		if (!privacyNode) return null
 		const lists = []
-		for (const listNode of (privacyNode.content || [])) {
+		for (const listNode of privacyNode.content || []) {
 			const { type, id, listname, emoji, selected, deleted } = listNode.attrs || {}
 			const members = (listNode.content || []).map(u => u.attrs?.jid).filter(Boolean)
 			lists.push({ type, id, listname, emoji, selected: selected === 'true', deleted: deleted === 'true', members })
@@ -272,12 +327,35 @@ const makeChatsSocket = config => {
 		const timeframeNode = (0, WABinary_1.getBinaryNodeChild)(result, 'timeframe')
 		if (!limitsNode) return null
 		return {
-			messagesLeft: parseInt(limitsNode.attrs?.messages_left ?? (0, WABinary_1.getBinaryNodeChild)(limitsNode, 'messages_left')?.content ?? '0'),
-			totalLimit: parseInt(limitsNode.attrs?.total_limit ?? (0, WABinary_1.getBinaryNodeChild)(limitsNode, 'total_limit')?.content ?? '0'),
-			isHeavySender: (limitsNode.attrs?.is_heavy_sender ?? (0, WABinary_1.getBinaryNodeChild)(limitsNode, 'is_heavy_sender')?.content) === 'true',
-			startTs: parseInt(timeframeNode?.attrs?.start_ts_s ?? (0, WABinary_1.getBinaryNodeChild)(timeframeNode, 'start_ts_s')?.content ?? '0'),
-			endTs: parseInt(timeframeNode?.attrs?.end_ts_s ?? (0, WABinary_1.getBinaryNodeChild)(timeframeNode, 'end_ts_s')?.content ?? '0'),
-			resetTs: parseInt(timeframeNode?.attrs?.reset_ts_s ?? (0, WABinary_1.getBinaryNodeChild)(timeframeNode, 'reset_ts_s')?.content ?? '0')
+			messagesLeft: parseInt(
+				limitsNode.attrs?.messages_left ??
+					(0, WABinary_1.getBinaryNodeChild)(limitsNode, 'messages_left')?.content ??
+					'0',
+				10
+			),
+			totalLimit: parseInt(
+				limitsNode.attrs?.total_limit ?? (0, WABinary_1.getBinaryNodeChild)(limitsNode, 'total_limit')?.content ?? '0',
+				10
+			),
+			isHeavySender:
+				(limitsNode.attrs?.is_heavy_sender ??
+					(0, WABinary_1.getBinaryNodeChild)(limitsNode, 'is_heavy_sender')?.content) === 'true',
+			startTs: parseInt(
+				timeframeNode?.attrs?.start_ts_s ??
+					(0, WABinary_1.getBinaryNodeChild)(timeframeNode, 'start_ts_s')?.content ??
+					'0',
+				10
+			),
+			endTs: parseInt(
+				timeframeNode?.attrs?.end_ts_s ?? (0, WABinary_1.getBinaryNodeChild)(timeframeNode, 'end_ts_s')?.content ?? '0',
+				10
+			),
+			resetTs: parseInt(
+				timeframeNode?.attrs?.reset_ts_s ??
+					(0, WABinary_1.getBinaryNodeChild)(timeframeNode, 'reset_ts_s')?.content ??
+					'0',
+				10
+			)
 		}
 	}
 
@@ -366,6 +444,52 @@ const makeChatsSocket = config => {
 		return (0, WABinary_1.getBinaryNodeChildren)(result, 'notice').map(n => ({ ...n.attrs }))
 	}
 	/**
+	 * Accept a TOS/disclosure notice (`xmlns="tos"` set with `<trackable>`).
+	 * Mirrors WASmaxUserNoticeTrackDisclosureRPC from WA Web.
+	 * @param {string} noticeId the notice id (e.g. "20250211")
+	 * @param {string|number} result the result code (e.g. "105")
+	 */
+	const acceptTosNotice = async (noticeId, result = '105') => {
+		await query({
+			tag: 'iq',
+			attrs: { to: WABinary_1.S_WHATSAPP_NET, xmlns: 'tos', type: 'set' },
+			content: [{ tag: 'trackable', attrs: { id: String(noticeId), result: String(result) } }]
+		})
+	}
+	/**
+	 * Report spam for a chat/group with sample messages.
+	 * Mirrors WASmaxReportSpamRPC (xmlns="spam", type="set").
+	 * @param {string} jid the JID of the chat or group being reported
+	 * @param {Array<{id:string, from:string, t:number}>} messages up to ~5 recent messages as evidence
+	 * @param {string} [spamFlow] e.g. "group_info_report" or "contact_info_report"
+	 * @param {string} [subject] human-readable subject string (group name or contact name)
+	 */
+	const reportSpam = async (jid, messages, spamFlow = 'contact_info_report', subject) => {
+		const msgNodes = (messages || []).map(m => ({
+			tag: 'message',
+			attrs: {
+				from: String(jid),
+				t: String(m.t),
+				id: String(m.id)
+			}
+		}))
+		await query({
+			tag: 'iq',
+			attrs: { to: WABinary_1.S_WHATSAPP_NET, xmlns: 'spam', type: 'set' },
+			content: [
+				{
+					tag: 'spam_list',
+					attrs: {
+						jid: String(jid),
+						spam_flow: String(spamFlow),
+						...(subject ? { subject: String(subject) } : {})
+					},
+					content: msgNodes
+				}
+			]
+		})
+	}
+	/**
 	 * Get the account opt-out list (`optoutlist` IQ). Returns the raw result node.
 	 */
 	const getOptOutList = async () => {
@@ -373,6 +497,28 @@ const makeChatsSocket = config => {
 			tag: 'iq',
 			attrs: { to: WABinary_1.S_WHATSAPP_NET, xmlns: 'optoutlist', type: 'get' }
 		})
+	}
+	/**
+	 * Sign a blinded credential for privacy-preserving anonymous stats.
+	 * Mirrors WASmaxPrivateStatsSignCredentialRPC (xmlns `privatestats`).
+	 * @param {Buffer} blindedCredential 32-byte blinded credential
+	 * @returns {Promise<Buffer|undefined>} signed credential bytes from server
+	 */
+	const signPrivateCredential = async blindedCredential => {
+		const result = await query({
+			tag: 'iq',
+			attrs: { to: WABinary_1.S_WHATSAPP_NET, xmlns: 'privatestats', type: 'get' },
+			content: [
+				{
+					tag: 'sign_credential',
+					attrs: { version: '1' },
+					content: [{ tag: 'blinded_credential', attrs: {}, content: blindedCredential }]
+				}
+			]
+		})
+		const signedNode = (0, WABinary_1.getBinaryNodeChild)(result, 'sign_credential')
+		const signedBytes = (0, WABinary_1.getBinaryNodeChild)(signedNode, 'signed_credential')
+		return signedBytes?.content instanceof Uint8Array ? Buffer.from(signedBytes.content) : undefined
 	}
 	/**
 	 * Get push-notification settings (`urn:xmpp:whatsapp:push`).
@@ -402,7 +548,7 @@ const makeChatsSocket = config => {
 		for (const jid of jids) {
 			usyncQuery.withUser(new WAUSync_1.USyncUser().withId(jid))
 		}
-		const result = await sock.executeUSyncQuery(usyncQuery)
+		const result = await executeUSyncQuery(usyncQuery)
 		if (result) {
 			return result.list
 		}
@@ -412,7 +558,7 @@ const makeChatsSocket = config => {
 		for (const jid of jids) {
 			usyncQuery.withUser(new WAUSync_1.USyncUser().withId(jid))
 		}
-		const result = await sock.executeUSyncQuery(usyncQuery)
+		const result = await executeUSyncQuery(usyncQuery)
 		if (result) {
 			return result.list
 		}
@@ -499,10 +645,13 @@ const makeChatsSocket = config => {
 				xmlns: 'blocklist',
 				to: WABinary_1.S_WHATSAPP_NET,
 				type: 'get'
-			}
+			},
+			content: [{ tag: 'blocklist', attrs: {} }]
 		})
 		const listNode = (0, WABinary_1.getBinaryNodeChild)(result, 'list')
-		return (0, WABinary_1.getBinaryNodeChildren)(listNode, 'item').map(n => n.attrs.jid)
+		const jids = (0, WABinary_1.getBinaryNodeChildren)(listNode, 'item').map(n => n.attrs.jid)
+		ev.emit('blocklist.set', { blocklist: jids })
+		return jids
 	}
 	const updateBlockStatus = async (jid, action) => {
 		await query({
@@ -541,9 +690,35 @@ const makeChatsSocket = config => {
 							attrs: { jid }
 						}
 					]
+				},
+				{
+					tag: 'verified_name',
+					attrs: { xmlns: 'w:biz:verified_name' }
 				}
 			]
 		})
+		// Parse verified_name certificate if present in the response
+		const verifiedNameNode = (0, WABinary_1.getBinaryNodeChild)(results, 'verified_name')
+		let verifiedNameCert
+		if (verifiedNameNode) {
+			const certNode = (0, WABinary_1.getBinaryNodeChild)(verifiedNameNode, 'certificate')
+			if (certNode) {
+				const detailsNode = (0, WABinary_1.getBinaryNodeChild)(certNode, 'details')
+				const localizedNames = (0, WABinary_1.getBinaryNodeChildren)(certNode, 'localized_name').map(n => ({
+					lg: n.attrs?.lg,
+					lc: n.attrs?.lc,
+					verifiedName: n.attrs?.verified_name || n.content?.toString()
+				}))
+				verifiedNameCert = {
+					certSerial: certNode.attrs?.serial ? +certNode.attrs.serial : undefined,
+					issuer: certNode.attrs?.issuer,
+					details: {
+						verifiedName: detailsNode?.attrs?.verified_name || detailsNode?.content?.toString(),
+						localizedNames
+					}
+				}
+			}
+		}
 		const profileNode = (0, WABinary_1.getBinaryNodeChild)(results, 'business_profile')
 		const profiles = (0, WABinary_1.getBinaryNodeChild)(profileNode, 'profile')
 		if (profiles) {
@@ -560,9 +735,31 @@ const makeChatsSocket = config => {
 				? (0, WABinary_1.getBinaryNodeChildren)(businessHours, 'business_hours_config')
 				: undefined
 			const websiteStr = website?.content?.toString()
+
+			// Catalog status from profile attrs
+			const catalogStatus = {
+				exists: profiles.attrs?.catalog_exists === 'true' || profiles.attrs?.catalog_exists === true || false,
+				sendAll: profiles.attrs?.catalog_send_all === 'true' || profiles.attrs?.catalog_send_all === true || false
+			}
+
+			// Cart flags from profile attrs
+			const cartEnabled =
+				profiles.attrs?.cart_enabled !== undefined
+					? profiles.attrs.cart_enabled === 'true' || profiles.attrs.cart_enabled === true
+					: undefined
+			const webCartEnabled =
+				profiles.attrs?.web_cart_enabled !== undefined
+					? profiles.attrs.web_cart_enabled === 'true' || profiles.attrs.web_cart_enabled === true
+					: undefined
+			const webCartOnOff = profiles.attrs?.web_cart_on_off
+
+			// Commerce experience from profile attrs
+			const commerceExperience = profiles.attrs?.commerce_experience
+
 			return {
 				wid: profiles.attrs?.jid,
 				address: address?.content?.toString(),
+				businessAddress: address?.content?.toString(),
 				description: description?.content?.toString() || '',
 				website: websiteStr ? [websiteStr] : [],
 				email: email?.content?.toString(),
@@ -570,7 +767,24 @@ const makeChatsSocket = config => {
 				business_hours: {
 					timezone: businessHours?.attrs?.timezone,
 					business_config: businessHoursConfig?.map(({ attrs }) => attrs)
-				}
+				},
+				businessHours: businessHoursConfig
+					? {
+							timezone: businessHours?.attrs?.timezone ?? null,
+							config: businessHoursConfig.map(({ attrs }) => ({
+								dayOfWeek: attrs?.day_of_week ?? null,
+								openTime: attrs?.open_time ?? null,
+								closeTime: attrs?.close_time ?? null,
+								mode: attrs?.mode ?? null
+							}))
+					  }
+					: null,
+				catalogStatus,
+				cartEnabled,
+				webCartEnabled,
+				webCartOnOff,
+				commerceExperience,
+				verifiedNameCert
 			}
 		}
 	}
@@ -612,7 +826,7 @@ const makeChatsSocket = config => {
 		const appStateSyncKeyCache = new Map()
 		const getCachedAppStateSyncKey = async keyId => {
 			if (appStateSyncKeyCache.has(keyId)) {
-				return appStateSyncKeyCache.get(keyId) ?? undefined
+				return appStateSyncKeyCache.get(keyId)
 			}
 			const key = await getAppStateSyncKey(keyId)
 			appStateSyncKeyCache.set(keyId, key ?? null)
@@ -637,7 +851,7 @@ const makeChatsSocket = config => {
 					const result = await authState.keys.get('app-state-sync-version', [name])
 					let state = result[name]
 					if (state) {
-						if (typeof initialVersionMap[name] === 'undefined') {
+						if (initialVersionMap[name] === undefined) {
 							initialVersionMap[name] = state.version
 						}
 					} else {
@@ -880,24 +1094,132 @@ const makeChatsSocket = config => {
 		}
 	}
 	/**
-	 * @param toJid the jid to subscribe to
-	 * @param tcToken token for subscription, use if present
+	 * Store privacy tokens received from a usync response per-contact.
+	 * Called externally when a USyncQuery result includes privacy_token data.
+	 *
+	 * @param {Array<{jid: string, privacyToken: Buffer, privacyModeTs: number|string}>} entries
 	 */
-	const presenceSubscribe = async toJid => {
+	const storePrivacyTokens = async entries => {
+		if (!entries?.length) return
+		const write = {}
+		for (const { jid, privacyToken, privacyModeTs } of entries) {
+			if (!jid || !privacyToken?.length) continue
+			write[jid] = { token: Buffer.isBuffer(privacyToken) ? privacyToken : Buffer.from(privacyToken), ts: String(privacyModeTs || '') }
+		}
+		if (Object.keys(write).length) {
+			await authState.keys.set({ 'privacy-token': write })
+		}
+	}
+
+	/**
+	 * Wrapper around sock.executeUSyncQuery that automatically persists any per-contact
+	 * privacy tokens (privacy_mode_ts + privacy_token) present in the usync result list,
+	 * and emits contacts.update for any entries flagged isBlockedByContact.
+	 *
+	 * @param {import('../WAUSync/USyncQuery').USyncQuery} usyncQuery
+	 */
+	const executeUSyncQuery = async usyncQuery => {
+		const result = await sock.executeUSyncQuery(usyncQuery)
+		if (!result) return result
+
+		// B. Auto-persist privacy tokens found in any usync response.
+		const privacyEntries = []
+		const blockedContacts = []
+		for (const entry of [...(result.list || []), ...(result.sideList || [])]) {
+			if (entry.privacy?.token) {
+				privacyEntries.push({
+					jid: entry.id,
+					privacyToken: entry.privacy.token,
+					privacyModeTs: entry.privacy.modeTs
+				})
+			}
+			// G. Emit contacts.update for contacts that blocked us.
+			if (entry.isBlockedByContact) {
+				blockedContacts.push({ id: entry.id, isBlockedByContact: true })
+			}
+		}
+		if (privacyEntries.length) {
+			storePrivacyTokens(privacyEntries).catch(err => logger.warn({ err }, 'failed to store privacy tokens from usync'))
+		}
+		if (blockedContacts.length) {
+			ev.emit('contacts.update', blockedContacts)
+		}
+		return result
+	}
+
+	/**
+	 * @param toJid the jid to subscribe to
+	 * @param options.presenceType optional presenceType attribute stored for the contact
+	 * @param options.presenceName optional presenceName attribute for the subscribe stanza
+	 * @param options.groupJid optional group JID — when set adds context="group" attribute
+	 */
+	const presenceSubscribe = async (toJid, { presenceType, presenceName, groupJid } = {}) => {
 		// Only include tctoken for user JIDs — groups/newsletters don't use tctokens
 		const normalizedToJid = (0, WABinary_1.jidNormalizedUser)(toJid)
 		const isUserJid = (0, WABinary_1.isPnUser)(normalizedToJid) || (0, WABinary_1.isLidUser)(normalizedToJid)
-		const tcTokenContent = isUserJid
-			? await (0, tc_token_utils_1.buildTcTokenFromJid)({ authState, jid: normalizedToJid, getLIDForPN })
-			: undefined
+
+		// Build presence attributes
+		const presenceAttrs = {
+			to: toJid,
+			id: generateMessageTag(),
+			type: 'subscribe'
+		}
+
+		// Accumulate child nodes for the presence stanza
+		const presenceContent = []
+
+		// A. TC Token as attribute: fetch stored token and attach as base64 tc_token attr
+		if (isUserJid) {
+			try {
+				const storageJid = await (0, tc_token_utils_1.resolveTcTokenJid)(normalizedToJid, getLIDForPN)
+				const tcTokenData = await authState.keys.get('tctoken', [storageJid])
+				const entry = tcTokenData?.[storageJid]
+				const tcTokenBuffer = entry?.token
+				if (tcTokenBuffer?.length && !(0, tc_token_utils_1.isTcTokenExpired)(entry?.timestamp)) {
+					presenceAttrs.tc_token = tcTokenBuffer.toString('base64')
+				}
+			} catch (e) {
+				// best-effort — proceed without tc_token if lookup fails
+			}
+
+			// B. Privacy Token — include per-contact privacy token when available.
+			// This token is issued by the contact's device via usync and gates presence
+			// visibility when their online privacy is set to "contacts" or "contact_blacklist".
+			try {
+				const privTokenData = await authState.keys.get('privacy-token', [normalizedToJid])
+				const privEntry = privTokenData?.[normalizedToJid]
+				if (privEntry?.token?.length) {
+					const privTokenAttrs = {}
+					if (privEntry.ts) privTokenAttrs.t = privEntry.ts
+					presenceContent.push({
+						tag: 'privacy_token',
+						attrs: privTokenAttrs,
+						content: privEntry.token
+					})
+				}
+			} catch (e) {
+				// best-effort — proceed without privacy_token if lookup fails
+			}
+		}
+
+		// C. presenceType and presenceName attributes
+		if (presenceType) {
+			presenceAttrs.presenceType = presenceType
+		}
+		if (presenceName) {
+			presenceAttrs.presenceName = presenceName
+		}
+
+		// D. Group presence context
+		if (groupJid) {
+			presenceAttrs.context = 'group'
+			presenceAttrs.group_jid = (0, WABinary_1.jidNormalizedUser)(groupJid)
+		}
+
 		return sendNode({
 			tag: 'presence',
-			attrs: {
-				to: toJid,
-				id: generateMessageTag(),
-				type: 'subscribe'
-			},
-			content: tcTokenContent
+			attrs: presenceAttrs,
+			content: presenceContent.length ? presenceContent : undefined
 		})
 	}
 	const handlePresenceUpdate = ({ tag, attrs, content }) => {
@@ -1303,7 +1625,7 @@ const makeChatsSocket = config => {
 		for (const jid of jids) {
 			q.withUser(new USyncUser().withId(jid))
 		}
-		const result = await sock.executeUSyncQuery(q)
+		const result = await executeUSyncQuery(q)
 		return result?.list || []
 	}
 	/**
@@ -1486,7 +1808,55 @@ const makeChatsSocket = config => {
 	 * help ensure parity with WA Web
 	 * */
 	const executeInitQueries = async () => {
-		await Promise.all([fetchProps(), fetchBlocklist(), fetchPrivacySettings(), initInterop()])
+		// Gate initInterop on previously-persisted flag: undefined = first connection (always run);
+		// false = account has interop disabled, skip the TOS/opt-in flow on reconnect.
+		const shouldInitInterop = authState.creds.interopEnabled !== false
+		const [, , , abProps] = await Promise.all([
+			fetchProps(),
+			fetchBlocklist(),
+			fetchPrivacySettings(),
+			fetchABProps(),
+			...(shouldInitInterop ? [initInterop()] : [])
+		])
+		const INTEROP_FLAGS = ['stella_interop_enabled', 'stella_ios_enabled']
+		for (const flag of INTEROP_FLAGS) {
+			if (flag in abProps) {
+				const enabled = abProps[flag] === 'true' || abProps[flag] === '1'
+				ev.emit('interop.feature-update', { feature: flag, enabled })
+			}
+		}
+		// Persist AB prop feature flags into connection credentials so they survive reconnect.
+		const abCredsUpdate = {}
+		if ('stella_interop_enabled' in abProps) {
+			abCredsUpdate.interopEnabled = abProps['stella_interop_enabled'] === 'true' || abProps['stella_interop_enabled'] === '1'
+		}
+		if ('stella_ios_enabled' in abProps) {
+			abCredsUpdate.interopIosEnabled = abProps['stella_ios_enabled'] === 'true' || abProps['stella_ios_enabled'] === '1'
+		}
+		if ('md_privacy_v2' in abProps) {
+			abCredsUpdate.mdPrivacyV2 = abProps['md_privacy_v2'] === 'true' || abProps['md_privacy_v2'] === '1'
+		}
+		// Persist media feature-flag AB props so upload/download paths can gate on them.
+		const MEDIA_AB_PROPS = [
+			'hd_image_dual_upload',
+			'hd_video_dual_upload',
+			'hevc_video_dual_upload',
+			'partial_pjpeg_enabled',
+			'multi_scan_pjpeg',
+			'media_poll'
+		]
+		const mediaAbProps = {}
+		for (const prop of MEDIA_AB_PROPS) {
+			if (prop in abProps) {
+				mediaAbProps[prop] = abProps[prop] === 'true' || abProps[prop] === '1'
+			}
+		}
+		if (Object.keys(mediaAbProps).length) {
+			abCredsUpdate.mediaAbProps = { ...(authState.creds.mediaAbProps || {}), ...mediaAbProps }
+		}
+		if (Object.keys(abCredsUpdate).length) {
+			ev.emit('creds.update', abCredsUpdate)
+		}
 	}
 	const upsertMessage = ev.createBufferedFunction(async (msg, type) => {
 		ev.emit('messages.upsert', { messages: [msg], type })
@@ -1718,9 +2088,12 @@ const makeChatsSocket = config => {
 		getChatBlockingStatus,
 		updateChatBlockingStatus,
 		getUserDisclosures,
+		acceptTosNotice,
+		reportSpam,
 		getOptOutList,
 		getPushConfig,
 		setPushConfig,
+		signPrivateCredential,
 		messageMutex,
 		receiptMutex,
 		appStatePatchMutex,
@@ -1810,7 +2183,9 @@ const makeChatsSocket = config => {
 		fetchMediaConn,
 		deleteBroadcastList,
 		fetchQRCode,
-		confirmDeviceLogout
+		confirmDeviceLogout,
+		storePrivacyTokens,
+		executeUSyncQuery
 	}
 }
 exports.makeChatsSocket = makeChatsSocket

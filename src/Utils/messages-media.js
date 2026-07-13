@@ -60,6 +60,7 @@ exports.getStatusCodeForMediaRetry =
 	exports.downloadEncryptedContent =
 	exports.downloadContentFromMessage =
 	exports.getUrlFromDirectPath =
+	exports.getMediaProp =
 	exports.encryptedStream =
 	exports.getHttpStream =
 	exports.getStream =
@@ -492,16 +493,85 @@ const toSmallestChunkSize = num => {
 }
 const getUrlFromDirectPath = directPath => `https://${DEF_HOST}${directPath}`
 exports.getUrlFromDirectPath = getUrlFromDirectPath
+/**
+ * Returns the boolean value of a named AB prop from the mediaAbProps dict stored in creds.
+ * Returns false when the prop is absent or the dict is not available.
+ */
+const getMediaProp = (mediaAbProps, propName) => {
+	if (!mediaAbProps || typeof mediaAbProps !== 'object') return false
+	return !!mediaAbProps[propName]
+}
+exports.getMediaProp = getMediaProp
 const downloadContentFromMessage = async ({ mediaKey, directPath, url }, type, opts = {}) => {
-	const isValidMediaUrl = url?.startsWith('https://mmg.whatsapp.net/')
-	const downloadUrl = isValidMediaUrl ? url : (0, exports.getUrlFromDirectPath)(directPath)
-	if (!downloadUrl) {
+	const directUrl = directPath ? (0, exports.getUrlFromDirectPath)(directPath) : undefined
+	const fallbackUrl = url?.startsWith('https://') ? url : undefined
+	// Feature F: prefer directPath-derived URL; fall back to mediaUrl on failure.
+	// When both are the same host the first attempt is enough.
+	let downloadUrl
+	if (directUrl) {
+		downloadUrl = directUrl
+	} else if (fallbackUrl) {
+		downloadUrl = fallbackUrl
+	} else {
 		throw new boom_1.Boom('No valid media URL or directPath present in message', { statusCode: 400 })
 	}
 	const keys = await getMediaKeys(mediaKey, type)
-	return (0, exports.downloadEncryptedContent)(downloadUrl, keys, opts)
+	// Feature E: progressive JPEG headers when the AB prop signals support.
+	const mediaAbProps = opts.mediaAbProps
+	const pjpegHeaders = {}
+	if (type === 'image' && getMediaProp(mediaAbProps, 'partial_pjpeg_enabled')) {
+		// Signal to the CDN that we accept partial / progressive content.
+		pjpegHeaders['X-WhatsApp-PJPEG'] = '1'
+	}
+	if (type === 'image' && getMediaProp(mediaAbProps, 'multi_scan_pjpeg')) {
+		pjpegHeaders['X-WhatsApp-Multi-Scan-PJPEG'] = '1'
+	}
+	const mergedOpts =
+		Object.keys(pjpegHeaders).length
+			? { ...opts, options: { ...(opts.options || {}), headers: { ...(opts.options?.headers || {}), ...pjpegHeaders } } }
+			: opts
+	try {
+		return await (0, exports.downloadEncryptedContent)(downloadUrl, keys, mergedOpts)
+	} catch (err) {
+		// Feature F fallback: if directPath URL failed and we have an alternative mediaUrl, retry.
+		if (directUrl && fallbackUrl && fallbackUrl !== directUrl) {
+			return (0, exports.downloadEncryptedContent)(fallbackUrl, keys, mergedOpts)
+		}
+		throw err
+	}
 }
 exports.downloadContentFromMessage = downloadContentFromMessage
+/**
+ * Fetch a specific decrypted byte range of an encrypted media message.
+ * Returns a Transform stream (same contract as downloadContentFromMessage).
+ * Relies on the Range-request support already present in downloadEncryptedContent.
+ */
+const downloadMediaChunk = (message, type, startByte, endByte, opts = {}) =>
+	downloadContentFromMessage(message, type, { ...opts, startByte, endByte })
+exports.downloadMediaChunk = downloadMediaChunk
+/**
+ * Async generator that yields successive decrypted chunk streams for large media.
+ * Uses HTTP Range requests so the CDN only sends the requested slice each time.
+ * Useful for progressive playback: the caller can begin rendering before the full
+ * file is downloaded.
+ *
+ * @param {object} message - The message content object with mediaKey, directPath/url, fileLength
+ * @param {string} type    - WA media type ('image', 'video', 'audio', 'document', ...)
+ * @param {object} opts    - Passed through to downloadContentFromMessage; add chunkSize (bytes) to override
+ */
+async function* streamMediaChunks(message, type, opts = {}) {
+	const chunkSize = opts.chunkSize || 2 * 1024 * 1024
+	const fileLength = message.fileLength
+	if (!fileLength || fileLength <= chunkSize) {
+		yield downloadContentFromMessage(message, type, opts)
+		return
+	}
+	for (let offset = 0; offset < fileLength; offset += chunkSize) {
+		const endByte = Math.min(offset + chunkSize - 1, fileLength - 1)
+		yield downloadContentFromMessage(message, type, { ...opts, startByte: offset, endByte })
+	}
+}
+exports.streamMediaChunks = streamMediaChunks
 /**
  * Decrypts and downloads an AES256-CBC encrypted file given the keys.
  * Assumes the SHA256 of the plaintext is appended to the end of the ciphertext

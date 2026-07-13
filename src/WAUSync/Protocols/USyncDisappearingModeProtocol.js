@@ -20,10 +20,7 @@ class USyncDisappearingModeProtocol {
 			;(0, WABinary_1.assertNodeErrorFree)(node)
 			const duration = +node?.attrs.duration
 			const setAt = new Date(+(node?.attrs.t || 0) * 1000)
-			return {
-				duration,
-				setAt
-			}
+			return { duration, setAt }
 		}
 	}
 }
