@@ -7,6 +7,8 @@ const { makePrivacySocket } = require('./privacy')
 const { makeRegistrationSocket } = require('./registration')
 const { makeManagedAccountSocket } = require('./managed-account')
 const { makeGraphQLSocket } = require('./graphql')
+// Antiban protection — bundled directly into phoenix-baileys-v2
+const { wrapSocket: _wrapSocket } = require('../antiban')
 
 // export the last socket layer
 const makeWASocket = config => {
@@ -28,6 +30,11 @@ const makeWASocket = config => {
 	const registrationSock = makeRegistrationSocket(privacySock)
 	const managedSock = makeManagedAccountSocket(registrationSock)
 	const sock = makeGraphQLSocket(managedSock)
+	// Auto-wrap with antiban if available (config.antiban = false to opt-out)
+	if (_wrapSocket && config?.antiban !== false) {
+		const antibanConfig = config?.antiban || 'conservative'
+		return _wrapSocket(sock, antibanConfig)
+	}
 	return sock
 }
 exports.default = makeWASocket
