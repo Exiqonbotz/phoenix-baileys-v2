@@ -1,6 +1,6 @@
 # Rust Bridge API — Integration Status
 
-Full catalog of the `whatsapp-rust-bridge-Exiqon` WASM API surface. Everything in the bridge runs in Rust/WASM; calls cross the JS↔WASM boundary once and return.
+Full catalog of the `whatsapp-rust-bridge-baron` WASM API surface. Everything in the bridge runs in Rust/WASM; calls cross the JS↔WASM boundary once and return.
 
 ---
 

@@ -159,7 +159,7 @@ const check = await sock.checkUsername('myusername')
 // Returns: { available: true, username: 'myusername' }
 
 // Check multiple at once
-const multi = await sock.checkUsernameMulti(['Exiqon', 'test123'])
+const multi = await sock.checkUsernameMulti(['baron', 'test123'])
 
 // Set your username (must be available)
 await sock.setUsername('myusername')
